@@ -1,11 +1,8 @@
--- Datenbankschema für "Flunk des Lebens" (Supabase / Postgres).
+-- Migration: Grundschema für "Flunk des Lebens".
 --
--- So einrichten:
---   1. Bei https://supabase.com kostenloses Projekt anlegen.
---   2. Im Dashboard: SQL Editor öffnen, diesen kompletten Inhalt einfügen,
---      "Run" klicken.
---   3. Unter "Project Settings → API" die "Project URL" und den
---      "anon public" Key kopieren und in die .env eintragen (siehe .env.example).
+-- Wird bei jedem Push auf `main` automatisch von GitHub Actions angewendet
+-- (siehe .github/workflows/supabase-migrate.yml). Alle Anweisungen sind
+-- idempotent – erneutes Ausführen ist gefahrlos.
 --
 -- Ein "Spiel" ist eine Zeile: der geteilte Spielzustand als JSON, adressiert
 -- über einen kurzen Code. Alle Geräte mit demselben Code sehen live dasselbe.

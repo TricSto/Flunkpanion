@@ -1,0 +1,39 @@
+name: Supabase Migrationen
+
+# Wendet Datenbank-Migrationen automatisch auf das Supabase-Projekt an –
+# bei jedem Push auf `main`, der etwas unter supabase/migrations/ ändert.
+# Manuell auslösbar über den "Run workflow"-Button (workflow_dispatch).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/supabase-migrate.yml'
+  workflow_dispatch:
+
+env:
+  # Reference ID des Supabase-Projekts (kein Geheimnis, steht in der URL).
+  SUPABASE_PROJECT_ID: jkqkcuuogymfbdirdmde
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Projekt verknüpfen
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Migrationen anwenden
+        run: supabase db push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}

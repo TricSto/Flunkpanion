@@ -1,0 +1,5 @@
+# Supabase-CLI-Konfiguration. `project_id` verweist auf euer Cloud-Projekt
+# (die "Reference ID" aus Project Settings → General). Kein Geheimnis – steht
+# ohnehin in der Projekt-URL. GitHub Actions nutzt sie, um Migrationen
+# automatisch anzuwenden (siehe .github/workflows/supabase-migrate.yml).
+project_id = "jkqkcuuogymfbdirdmde"
