@@ -1319,25 +1319,36 @@ select {
   padding: 4px 4px;
 }
 
-/* ---- Spielbrett ----------------------------------------------------------- */
+/* ---- Spielfeld -------------------------------------------------------------
+   Der Spiel-Tab (.app-fit) ist exakt bildschirmhoch: das Raster verteilt die
+   verfügbare Höhe auf alle Felder, sodass nie gescrollt werden muss. */
+.app-fit {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-fit .app-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .board {
   display: flex;
   flex-direction: column;
-}
-
-.board-hint {
-  margin: 6px 0 10px;
-}
-
-.board-note {
-  margin: 14px 2px 0;
-  text-align: center;
+  flex: 1;
+  min-height: 0;
 }
 
 .board-grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  /* 5 Reihen à 2 Felder + eine größere Flunk-Reihe. */
+  grid-template-rows: repeat(5, minmax(0, 1fr)) minmax(0, 1.2fr);
+  gap: clamp(6px, 1.2vh, 10px);
 }
 
 .field-tile {
@@ -1345,10 +1356,12 @@ select {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   gap: 6px;
   text-align: left;
-  padding: 13px 13px 12px;
-  min-height: 104px;
+  padding: 10px 13px;
+  min-height: 0;
+  overflow: hidden;
   border-radius: var(--radius);
   border: 1px solid color-mix(in srgb, var(--tile) 50%, var(--border));
   background: linear-gradient(
@@ -1390,9 +1403,9 @@ select {
 }
 
 .flunk-tile {
+  grid-column: 1 / -1;
   width: 100%;
-  margin-top: 10px;
-  min-height: 118px;
+  min-height: 0;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -1412,6 +1425,34 @@ select {
 
 .flunk-tile .field-sub {
   font-size: 12px;
+}
+
+/* Wenig Bildschirmhöhe: Felder kompakter, damit weiterhin alles passt. */
+@media (max-height: 760px) {
+  .field-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+    border-radius: 9px;
+  }
+
+  .field-label {
+    font-size: 13.5px;
+  }
+
+  .field-sub {
+    display: none;
+  }
+
+  .flunk-tile .field-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 21px;
+  }
+
+  .flunk-tile .field-label {
+    font-size: 17px;
+  }
 }
 
 /* ---- Feld-Aktionssheet ---------------------------------------------------- */

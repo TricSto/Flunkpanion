@@ -58,7 +58,6 @@ export function BoardView({
   onOpenChallenge: () => void
   onOpenFlunk: () => void
 }) {
-  const { state } = useStore()
   const [active, setActive] = useState<FieldDef | null>(null)
 
   const tap = (f: FieldDef) => {
@@ -69,15 +68,12 @@ export function BoardView({
 
   return (
     <section className="board">
-      <p className="board-hint muted small">
-        Tippe das Feld an, auf dem ein Team gelandet ist.
-      </p>
-
+      {/* Nur die Feld-Buttons – das Raster füllt den Bildschirm ohne Scrollen. */}
       <div className="board-grid">
-        {GRID_FIELDS.map((f) => (
+        {[...GRID_FIELDS, FLUNK_FIELD].map((f) => (
           <button
             key={f.key}
-            className="field-tile"
+            className={f.key === 'flunk' ? 'field-tile flunk-tile' : 'field-tile'}
             style={tileStyle(f.color)}
             onClick={() => tap(f)}
           >
@@ -87,23 +83,6 @@ export function BoardView({
           </button>
         ))}
       </div>
-
-      <button
-        className="field-tile flunk-tile"
-        style={tileStyle(FLUNK_FIELD.color)}
-        onClick={() => tap(FLUNK_FIELD)}
-      >
-        <span className="field-icon">{FLUNK_FIELD.icon}</span>
-        <span className="field-label">{FLUNK_FIELD.label}</span>
-        <span className="field-sub">{FLUNK_FIELD.sub}</span>
-      </button>
-
-      {state.teams.length === 0 && (
-        <p className="muted small board-note">
-          Noch keine Teams. Lege sie im Tab „Setup“ an, dann kannst du die Felder
-          einem Team zuweisen.
-        </p>
-      )}
 
       {active && <FieldSheet field={active} onClose={() => setActive(null)} />}
     </section>
