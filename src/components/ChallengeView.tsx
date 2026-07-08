@@ -1,13 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 import type { Card, ChallengeReward } from '../types'
-import { formatMoney } from '../util'
+import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
-
-function pickRandom<T>(items: T[]): T | undefined {
-  if (items.length === 0) return undefined
-  return items[Math.floor(Math.random() * items.length)]
-}
 
 export function ChallengeView() {
   const { state, startChallenge } = useStore()
@@ -28,7 +23,7 @@ export function ChallengeView() {
       <div className="empty">
         <p className="empty-emoji">⚔️</p>
         <p>Für Challenges braucht ihr mindestens zwei Teams.</p>
-        <p className="muted">Legt sie im Tab „Admin“ an.</p>
+        <p className="muted">Legt sie im Tab „Setup“ an.</p>
       </div>
     )
   }
@@ -66,8 +61,8 @@ export function ChallengeView() {
     <section className="challenge-setup">
       <p className="muted small settings-intro">
         {myTeam
-          ? 'Wähle den Gegner, lose eine Challenge aus – alle Geräte sehen sie live. Danach gibst du den Gewinner an, der Nachricht & Belohnung erhält.'
-          : 'Wähle die zwei Teams, lose eine Challenge aus – alle Geräte sehen sie live. Danach gibst du den Gewinner an, der Nachricht & Belohnung erhält.'}
+          ? 'Wähle den Gegner, lose eine Challenge aus – alle Geräte sehen sie live. Der Gewinner bekommt eine zufällige Aktionskarte.'
+          : 'Wähle die zwei Teams, lose eine Challenge aus – alle Geräte sehen sie live. Der Gewinner bekommt eine zufällige Aktionskarte.'}
       </p>
 
       <div className="challenge-vs">
@@ -112,7 +107,7 @@ export function ChallengeView() {
 
       {!challengeDeck || challengeDeck.cards.length === 0 ? (
         <p className="muted small">
-          Kein Challenge-Deck mit Karten gefunden. Lege im Tab „Admin“ welche an.
+          Kein Challenge-Deck mit Karten gefunden. Lege im Tab „Setup“ welche an.
         </p>
       ) : (
         <button
@@ -169,8 +164,12 @@ function ActiveChallenge({
               🏆 {opponentName}
             </button>
           </div>
-          <button className="btn ghost small center-btn" onClick={clearChallenge}>
-            Abbrechen
+          <button
+            className="btn ghost small center-btn"
+            onClick={clearChallenge}
+            title="Challenge ohne Sieger ablegen – niemand bekommt eine Karte"
+          >
+            Fertig – ohne Sieger ablegen
           </button>
         </>
       ) : (
@@ -178,10 +177,15 @@ function ActiveChallenge({
           <p className="challenge-result-line">
             🏆 <strong>{winner?.name ?? 'Team'}</strong> hat gewonnen!
           </p>
-          {challenge.reward?.kind === 'cash' && challenge.reward.amount ? (
+          {challenge.reward?.kind === 'card' && challenge.reward.cardTitle ? (
+            <div className="drawn-card reward-card">
+              <strong className="drawn-title">🃏 {challenge.reward.cardTitle}</strong>
+              {challenge.reward.cardNote && (
+                <p className="drawn-detail">{challenge.reward.cardNote}</p>
+              )}
+            </div>
+          ) : challenge.reward?.kind === 'cash' && challenge.reward.amount ? (
             <p className="muted">Belohnung: {formatMoney(challenge.reward.amount)}</p>
-          ) : challenge.reward?.kind === 'card' ? (
-            <p className="muted">Belohnung: Aktionskarte „{challenge.title}“</p>
           ) : (
             <p className="muted">Keine Belohnung.</p>
           )}
@@ -193,8 +197,7 @@ function ActiveChallenge({
 
       {rewardFor && (
         <RewardModal
-          winnerName={state.teams.find((t) => t.id === rewardFor)?.name ?? 'Team'}
-          challengeTitle={challenge.title}
+          winnerId={rewardFor}
           onClose={() => setRewardFor(null)}
           onConfirm={(reward, message) => {
             resolveChallenge(rewardFor, reward, message)
@@ -206,68 +209,55 @@ function ActiveChallenge({
   )
 }
 
+/**
+ * Belohnung für den Challenge-Sieger: eine zufällig gezogene normale
+ * Aktionskarte (keine spielverändernde, keine Doppelten). Die Karte wird
+ * direkt angezeigt, bevor sie mit „Bestätigen" ins Inventar wandert.
+ */
 function RewardModal({
-  winnerName,
-  challengeTitle,
+  winnerId,
   onClose,
   onConfirm,
 }: {
-  winnerName: string
-  challengeTitle: string
+  winnerId: string
   onClose: () => void
   onConfirm: (reward: ChallengeReward, message: string) => void
 }) {
-  const [kind, setKind] = useState<ChallengeReward['kind']>('card')
-  const [amount, setAmount] = useState('10')
+  const { state } = useStore()
   const [message, setMessage] = useState('')
 
-  const num = Number(amount)
-  const valid = kind !== 'cash' || (amount !== '' && !Number.isNaN(num) && num !== 0)
+  const winner = state.teams.find((t) => t.id === winnerId)
+  const winnerName = winner?.name ?? 'Team'
+
+  // Einmal beim Öffnen ziehen, damit die Karte stabil angezeigt wird.
+  const card = useMemo(() => {
+    const deck = state.decks.find((d) => d.type === 'action')
+    if (!deck) return null
+    // Keine Doppelten: hält der Sieger schon alle Karten, gibt es keine.
+    const held = new Set(winner?.actionCards.map((c) => c.title) ?? [])
+    return pickRandom(deck.cards.filter((c) => !held.has(c.title))) ?? null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const reward: ChallengeReward = card
+    ? { kind: 'card', cardTitle: card.title, cardNote: card.detail }
+    : { kind: 'none' }
 
   return (
     <Modal title={`🏆 ${winnerName} gewinnt`} onClose={onClose}>
-      <fieldset className="reward-kind">
-        <label className={kind === 'card' ? 'reward-opt active' : 'reward-opt'}>
-          <input
-            type="radio"
-            name="reward"
-            checked={kind === 'card'}
-            onChange={() => setKind('card')}
-          />
-          🃏 Aktionskarte „{challengeTitle}“
-        </label>
-        <label className={kind === 'cash' ? 'reward-opt active' : 'reward-opt'}>
-          <input
-            type="radio"
-            name="reward"
-            checked={kind === 'cash'}
-            onChange={() => setKind('cash')}
-          />
-          💰 Kronkorken
-        </label>
-        <label className={kind === 'none' ? 'reward-opt active' : 'reward-opt'}>
-          <input
-            type="radio"
-            name="reward"
-            checked={kind === 'none'}
-            onChange={() => setKind('none')}
-          />
-          Keine Belohnung
-        </label>
-      </fieldset>
-
-      {kind === 'cash' && (
-        <label className="field">
-          <span>Betrag in KK</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={amount}
-            autoFocus
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="z. B. 10"
-          />
-        </label>
+      {card ? (
+        <>
+          <p className="muted small">Belohnung – zufällig gezogene Aktionskarte:</p>
+          <div className="drawn-card reward-card">
+            <strong className="drawn-title">🃏 {card.title}</strong>
+            {card.detail && <p className="drawn-detail">{card.detail}</p>}
+          </div>
+        </>
+      ) : (
+        <p className="muted small">
+          Keine Aktionskarte verfügbar – {winnerName} hat schon alle Karten (oder
+          das Deck ist leer). Der Sieg wird trotzdem gezählt.
+        </p>
       )}
 
       <label className="field">
@@ -284,16 +274,7 @@ function RewardModal({
         <button className="btn ghost" onClick={onClose}>
           Abbrechen
         </button>
-        <button
-          className="btn primary"
-          disabled={!valid}
-          onClick={() =>
-            onConfirm(
-              kind === 'cash' ? { kind, amount: num } : { kind },
-              message,
-            )
-          }
-        >
+        <button className="btn primary" onClick={() => onConfirm(reward, message)}>
           Gewinner bestätigen
         </button>
       </div>

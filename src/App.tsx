@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { applyTheme, loadTheme, type Theme } from './theme'
 import { TeamsView } from './components/TeamsView'
 import { AdminView } from './components/AdminView'
 import { BoardView } from './components/BoardView'
@@ -16,6 +17,12 @@ export function App() {
   // Online-Spiel erstellt/beigetreten.
   const [tab, setTab] = useState<Tab>('admin')
   const [overlay, setOverlay] = useState<Overlay>(null)
+  const [theme, setTheme] = useState<Theme>(loadTheme)
+
+  const changeTheme = (next: Theme) => {
+    applyTheme(next)
+    setTheme(next)
+  }
 
   // Das Spielfeld soll komplett ohne Scrollen auf den Bildschirm passen.
   const boardActive = tab === 'board' && overlay === null
@@ -59,7 +66,13 @@ export function App() {
               />
             )}
             {tab === 'teams' && <TeamsView />}
-            {tab === 'admin' && <AdminView onEndGame={() => setOverlay('stats')} />}
+            {tab === 'admin' && (
+              <AdminView
+                onEndGame={() => setOverlay('stats')}
+                theme={theme}
+                onThemeChange={changeTheme}
+              />
+            )}
           </>
         )}
       </main>

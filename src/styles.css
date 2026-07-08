@@ -1,17 +1,46 @@
-:root {
-  --bg: #0f172a;
-  --bg-elev: #1e293b;
-  --bg-elev-2: #273449;
-  --border: #334155;
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --primary: #6366f1;
-  --primary-press: #4f46e5;
+/* Farbwelt nach dem Spielbrett: knallige Flat-Farben, klare Struktur.
+   Dunkel = sehr dunkles, angenehmes Grau; Hell = weißer Grund wie das Brett.
+   Umschaltung über data-theme auf <html> (Setup-Seite, gerätelokal). */
+:root,
+:root[data-theme='dark'] {
+  --bg: #141518;
+  --bg-elev: #1e2023;
+  --bg-elev-2: #292c30;
+  --border: #383c41;
+  --text: #f2f3f4;
+  --muted: #9aa1a9;
+  --primary: #4f95ef;
+  --primary-press: #2f7de1;
   --danger: #ef4444;
   --pos: #22c55e;
   --neg: #f87171;
   --radius: 14px;
   --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  /* Akzentpalette vom Spielbrett (in beiden Themes identisch). */
+  --acc-orange: #f9a825;
+  --acc-blue: #4f95ef;
+  --acc-green: #0aa64f;
+  --acc-sand: #e6d3a3;
+  --acc-cyan: #aeeef0;
+  --acc-lavender: #c5a8ee;
+  --acc-red: #ef3b33;
+  --acc-yellow: #fdd835;
+  --acc-lightgreen: #a5d867;
+}
+
+:root[data-theme='light'] {
+  --bg: #f4f5f7;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #eef0f3;
+  --border: #d8dce2;
+  --text: #17191c;
+  --muted: #5f6670;
+  --primary: #2f7de1;
+  --primary-press: #2368c2;
+  --danger: #ef3b33;
+  --pos: #0aa64f;
+  --neg: #d92d20;
+  --shadow: 0 4px 16px rgba(23, 25, 28, 0.08);
 }
 
 * {
@@ -1129,7 +1158,11 @@ select {
 }
 
 .announcement.win {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(34, 197, 94, 0.2));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 22%, var(--bg-elev)),
+    color-mix(in srgb, var(--pos) 18%, var(--bg-elev))
+  );
   border-color: var(--primary);
   box-shadow: var(--shadow);
 }
@@ -1318,7 +1351,7 @@ select {
 
 .reward-opt.active {
   border-color: var(--primary);
-  background: rgba(99, 102, 241, 0.12);
+  background: color-mix(in srgb, var(--primary) 14%, var(--bg-elev-2));
 }
 
 /* Drei Tabs: gleichmäßig verteilt */
@@ -1384,6 +1417,23 @@ select {
 
 .field-tile:active {
   transform: scale(0.97);
+}
+
+/* Heller Modus: Felder wie auf dem Spielbrett – flächige, knallige Farben
+   mit dunkler, klarer Schrift. */
+:root[data-theme='light'] .field-tile {
+  background: color-mix(in srgb, var(--tile) 82%, #ffffff);
+  border-color: color-mix(in srgb, var(--tile) 70%, #17191c);
+  color: #17191c;
+}
+
+:root[data-theme='light'] .field-tile .field-sub {
+  color: rgba(23, 25, 28, 0.65);
+}
+
+:root[data-theme='light'] .field-icon {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(23, 25, 28, 0.18);
 }
 
 .field-icon {
@@ -1840,7 +1890,11 @@ select {
 }
 
 .champion-card {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(34, 197, 94, 0.22));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 26%, var(--bg-elev)),
+    color-mix(in srgb, var(--pos) 20%, var(--bg-elev))
+  );
   border: 1px solid var(--primary);
   border-radius: var(--radius);
   padding: 22px 18px;
@@ -1918,4 +1972,313 @@ select {
 
 .endstats-note {
   margin-top: 4px;
+}
+
+/* ---- Teamkarte: neuer Kopf (Beruf/Gehalt links, KK/Spieler rechts) -------- */
+.head-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 14px;
+  align-items: start;
+}
+
+.head-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.head-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Beruf ist tappbar (Beschreibung / Auswahl) – wie Text, aber Button. */
+button.head-stat {
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  align-items: flex-start;
+}
+
+.row-value.choose {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.head-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.head-cash {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+}
+
+.head-players {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.head-players-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Zeile 2: links Aktie, rechts Gehalt (Daumen-Zone). */
+.mid-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mid-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  background: var(--bg-elev-2);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.mid-col:last-child {
+  align-items: flex-end;
+}
+
+.jobinfo-detail {
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 0 0 14px;
+}
+
+/* ---- Teamseite: „Mein Team"-Leiste ---------------------------------------- */
+.my-team-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 10px;
+}
+
+/* ---- Aktionskarten: Chips & Zieh-Animation -------------------------------- */
+.chip-action {
+  border-left: 3px solid var(--acc-blue);
+}
+
+.chip-special {
+  border-left: 3px solid var(--acc-lavender);
+}
+
+.chip-in {
+  animation: chip-in 0.3s ease-out;
+}
+
+@keyframes chip-in {
+  from {
+    transform: scale(0.92) translateY(-4px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip-in {
+    animation: none;
+  }
+}
+
+.chip-x {
+  min-width: 32px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.chip-x:active {
+  background: var(--bg-elev);
+}
+
+.beer-counters.single {
+  grid-template-columns: 1fr;
+}
+
+/* ---- Berufswahl: Vollbild mit Ausbildung/Studium-Zweiteilung --------------- */
+.beruf-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px
+    calc(env(safe-area-inset-bottom) + 16px);
+  max-width: 640px;
+  margin: 0 auto;
+  overflow-y: auto;
+}
+
+.beruf-screen-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.beruf-screen-head h3 {
+  margin: 0;
+  font-size: 16px;
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.beruf-split {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-height: 55vh;
+}
+
+.beruf-split-half {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 20px 12px;
+  transition: transform 0.08s;
+}
+
+.beruf-split-half:active {
+  transform: scale(0.97);
+}
+
+.beruf-split-half.ausbildung {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--acc-orange) 32%, var(--bg-elev)),
+    var(--bg-elev) 85%
+  );
+  border-color: color-mix(in srgb, var(--acc-orange) 55%, var(--border));
+}
+
+.beruf-split-half.studium {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--acc-blue) 32%, var(--bg-elev)),
+    var(--bg-elev) 85%
+  );
+  border-color: color-mix(in srgb, var(--acc-blue) 55%, var(--border));
+}
+
+.beruf-split-icon {
+  font-size: 52px;
+}
+
+.beruf-split-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.beruf-split-sub {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.beruf-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- Aktien: Nummern-Picker (1–8) ------------------------------------------ */
+.stock-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.stock-num {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 4px;
+  min-height: 62px;
+  transition: transform 0.08s;
+}
+
+.stock-num:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.stock-num:not(:disabled) {
+  border-color: color-mix(in srgb, var(--acc-green) 55%, var(--border));
+}
+
+.stock-num.taken {
+  opacity: 0.55;
+}
+
+.stock-num-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-num-owner {
+  font-size: 10px;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Belohnungs-/Warte-Karte (gezogen) ------------------------------------- */
+.reward-card {
+  margin: 4px 0 12px;
+  width: 100%;
+}
+
+/* ---- Theme-Umschalter (Setup) ---------------------------------------------- */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0 4px;
 }
