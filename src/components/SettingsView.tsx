@@ -1,82 +1,161 @@
+import { useState } from 'react'
 import { useStore } from '../store'
-import type { DiceEntry, DiceTable } from '../types'
+import type { Card, Deck } from '../types'
 
 export function SettingsView() {
-  const { state, updateDiceTables, resetAll } = useStore()
+  const { state, updateDecks, resetAll } = useStore()
+  const [openId, setOpenId] = useState<string | null>(null)
 
-  const updateTable = (id: string, fn: (t: DiceTable) => DiceTable) => {
-    updateDiceTables(state.diceTables.map((t) => (t.id === id ? fn(t) : t)))
+  const updateDeck = (id: string, fn: (d: Deck) => Deck) => {
+    updateDecks(state.decks.map((d) => (d.id === id ? fn(d) : d)))
   }
 
-  const updateEntry = (
-    tableId: string,
-    roll: number,
-    patch: Partial<DiceEntry>,
-  ) => {
-    updateTable(tableId, (t) => ({
-      ...t,
-      entries: t.entries.map((e) => (e.roll === roll ? { ...e, ...patch } : e)),
+  const updateCard = (deckId: string, cardId: string, patch: Partial<Card>) => {
+    updateDeck(deckId, (d) => ({
+      ...d,
+      cards: d.cards.map((c) => (c.id === cardId ? { ...c, ...patch } : c)),
     }))
+  }
+
+  const addCard = (deckId: string, isJob: boolean) => {
+    updateDeck(deckId, (d) => ({
+      ...d,
+      cards: [
+        ...d.cards,
+        {
+          id: `c${Date.now()}${d.cards.length}`,
+          title: 'Neue Karte',
+          detail: '',
+          amount: null,
+          ...(isJob ? { salary: 0, beerTax: 0 } : {}),
+        },
+      ],
+    }))
+  }
+
+  const removeCard = (deckId: string, cardId: string) => {
+    updateDeck(deckId, (d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) }))
   }
 
   return (
     <section>
       <p className="muted small settings-intro">
-        Passt hier die Würfeltabellen an euer Spiel an. Änderungen werden
+        Hier könnt ihr alle Decks und Karten anpassen. Änderungen werden
         automatisch gespeichert.
       </p>
 
-      {state.diceTables.map((table) => (
-        <div key={table.id} className="settings-table">
-          <label className="field">
-            <span>Tabellenname</span>
-            <input
-              type="text"
-              value={table.name}
-              onChange={(e) =>
-                updateTable(table.id, (t) => ({ ...t, name: e.target.value }))
-              }
-            />
-          </label>
+      {state.decks.map((deck) => {
+        const isJob = deck.type === 'job'
+        const open = openId === deck.id
+        return (
+          <div key={deck.id} className="settings-table">
+            <button
+              className="settings-deck-head"
+              onClick={() => setOpenId(open ? null : deck.id)}
+            >
+              <span>
+                {deck.icon} <strong>{deck.name}</strong>{' '}
+                <span className="muted small">
+                  ({deck.cards.length} · {deck.mode === 'roll' ? 'Würfeln' : 'Ziehen'})
+                </span>
+              </span>
+              <span className="chevron">{open ? '▾' : '▸'}</span>
+            </button>
 
-          <div className="settings-entries">
-            {table.entries.map((entry) => (
-              <div key={entry.roll} className="settings-entry">
-                <span className="settings-roll">{entry.roll}</span>
-                <div className="settings-entry-fields">
+            {open && (
+              <div className="settings-deck-body">
+                <label className="field">
+                  <span>Deck-Name</span>
                   <input
                     type="text"
-                    value={entry.label}
-                    placeholder="Bezeichnung"
+                    value={deck.name}
                     onChange={(e) =>
-                      updateEntry(table.id, entry.roll, { label: e.target.value })
+                      updateDeck(deck.id, (d) => ({ ...d, name: e.target.value }))
                     }
                   />
-                  <input
-                    type="text"
-                    value={entry.detail}
-                    placeholder="Beschreibung (optional)"
-                    onChange={(e) =>
-                      updateEntry(table.id, entry.roll, { detail: e.target.value })
-                    }
-                  />
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={entry.amount ?? ''}
-                    placeholder="Betrag (optional)"
-                    onChange={(e) =>
-                      updateEntry(table.id, entry.roll, {
-                        amount: e.target.value === '' ? null : Number(e.target.value),
-                      })
-                    }
-                  />
+                </label>
+
+                <div className="settings-entries">
+                  {deck.cards.map((card, i) => (
+                    <div key={card.id} className="settings-card">
+                      <div className="settings-card-head">
+                        <span className="settings-roll">{i + 1}</span>
+                        <button
+                          className="btn tiny danger ghost"
+                          onClick={() => removeCard(deck.id, card.id)}
+                        >
+                          entfernen
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={card.title}
+                        placeholder="Titel"
+                        onChange={(e) =>
+                          updateCard(deck.id, card.id, { title: e.target.value })
+                        }
+                      />
+                      <input
+                        type="text"
+                        value={card.detail}
+                        placeholder="Beschreibung (optional)"
+                        onChange={(e) =>
+                          updateCard(deck.id, card.id, { detail: e.target.value })
+                        }
+                      />
+                      {isJob ? (
+                        <div className="settings-inline">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={card.salary ?? ''}
+                            placeholder="Gehalt"
+                            onChange={(e) =>
+                              updateCard(deck.id, card.id, {
+                                salary: Number(e.target.value) || 0,
+                              })
+                            }
+                          />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={card.beerTax ?? ''}
+                            placeholder="Biersteuer"
+                            onChange={(e) =>
+                              updateCard(deck.id, card.id, {
+                                beerTax: Number(e.target.value) || 0,
+                              })
+                            }
+                          />
+                        </div>
+                      ) : (
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={card.amount ?? ''}
+                          placeholder="KK-Betrag (optional)"
+                          onChange={(e) =>
+                            updateCard(deck.id, card.id, {
+                              amount: e.target.value === '' ? null : Number(e.target.value),
+                            })
+                          }
+                        />
+                      )}
+                    </div>
+                  ))}
                 </div>
+
+                <button
+                  className="btn small ghost add-card-btn"
+                  onClick={() => addCard(deck.id, isJob)}
+                >
+                  + Karte hinzufügen
+                </button>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       <div className="danger-zone">
         <button

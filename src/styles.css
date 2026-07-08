@@ -508,6 +508,75 @@ select {
 .dice-card-head h3 {
   margin: 0;
   font-size: 17px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deck-icon {
+  font-size: 19px;
+}
+
+/* Gezogene Karte */
+.drawn-card {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  padding: 12px 14px;
+  animation: pop 0.25s ease-out;
+}
+
+.drawn-card.rolling {
+  border-color: var(--border);
+  opacity: 0.85;
+}
+
+@keyframes pop {
+  from { transform: scale(0.96); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.drawn-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.drawn-roll {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 7px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.drawn-title {
+  font-size: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.drawn-salary {
+  font-weight: 700;
+  color: var(--pos);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.drawn-detail {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.drawn-card .dice-apply {
+  margin-top: 12px;
 }
 
 .dice-roll-btn {
@@ -635,6 +704,55 @@ select {
   border-radius: var(--radius);
   padding: 14px;
   margin-bottom: 16px;
+}
+
+.settings-deck-head {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  padding: 2px 0;
+}
+
+.settings-deck-body {
+  margin-top: 12px;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: var(--bg-elev-2);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.settings-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-card input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.settings-inline {
+  display: flex;
+  gap: 6px;
+}
+
+.add-card-btn {
+  margin-top: 10px;
 }
 
 .settings-entries {

@@ -1,13 +1,10 @@
 // Kleine Hilfsfunktionen.
 
-const eur = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-})
+const kk = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 })
 
+/** Formatiert einen KK-Betrag (Kronkorken), z. B. "12 KK" oder "-5 KK". */
 export function formatMoney(value: number): string {
-  return eur.format(value)
+  return `${kk.format(value)} KK`
 }
 
 export function rollDie(sides = 6): number {

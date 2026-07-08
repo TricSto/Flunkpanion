@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store'
-import type { DiceEntry, DiceTable } from '../types'
-import { formatMoney, rollDie } from '../util'
+import type { Card, Deck } from '../types'
+import { formatMoney } from '../util'
 
 export function DiceView() {
   const { state } = useStore()
@@ -25,48 +25,39 @@ export function DiceView() {
         </label>
         {state.teams.length === 0 && (
           <p className="muted small">
-            Lege zuerst unter „Teams“ ein Team an, um Ergebnisse direkt gutzuschreiben.
+            Lege zuerst unter „Teams“ ein Team an, um Ergebnisse direkt zu übernehmen.
           </p>
         )}
       </div>
 
       <div className="dice-tables">
-        {state.diceTables.map((table) => (
-          <DiceTableCard
-            key={table.id}
-            table={table}
-            teamId={selectedTeam?.id ?? null}
-          />
+        {state.decks.map((deck) => (
+          <DeckCard key={deck.id} deck={deck} teamId={selectedTeam?.id ?? null} />
         ))}
       </div>
     </section>
   )
 }
 
-function DiceTableCard({
-  table,
-  teamId,
-}: {
-  table: DiceTable
-  teamId: string | null
-}) {
-  const { adjustCash, setJob, addActionCard } = useStore()
-  const [result, setResult] = useState<number | null>(null)
+function DeckCard({ deck, teamId }: { deck: Deck; teamId: string | null }) {
+  const [index, setIndex] = useState<number | null>(null)
   const [rolling, setRolling] = useState(false)
 
-  const landed: DiceEntry | undefined =
-    result != null ? table.entries.find((e) => e.roll === result) : undefined
+  const drawn: Card | undefined = index != null ? deck.cards[index] : undefined
+  const isRoll = deck.mode === 'roll'
 
-  const roll = () => {
+  const pick = () => deck.cards.length ? Math.floor(Math.random() * deck.cards.length) : 0
+
+  const go = () => {
+    if (deck.cards.length === 0) return
     setRolling(true)
-    // Kurze "Rüttel"-Animation, dann Endergebnis.
     let ticks = 0
     const interval = setInterval(() => {
-      setResult(rollDie(table.entries.length))
+      setIndex(pick())
       ticks++
       if (ticks >= 8) {
         clearInterval(interval)
-        setResult(rollDie(table.entries.length))
+        setIndex(pick())
         setRolling(false)
       }
     }, 60)
@@ -75,74 +66,110 @@ function DiceTableCard({
   return (
     <div className="dice-card">
       <div className="dice-card-head">
-        <h3>{table.name}</h3>
-        <button className="btn primary dice-roll-btn" onClick={roll} disabled={rolling}>
-          <span className={rolling ? 'die spinning' : 'die'}>🎲</span>
-          {result == null ? 'Würfeln' : 'Nochmal'}
+        <h3>
+          <span className="deck-icon">{deck.icon}</span> {deck.name}
+        </h3>
+        <button className="btn primary dice-roll-btn" onClick={go} disabled={rolling}>
+          <span className={rolling ? 'die spinning' : 'die'}>{isRoll ? '🎲' : '🃏'}</span>
+          {index == null ? (isRoll ? 'Würfeln' : 'Ziehen') : 'Nochmal'}
         </button>
       </div>
 
-      <ol className="dice-entries">
-        {table.entries.map((e) => (
-          <li
-            key={e.roll}
-            className={e.roll === result ? 'dice-entry hit' : 'dice-entry'}
-          >
-            <span className="dice-roll-num">{e.roll}</span>
-            <span className="dice-entry-main">
-              <strong>{e.label}</strong>
-              {e.detail && <em>{e.detail}</em>}
-            </span>
-            {e.amount != null && e.amount !== 0 && (
-              <span className={e.amount > 0 ? 'dice-amount pos' : 'dice-amount neg'}>
-                {e.amount > 0 ? '+' : ''}
-                {formatMoney(e.amount)}
+      {drawn && (
+        <div className={rolling ? 'drawn-card rolling' : 'drawn-card'}>
+          <div className="drawn-top">
+            {isRoll && <span className="drawn-roll">{index! + 1}</span>}
+            <strong className="drawn-title">{drawn.title}</strong>
+            {drawn.salary != null && (
+              <span className="drawn-salary">
+                {formatMoney(drawn.salary)}
+                {drawn.beerTax ? ` · BS ${drawn.beerTax}` : ''}
               </span>
             )}
-          </li>
-        ))}
-      </ol>
-
-      {landed && !rolling && (
-        <div className="dice-outcome">
-          <p>
-            Gewürfelt: <strong>{landed.label}</strong>
-            {landed.amount != null && landed.amount !== 0 && (
-              <> ({landed.amount > 0 ? '+' : ''}{formatMoney(landed.amount)})</>
+            {drawn.amount != null && drawn.amount !== 0 && (
+              <span className={drawn.amount > 0 ? 'dice-amount pos' : 'dice-amount neg'}>
+                {drawn.amount > 0 ? '+' : ''}
+                {formatMoney(drawn.amount)}
+              </span>
             )}
-          </p>
-          {teamId && (
-            <div className="dice-apply">
-              {landed.amount != null && landed.amount !== 0 && (
-                <button
-                  className="btn small"
-                  onClick={() =>
-                    adjustCash(teamId, landed.amount!, `Würfel: ${landed.label}`)
-                  }
-                >
-                  Betrag gutschreiben
-                </button>
-              )}
-              {landed.amount != null && landed.amount > 0 && (
-                <button
-                  className="btn small ghost"
-                  onClick={() =>
-                    setJob(teamId, { title: landed.label, salary: landed.amount! })
-                  }
-                >
-                  Als Job setzen
-                </button>
-              )}
-              <button
-                className="btn small ghost"
-                onClick={() => addActionCard(teamId, landed.label, landed.detail)}
-              >
-                Als Aktionskarte
-              </button>
-            </div>
-          )}
+          </div>
+          {drawn.detail && <p className="drawn-detail">{drawn.detail}</p>}
+
+          {teamId && !rolling && <ApplyButtons deck={deck} card={drawn} teamId={teamId} />}
         </div>
       )}
+
+      {deck.cards.length === 0 && <p className="muted small">Dieses Deck ist leer.</p>}
     </div>
   )
+}
+
+function ApplyButtons({
+  deck,
+  card,
+  teamId,
+}: {
+  deck: Deck
+  card: Card
+  teamId: string
+}) {
+  const { adjustCash, setJob, addActionCard, addProperty } = useStore()
+
+  const buttons: React.ReactNode[] = []
+
+  if (deck.type === 'job') {
+    buttons.push(
+      <button
+        key="job"
+        className="btn small"
+        onClick={() =>
+          setJob(teamId, {
+            title: card.title,
+            salary: card.salary ?? 0,
+            beerTax: card.beerTax ?? 0,
+          })
+        }
+      >
+        Als Job setzen
+      </button>,
+    )
+  }
+
+  if (card.amount != null && card.amount !== 0) {
+    buttons.push(
+      <button
+        key="cash"
+        className="btn small"
+        onClick={() => adjustCash(teamId, card.amount!, `${deck.name}: ${card.title}`)}
+      >
+        {card.amount > 0 ? 'KK gutschreiben' : 'KK abziehen'}
+      </button>,
+    )
+  }
+
+  if (deck.type === 'lifestyle' || deck.type === 'equipment') {
+    buttons.push(
+      <button
+        key="prop"
+        className="btn small ghost"
+        onClick={() => addProperty(teamId, card.title, card.amount ?? 0, card.detail)}
+      >
+        Als Besitz
+      </button>,
+    )
+  }
+
+  if (deck.type !== 'job') {
+    buttons.push(
+      <button
+        key="card"
+        className="btn small ghost"
+        onClick={() => addActionCard(teamId, card.title, card.detail)}
+      >
+        Als Aktionskarte
+      </button>,
+    )
+  }
+
+  return <div className="dice-apply">{buttons}</div>
 }

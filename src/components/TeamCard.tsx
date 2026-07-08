@@ -11,6 +11,7 @@ export function TeamCard({ team }: { team: Team }) {
     adjustCash,
     undoTransaction,
     setJob,
+    payBeerTax,
     addActionCard,
     removeActionCard,
     addProperty,
@@ -51,6 +52,9 @@ export function TeamCard({ team }: { team: Team }) {
               {team.job ? (
                 <span className="row-value">
                   {team.job.title} · {formatMoney(team.job.salary)}
+                  {team.job.beerTax > 0 && (
+                    <span className="muted"> · BS {team.job.beerTax}</span>
+                  )}
                 </span>
               ) : (
                 <span className="row-value muted">Kein Job</span>
@@ -66,6 +70,15 @@ export function TeamCard({ team }: { team: Team }) {
                   title="Gehalt auszahlen"
                 >
                   Gehalt +
+                </button>
+              )}
+              {team.job && team.job.beerTax > 0 && (
+                <button
+                  className="btn small minus"
+                  onClick={() => payBeerTax(team.id)}
+                  title="Biersteuer zahlen"
+                >
+                  BS −
                 </button>
               )}
               <button className="btn small ghost" onClick={() => setModal('job')}>
@@ -319,6 +332,7 @@ function JobModal({
 }) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [salary, setSalary] = useState(initial ? String(initial.salary) : '')
+  const [beerTax, setBeerTax] = useState(initial ? String(initial.beerTax) : '')
   return (
     <Modal title="Job setzen" onClose={onClose}>
       <label className="field">
@@ -328,17 +342,27 @@ function JobModal({
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="z. B. Ingenieur:in"
+          placeholder="z. B. Braumeister"
         />
       </label>
       <label className="field">
-        <span>Gehalt</span>
+        <span>Gehalt (KK)</span>
         <input
           type="number"
           inputMode="numeric"
           value={salary}
           onChange={(e) => setSalary(e.target.value)}
-          placeholder="z. B. 4000"
+          placeholder="z. B. 14"
+        />
+      </label>
+      <label className="field">
+        <span>Biersteuer / BS (KK)</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={beerTax}
+          onChange={(e) => setBeerTax(e.target.value)}
+          placeholder="z. B. 7"
         />
       </label>
       <div className="modal-actions">
@@ -353,7 +377,13 @@ function JobModal({
         <button
           className="btn primary"
           disabled={!title.trim()}
-          onClick={() => onSubmit({ title: title.trim(), salary: Number(salary) || 0 })}
+          onClick={() =>
+            onSubmit({
+              title: title.trim(),
+              salary: Number(salary) || 0,
+              beerTax: Number(beerTax) || 0,
+            })
+          }
         >
           Speichern
         </button>

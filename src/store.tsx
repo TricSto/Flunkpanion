@@ -9,7 +9,7 @@ import {
 import type {
   ActionCard,
   AppState,
-  DiceTable,
+  Deck,
   Job,
   Property,
   Team,
@@ -32,7 +32,7 @@ function loadState(): AppState {
     return {
       // Ältere gespeicherte Teams besitzen evtl. noch kein transactions-Feld.
       teams: (parsed.teams ?? []).map((t) => ({ ...t, transactions: t.transactions ?? [] })),
-      diceTables: parsed.diceTables ?? initialState.diceTables,
+      decks: parsed.decks ?? initialState.decks,
     }
   } catch {
     return initialState
@@ -48,14 +48,15 @@ interface Store {
   adjustCash: (teamId: string, delta: number, reason?: string) => void
   undoTransaction: (teamId: string, txId: string) => void
   setJob: (teamId: string, job: Job | null) => void
+  payBeerTax: (teamId: string) => void
   // Aktionskarten
   addActionCard: (teamId: string, title: string, note: string) => void
   removeActionCard: (teamId: string, cardId: string) => void
   // Besitz / Properties
   addProperty: (teamId: string, name: string, value: number, note: string) => void
   removeProperty: (teamId: string, propId: string) => void
-  // Würfeltabellen
-  updateDiceTables: (tables: DiceTable[]) => void
+  // Decks / Würfeltabellen
+  updateDecks: (decks: Deck[]) => void
   resetAll: () => void
 }
 
@@ -133,6 +134,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       setJob: (teamId, job) => mutateTeam(teamId, (t) => ({ ...t, job })),
 
+      payBeerTax: (teamId) =>
+        mutateTeam(teamId, (t) => {
+          if (!t.job || !t.job.beerTax) return t
+          const tx: Transaction = {
+            id: uid(),
+            delta: -t.job.beerTax,
+            reason: 'Biersteuer',
+            at: Date.now(),
+          }
+          return {
+            ...t,
+            cash: t.cash - t.job.beerTax,
+            transactions: [tx, ...t.transactions],
+          }
+        }),
+
       addActionCard: (teamId, title, note) =>
         mutateTeam(teamId, (t) => {
           const card: ActionCard = {
@@ -167,7 +184,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           properties: t.properties.filter((p) => p.id !== propId),
         })),
 
-      updateDiceTables: (tables) => setState((s) => ({ ...s, diceTables: tables })),
+      updateDecks: (decks) => setState((s) => ({ ...s, decks })),
 
       resetAll: () => setState(initialState),
     }

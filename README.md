@@ -2,17 +2,21 @@
 
 Companion-App für das Brettspiel **Flunk des Lebens** (Spiel des Lebens meets Funkyball).
 
+Währung im Spiel: **KK = Kronkorken**.
+
 Die App hilft euch beim Tracken während des Spiels:
 
 - **Teams** anlegen und verwalten
-- **Cash** pro Team buchen (Ein- und Auszahlungen, Schnellbeträge)
-- **Job & Gehalt** setzen und Gehalt per Klick auszahlen
+- **Kronkorken (KK)** pro Team buchen (Ein- und Auszahlungen, Schnellbeträge)
+- **Beruf, Gehalt & Biersteuer (BS)** setzen; Gehalt und Biersteuer per Klick buchen
 - **Aktionskarten** pro Team sammeln
-- **Besitz** (Immobilien etc.) mit Wert erfassen → automatische Vermögensberechnung
-- **Würfeln** auf zwei anpassbaren Tabellen (z. B. „Jobs & Gehalt“ und „Ereignisse“) —
-  Ergebnisse lassen sich direkt einem Team gutschreiben, als Job setzen oder als
-  Aktionskarte übernehmen
-- **Tabellen** frei anpassen (Einstellungen)
+- **Besitz / Equipment** mit Wert erfassen → automatische Vermögensberechnung
+- **Würfeln / Ziehen** aus mehreren Decks mit euren echten Spielinhalten:
+  Berufe (D8), Ereigniskarten, Bonus-Aktionskarten, Spielverändernde Karten,
+  Challenges, Lebensstil, Equipment. Ergebnisse lassen sich direkt einem Team
+  zuweisen (Job setzen, KK buchen, als Aktionskarte/Besitz übernehmen)
+- **Verlauf** aller KK-Buchungen pro Team, mit Undo
+- **Decks & Karten** frei anpassen (Tab „Tabellen“)
 
 Alle Daten werden lokal im Browser gespeichert (`localStorage`) — kein Server, kein Login nötig.
 

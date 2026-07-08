@@ -1,4 +1,5 @@
 // Zentrale Datentypen für die Flunk-des-Lebens-App.
+// Währung im Spiel: KK = Kronkorken.
 
 export interface ActionCard {
   id: string
@@ -17,9 +18,11 @@ export interface Property {
 export interface Job {
   title: string
   salary: number
+  /** Biersteuer (BS) in KK, gekoppelt an den Beruf. */
+  beerTax: number
 }
 
-/** Ein Eintrag im Cash-Verlauf eines Teams. */
+/** Ein Eintrag im Kronkorken-Verlauf eines Teams. */
 export interface Transaction {
   id: string
   delta: number
@@ -40,25 +43,46 @@ export interface Team {
 }
 
 /**
- * Ein Eintrag in einer Würfeltabelle. `roll` ist die Augenzahl (1-6),
- * `label` der angezeigte Titel und `detail` eine optionale Erklärung.
- * `amount` ist optional ein Geldbetrag, der beim Anwenden gutgeschrieben
- * werden kann (z.B. Gehalt oder Ereignis-Auszahlung).
+ * Art eines Decks – steuert, welche „Anwenden“-Aktionen beim Ziehen
+ * angeboten werden (Job setzen, KK gutschreiben, Aktionskarte, Besitz …).
  */
-export interface DiceEntry {
-  roll: number
-  label: string
+export type DeckType =
+  | 'job'
+  | 'event'
+  | 'action'
+  | 'special'
+  | 'challenge'
+  | 'lifestyle'
+  | 'equipment'
+
+/** Eine einzelne Karte in einem Deck. */
+export interface Card {
+  id: string
+  title: string
   detail: string
+  /** KK-Effekt (positiv = Gutschrift, negativ = Abzug), falls vorhanden. */
   amount: number | null
+  /** Nur für Job-Karten: Gehalt in KK. */
+  salary?: number
+  /** Nur für Job-Karten: Biersteuer in KK. */
+  beerTax?: number
 }
 
-export interface DiceTable {
+/**
+ * Ein Deck bzw. eine Tabelle. `mode` bestimmt, wie gezogen wird:
+ * - 'roll': wie ein Würfel – Ergebnis ist der Eintrag Nr. Augenzahl.
+ * - 'draw': zufällige Karte aus dem Stapel.
+ */
+export interface Deck {
   id: string
   name: string
-  entries: DiceEntry[]
+  icon: string
+  type: DeckType
+  mode: 'roll' | 'draw'
+  cards: Card[]
 }
 
 export interface AppState {
   teams: Team[]
-  diceTables: DiceTable[]
+  decks: Deck[]
 }
