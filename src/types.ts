@@ -73,11 +73,62 @@ export interface Deck {
   cards: Card[]
 }
 
+/**
+ * Eine laufende Challenge zwischen zwei Teams. Liegt im geteilten Zustand,
+ * damit alle Geräte dieselbe ausgeloste Challenge live sehen.
+ */
+export interface Challenge {
+  id: string
+  /** Team, das herausfordert. */
+  challengerId: string
+  /** Gegner-Team. */
+  opponentId: string
+  /** Titel der ausgelosten Challenge-Karte. */
+  title: string
+  /** Beschreibung der Challenge-Karte. */
+  detail: string
+  status: 'active' | 'resolved'
+  /** Gewinner-Team (erst nach Auflösung gesetzt). */
+  winnerId: string | null
+  /** Was der Gewinner bekommen hat. */
+  reward: ChallengeReward | null
+  at: number
+}
+
+export interface ChallengeReward {
+  kind: 'card' | 'cash' | 'none'
+  /** Bei 'cash': gutgeschriebene KK. */
+  amount?: number
+}
+
+/**
+ * Eine live an alle Geräte verteilte Nachricht (z. B. „Team X hat die
+ * Challenge gewonnen"). Wird beim Empfänger als Banner angezeigt.
+ */
+export interface Announcement {
+  id: string
+  /** Ziel-Team (Gewinner). null = an alle. */
+  teamId: string | null
+  title: string
+  message: string
+  at: number
+}
+
 export interface AppState {
   teams: Team[]
   decks: Deck[]
-  /** Das aktuell „beigetretene“ Team dieses Geräts. */
+  /** Das aktuell „beigetretene“ Team dieses Geräts (nicht geteilt). */
   currentTeamId: string | null
   /** Version der mitgelieferten Decks – steuert Content-Updates. */
   decksVersion: number
+  /** Aktuell laufende/aufgelöste Challenge (geteilt, live). */
+  challenge: Challenge | null
+  /** Live-Nachrichten an die Teams (geteilt). */
+  announcements: Announcement[]
 }
+
+/**
+ * Der Teil des Zustands, der zwischen allen Geräten geteilt wird.
+ * `currentTeamId` ist bewusst NICHT dabei – jedes Gerät wählt sein eigenes Team.
+ */
+export type SharedState = Omit<AppState, 'currentTeamId'>
