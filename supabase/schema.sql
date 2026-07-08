@@ -16,6 +16,10 @@ create table if not exists public.games (
   updated_at timestamptz not null default now()
 );
 
+-- Tabellenrechte für die öffentlichen (nicht eingeloggten) Rollen. Ohne diese
+-- Grants greift keine Policy – Schreibzugriffe schlagen sonst still fehl.
+grant select, insert, update, delete on public.games to anon, authenticated;
+
 -- Row Level Security aktivieren.
 alter table public.games enable row level security;
 
@@ -24,18 +28,26 @@ alter table public.games enable row level security;
 -- ausreichend. (Für höhere Sicherheit könnte man später Auth ergänzen.)
 drop policy if exists "games_select" on public.games;
 create policy "games_select" on public.games
-  for select using (true);
+  for select to anon, authenticated using (true);
 
 drop policy if exists "games_insert" on public.games;
 create policy "games_insert" on public.games
-  for insert with check (true);
+  for insert to anon, authenticated with check (true);
 
 drop policy if exists "games_update" on public.games;
 create policy "games_update" on public.games
-  for update using (true);
+  for update to anon, authenticated using (true) with check (true);
 
 -- Realtime-Broadcast für diese Tabelle einschalten (Live-Updates).
-alter publication supabase_realtime add table public.games;
+-- Für zeilengenaue Updates (payload.new vollständig) REPLICA IDENTITY FULL setzen.
+alter table public.games replica identity full;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.games;
+exception
+  when duplicate_object then null; -- schon Teil der Publication
+end $$;
 
 -- Optional: alte Spiele automatisch aufräumen (hier nur als Hinweis).
 -- Zum Beispiel per geplanter Funktion Spiele älter als 30 Tage löschen:
