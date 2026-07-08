@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { TeamsView } from './components/TeamsView'
 import { DiceView } from './components/DiceView'
+import { ChallengeView } from './components/ChallengeView'
 import { AdminView } from './components/AdminView'
+import { ConnectionBar } from './components/ConnectionBar'
+import { Announcements } from './components/Announcements'
 
-type Tab = 'teams' | 'dice' | 'admin'
+type Tab = 'teams' | 'dice' | 'challenge' | 'admin'
 
 export function App() {
   const [tab, setTab] = useState<Tab>('teams')
@@ -18,11 +21,15 @@ export function App() {
             <p className="tagline">Spiel-Begleiter</p>
           </div>
         </div>
+        <ConnectionBar />
       </header>
+
+      <Announcements />
 
       <main className="app-main">
         {tab === 'teams' && <TeamsView />}
         {tab === 'dice' && <DiceView />}
+        {tab === 'challenge' && <ChallengeView />}
         {tab === 'admin' && <AdminView />}
       </main>
 
@@ -40,6 +47,13 @@ export function App() {
         >
           <span className="tab-icon">🎲</span>
           <span>Würfeln</span>
+        </button>
+        <button
+          className={tab === 'challenge' ? 'tab active' : 'tab'}
+          onClick={() => setTab('challenge')}
+        >
+          <span className="tab-icon">⚔️</span>
+          <span>Challenge</span>
         </button>
         <button
           className={tab === 'admin' ? 'tab active' : 'tab'}
