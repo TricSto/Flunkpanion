@@ -60,6 +60,23 @@ Challenges, Nachrichten erscheinen sofort überall), nutzt die App
 **Kosten:** Für ein paar Spieler am Tisch bleibt alles im kostenlosen Tarif von
 Supabase und des Frontend-Hostings (z. B. Vercel/Netlify/Cloudflare Pages).
 
+### Online stellen (Vercel)
+
+Damit alle am Tisch die App über eine feste URL erreichen:
+
+1. Auf [vercel.com](https://vercel.com) mit dem GitHub-Konto anmelden und dieses
+   Repository importieren. Vite wird automatisch erkannt (`vercel.json` liegt bei).
+2. Im Vercel-Projekt unter **Settings → Environment Variables** die beiden
+   Supabase-Werte hinterlegen:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+3. **Deploy** klicken → ihr bekommt eine URL wie `flunk.vercel.app`.
+
+Nach jedem Push auf den Branch deployt Vercel automatisch neu.
+
+> Alternativ funktionieren Netlify oder Cloudflare Pages genauso — Build-Befehl
+> `npm run build`, Ausgabeordner `dist`, dieselben zwei Environment-Variablen.
+
 ## Als Handy-App nutzen (PWA)
 
 Die App ist eine Progressive Web App. Auf dem Handy:
