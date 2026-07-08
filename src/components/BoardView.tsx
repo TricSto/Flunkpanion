@@ -114,7 +114,7 @@ export function BoardView({
 
 function FieldSheet({ field, onClose }: { field: FieldDef; onClose: () => void }) {
   const { state } = useStore()
-  const needsTeam = field.key !== 'kingstabelle' && field.key !== 'minigames'
+  const needsTeam = field.key !== 'kingstabelle'
   const [teamId, setTeamId] = useState<string>(
     state.currentTeamId ?? state.teams[0]?.id ?? '',
   )
@@ -154,14 +154,14 @@ function FieldBody({
   team: Team | null
   onClose: () => void
 }) {
-  const { state, adjustCash, payBeerTax, addActionCard, setJobTitle, setSalary, addBeer } =
+  const { state, adjustCash, payBeerTax, addActionCard, setJobTitle, setSalary, addBeer, bumpStat } =
     useStore()
   const [flash, setFlash] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Card | null>(null)
   const [eventBooked, setEventBooked] = useState(false)
 
-  // Info-Felder brauchen kein Team.
-  if (field.key === 'kingstabelle' || field.key === 'minigames') {
+  // Kingstabelle: reines Info-Feld, kein Team nötig.
+  if (field.key === 'kingstabelle') {
     return (
       <p className="sheet-info">
         Dieses Feld wird <strong>am Spielbrett erwürfelt</strong> – es läuft nicht
@@ -370,6 +370,28 @@ function FieldBody({
           }}
         >
           🍺 Getränk zählen (+1 Bier)
+        </button>
+        {flashEl}
+      </>
+    )
+  }
+
+  // --- Minigames (am Brett gespielt, hier nur den Sieg zählen) -------------
+  if (field.key === 'minigames') {
+    return (
+      <>
+        <p className="sheet-info">
+          Minigame wird <strong>am Spielbrett</strong> gespielt. Trag hier nur den
+          Sieg fürs Team ein (für die Endstatistik).
+        </p>
+        <button
+          className="btn primary block"
+          onClick={() => {
+            bumpStat(team.id, 'minigameWins', 1)
+            say(`🏆 Minigame-Sieg für ${team.name}`)
+          }}
+        >
+          🏆 Minigame gewonnen
         </button>
         {flashEl}
       </>

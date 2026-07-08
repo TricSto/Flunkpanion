@@ -4,11 +4,12 @@ import { AdminView } from './components/AdminView'
 import { BoardView } from './components/BoardView'
 import { ChallengeView } from './components/ChallengeView'
 import { FlunkView } from './components/FlunkView'
+import { EndStats } from './components/EndStats'
 import { ConnectionBar } from './components/ConnectionBar'
 import { Announcements } from './components/Announcements'
 
 type Tab = 'board' | 'teams' | 'admin'
-type Overlay = null | 'challenge' | 'flunk'
+type Overlay = null | 'challenge' | 'flunk' | 'stats'
 
 export function App() {
   const [tab, setTab] = useState<Tab>('board')
@@ -38,6 +39,10 @@ export function App() {
           <OverlayShell title="🚩 Flunk-Feld" onBack={() => setOverlay(null)}>
             <FlunkView />
           </OverlayShell>
+        ) : overlay === 'stats' ? (
+          <OverlayShell title="🏁 Siegesauswertung" onBack={() => setOverlay(null)}>
+            <EndStats />
+          </OverlayShell>
         ) : (
           <>
             {tab === 'board' && (
@@ -47,7 +52,7 @@ export function App() {
               />
             )}
             {tab === 'teams' && <TeamsView />}
-            {tab === 'admin' && <AdminView />}
+            {tab === 'admin' && <AdminView onEndGame={() => setOverlay('stats')} />}
           </>
         )}
       </main>

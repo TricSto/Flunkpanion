@@ -11,10 +11,11 @@ interface Match {
  * Erste Version des Flunk-Ablaufs (host-seitig, noch nicht live geteilt):
  * Teams kommen an → warten eine Runde → bekommen eine Aktionskarte. Sind
  * mindestens zwei Teams bereit, lost der Host die Matches aus (neu auslosbar).
- * Danach je Match: Gewinner wählen + Strafbiere für den Verlierer zählen.
+ * Danach je Match: Gewinner wählen (zählt als Flunk-Sieg) + Strafbiere für den
+ * Verlierer zählen.
  */
 export function FlunkView() {
-  const { state, addActionCard, addBeer } = useStore()
+  const { state, addActionCard, addBeer, bumpStat } = useStore()
   const teams = state.teams
   const aktionsDeck = state.decks.find((d) => d.id === 'aktionskarten')
 
@@ -45,7 +46,31 @@ export function FlunkView() {
       return n
     })
 
+  // Alle bereits gezählten Flunk-Siege wieder abziehen (vor Neu-Auslosen/Reset).
+  const clearRecordedWins = () => {
+    Object.values(winners).forEach((id) => bumpStat(id, 'flunkWins', -1))
+  }
+
+  const recordWinner = (i: number, teamId: string) => {
+    const prev = winners[i]
+    if (prev === teamId) return
+    if (prev) bumpStat(prev, 'flunkWins', -1)
+    bumpStat(teamId, 'flunkWins', 1)
+    setWinners((w) => ({ ...w, [i]: teamId }))
+  }
+
+  const clearWinner = (i: number) => {
+    const prev = winners[i]
+    if (prev) bumpStat(prev, 'flunkWins', -1)
+    setWinners((w) => {
+      const n = { ...w }
+      delete n[i]
+      return n
+    })
+  }
+
   const drawMatches = () => {
+    clearRecordedWins()
     const ids = [...ready]
     for (let i = ids.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
@@ -59,7 +84,14 @@ export function FlunkView() {
     setWinners({})
   }
 
+  const backToSetup = () => {
+    clearRecordedWins()
+    setWinners({})
+    setMatches(null)
+  }
+
   const reset = () => {
+    clearRecordedWins()
     setReady(new Set())
     setMatches(null)
     setWinners({})
@@ -79,7 +111,7 @@ export function FlunkView() {
             <button className="btn small" onClick={drawMatches}>
               ↻ Neu auslosen
             </button>
-            <button className="btn small ghost" onClick={() => setMatches(null)}>
+            <button className="btn small ghost" onClick={backToSetup}>
               ‹ Zurück
             </button>
           </div>
@@ -88,8 +120,7 @@ export function FlunkView() {
         <div className="flunk-matches">
           {matches.map((m, i) => {
             const winnerId = winners[i] ?? null
-            const loserId =
-              winnerId && m.b ? (winnerId === m.a ? m.b : m.a) : null
+            const loserId = winnerId && m.b ? (winnerId === m.a ? m.b : m.a) : null
             const loser = teams.find((t) => t.id === loserId) ?? null
             return (
               <div key={i} className="flunk-match">
@@ -103,16 +134,10 @@ export function FlunkView() {
                   <p className="muted small center">Freilos – kein Gegner.</p>
                 ) : winnerId == null ? (
                   <div className="flunk-win-buttons">
-                    <button
-                      className="btn primary big"
-                      onClick={() => setWinners((w) => ({ ...w, [i]: m.a }))}
-                    >
+                    <button className="btn primary big" onClick={() => recordWinner(i, m.a)}>
                       🏆 {name(m.a)}
                     </button>
-                    <button
-                      className="btn primary big"
-                      onClick={() => setWinners((w) => ({ ...w, [i]: m.b! }))}
-                    >
+                    <button className="btn primary big" onClick={() => recordWinner(i, m.b!)}>
                       🏆 {name(m.b)}
                     </button>
                   </div>
@@ -142,16 +167,7 @@ export function FlunkView() {
                         </div>
                       </div>
                     )}
-                    <button
-                      className="btn tiny ghost"
-                      onClick={() =>
-                        setWinners((w) => {
-                          const n = { ...w }
-                          delete n[i]
-                          return n
-                        })
-                      }
-                    >
+                    <button className="btn tiny ghost" onClick={() => clearWinner(i)}>
                       Sieger ändern
                     </button>
                   </div>

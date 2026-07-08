@@ -33,6 +33,25 @@ export interface BeerCounts {
   penalty: number
 }
 
+/**
+ * Ausbildungsstand – steuert, aus wie vielen Berufen bei der Berufswahl
+ * ausgewählt werden darf (kein Studium/Ausbildung = 1, Ausbildung = 2,
+ * Studium = 3).
+ */
+export type Education = 'none' | 'ausbildung' | 'studium'
+
+/** Für die Endstatistik gezählte Ereignisse pro Team. */
+export interface TeamStats {
+  /** Ausgespielte (benutzte) Aktionskarten. */
+  actionCardsUsed: number
+  /** Gewonnene Flunk-Runden. */
+  flunkWins: number
+  /** Gewonnene Challenges. */
+  challengeWins: number
+  /** Gewonnene Minigames. */
+  minigameWins: number
+}
+
 export interface Team {
   id: string
   name: string
@@ -41,12 +60,21 @@ export interface Team {
   /** Anzahl der Spieler im Team (bei der Erstellung gezählt). */
   players: number
   job: Job | null
+  /** Ausbildungsstand für die Berufswahl. */
+  education: Education
+  /** Besitzt das Team eine Aktie? (max. 1 pro Team, kostet 20 KK). */
+  stock: boolean
   actionCards: ActionCard[]
   transactions: Transaction[]
   /** Gezählte Biere (normal / Spaß / Strafe). */
   beers: BeerCounts
+  /** Zähler für die Endstatistik. */
+  stats: TeamStats
   createdAt: number
 }
+
+/** Preis einer Aktie in KK. */
+export const STOCK_PRICE = 20
 
 /**
  * Art eines Decks – steuert, welche „Anwenden“-Aktionen beim Ziehen

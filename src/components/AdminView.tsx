@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import type { Card, Deck } from '../types'
 
-export function AdminView() {
+export function AdminView({ onEndGame }: { onEndGame: () => void }) {
   const { state, addTeam, renameTeam, removeTeam, setPlayers, updateDecks, resetAll } =
     useStore()
   const [name, setName] = useState('')
@@ -122,6 +122,12 @@ export function AdminView() {
           ))}
         </ul>
       )}
+
+      {/* Host-Aktionen */}
+      <h2 className="admin-h">Host</h2>
+      <button className="btn primary block end-game-btn" onClick={onEndGame}>
+        🏁 FDL beenden &amp; Siegesauswertung
+      </button>
 
       {/* Decks & Karten */}
       <h2 className="admin-h">Decks &amp; Karten</h2>
