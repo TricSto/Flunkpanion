@@ -160,10 +160,15 @@ function FieldBody({
   // Kingstabelle: reines Info-Feld, kein Team nötig.
   if (field.key === 'kingstabelle') {
     return (
-      <p className="sheet-info">
-        Dieses Feld wird <strong>am Spielbrett erwürfelt</strong> – es läuft nicht
-        über die App.
-      </p>
+      <>
+        <p className="sheet-info">
+          Dieses Feld wird <strong>am Spielbrett erwürfelt</strong> – es läuft nicht
+          über die App.
+        </p>
+        <button className="btn primary block" onClick={onClose}>
+          ✓ Fertig
+        </button>
+      </>
     )
   }
 
@@ -337,12 +342,13 @@ function FieldBody({
         <p className="sheet-info">
           Beruf <strong>und</strong> Gehalt müssen neu erwürfelt werden.
         </p>
-        <div className="sheet-actions">
-          <button className="btn" onClick={rollBeruf}>
-            🎲 Neuer Beruf
+        {/* Zwei große Buttons wie beim Ereignis: links Beruf, rechts Gehalt. */}
+        <div className="event-actions">
+          <button className="btn big primary" onClick={rollBeruf}>
+            💼 Neuer Beruf
           </button>
-          <button className="btn" onClick={rollGehalt}>
-            🎲 Neues Gehalt
+          <button className="btn big primary" onClick={rollGehalt}>
+            💶 Neues Gehalt
           </button>
         </div>
         <p className="muted small sheet-current">
