@@ -35,8 +35,11 @@ Challenges, Nachrichten erscheinen sofort überall), nutzt die App
 **Einrichten (einmalig):**
 
 1. Auf [supabase.com](https://supabase.com) ein kostenloses Projekt anlegen.
-2. Im Supabase-Dashboard den **SQL Editor** öffnen, den Inhalt von
-   [`supabase/schema.sql`](supabase/schema.sql) einfügen und ausführen.
+2. Datenbank einrichten — zwei Wege:
+   - **Automatisch (empfohlen):** über die CI-Pipeline, siehe
+     [Automatisiertes Deployment](#automatisiertes-deployment-cicd) weiter unten.
+   - **Manuell:** im **SQL Editor** den Inhalt der neuesten Migration unter
+     [`supabase/migrations/`](supabase/migrations/) einfügen und ausführen.
 3. Unter **Project Settings → API** die „Project URL“ und den „anon public“ Key
    kopieren.
 4. `.env.example` zu `.env` kopieren und die zwei Werte eintragen:
@@ -76,6 +79,36 @@ Nach jedem Push auf den Branch deployt Vercel automatisch neu.
 
 > Alternativ funktionieren Netlify oder Cloudflare Pages genauso — Build-Befehl
 > `npm run build`, Ausgabeordner `dist`, dieselben zwei Environment-Variablen.
+
+## Automatisiertes Deployment (CI/CD)
+
+Nach einmaliger Einrichtung passiert bei jedem Merge nach `main` alles von selbst:
+
+| Was | Wodurch | Auslöser |
+|---|---|---|
+| **Frontend deployen** | Vercels Git-Integration | jeder Push auf `main` |
+| **DB-Migrationen anwenden** | GitHub Action `Supabase Migrationen` | Push auf `main`, der `supabase/migrations/**` ändert |
+| **Build/Typen prüfen** | GitHub Action `CI` | jeder Push & Pull Request |
+
+**Einmalige Einrichtung — GitHub Secrets** (Repo → **Settings → Secrets and
+variables → Actions → New repository secret**):
+
+| Secret | Wo herbekommen |
+|---|---|
+| `SUPABASE_ACCESS_TOKEN` | [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) → „Generate new token“ |
+| `SUPABASE_DB_PASSWORD` | Das Datenbank-Passwort, das beim Anlegen des Projekts gesetzt wurde (bei Bedarf unter **Project Settings → Database → Reset database password** neu setzen) |
+
+Die Projekt-Reference-ID steht offen in [`supabase/config.toml`](supabase/config.toml)
+und in der Workflow-Datei — kein Geheimnis.
+
+**Vercel** deployt bereits automatisch über seine GitHub-Integration; als
+Production Branch `main` wählen. (Die beiden `VITE_SUPABASE_*`-Variablen dort
+wie oben beschrieben setzen.)
+
+**Neue DB-Änderung ausrollen:** einfach eine neue Datei
+`supabase/migrations/<zeitstempel>_beschreibung.sql` hinzufügen und mergen — die
+Action wendet sie an. Migrationen sind idempotent zu halten (`create ... if not
+exists`, `drop policy if exists ...`), damit erneutes Ausführen gefahrlos ist.
 
 ## Als Handy-App nutzen (PWA)
 

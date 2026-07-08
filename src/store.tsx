@@ -198,9 +198,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // Spielzeile existiert noch nicht → mit lokalem Stand anlegen.
         const shared = sharedOf(stateRef.current)
         lastSyncedRef.current = JSON.stringify(shared)
-        await client
+        const { error: writeErr } = await client
           .from(GAMES_TABLE)
           .upsert({ code, state: shared, updated_at: new Date().toISOString() })
+        if (writeErr) {
+          console.error('[flunk sync] Anlegen fehlgeschlagen –', writeErr.message, writeErr)
+          lastSyncedRef.current = null
+          if (!cancelled) setConnectionStatus('error')
+          return
+        }
       }
       if (!cancelled) setConnectionStatus('live')
     })()
@@ -237,10 +243,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (json === lastSyncedRef.current) return
     const code = session.code
     const timer = setTimeout(() => {
+      // Optimistisch merken, um Echo-Schleifen zu vermeiden.
       lastSyncedRef.current = json
       void client
         .from(GAMES_TABLE)
         .upsert({ code, state: shared, updated_at: new Date().toISOString() })
+        .then(({ error }) => {
+          if (error) {
+            // Sichtbar machen: sonst „verschwinden" Änderungen lautlos.
+            console.error(
+              '[flunk sync] Schreiben fehlgeschlagen –',
+              error.message,
+              error,
+            )
+            // Zurücksetzen, damit die nächste Änderung erneut versucht wird.
+            lastSyncedRef.current = null
+            setConnectionStatus('error')
+          }
+        })
     }, 200)
     return () => clearTimeout(timer)
   }, [state, session])
@@ -273,7 +293,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             return code
           }
           // 23505 = unique_violation → Code kollidiert, neu würfeln.
-          if ((error as { code?: string }).code !== '23505') return null
+          if ((error as { code?: string }).code !== '23505') {
+            console.error('[flunk sync] Spiel erstellen fehlgeschlagen –', error.message, error)
+            return null
+          }
         }
         return null
       },
