@@ -55,6 +55,7 @@ export function App() {
               <BoardView
                 onOpenChallenge={() => setOverlay('challenge')}
                 onOpenFlunk={() => setOverlay('flunk')}
+                onGoToTeams={() => setTab('teams')}
               />
             )}
             {tab === 'teams' && <TeamsView />}

@@ -11,7 +11,9 @@ function pickRandom<T>(items: T[]): T | undefined {
 
 export function ChallengeView() {
   const { state, startChallenge } = useStore()
-  const [challengerId, setChallengerId] = useState('')
+  // Team A ist automatisch das eigene (beigetretene) Team dieses Geräts.
+  const myTeam = state.teams.find((t) => t.id === state.currentTeamId) ?? null
+  const [challengerId, setChallengerId] = useState(myTeam?.id ?? '')
   const [opponentId, setOpponentId] = useState('')
   const [rolling, setRolling] = useState(false)
 
@@ -63,23 +65,33 @@ export function ChallengeView() {
   return (
     <section className="challenge-setup">
       <p className="muted small settings-intro">
-        Wähle die zwei Teams, lose eine Challenge aus – alle Geräte sehen sie
-        live. Danach gibst du den Gewinner an, der Nachricht &amp; Belohnung
-        erhält.
+        {myTeam
+          ? 'Wähle den Gegner, lose eine Challenge aus – alle Geräte sehen sie live. Danach gibst du den Gewinner an, der Nachricht & Belohnung erhält.'
+          : 'Wähle die zwei Teams, lose eine Challenge aus – alle Geräte sehen sie live. Danach gibst du den Gewinner an, der Nachricht & Belohnung erhält.'}
       </p>
 
       <div className="challenge-vs">
-        <label className="field">
-          <span>Team A (Herausforderer)</span>
-          <select value={challengerId} onChange={(e) => setChallengerId(e.target.value)}>
-            <option value="">— Team wählen —</option>
-            {state.teams.map((t) => (
-              <option key={t.id} value={t.id} disabled={t.id === opponentId}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {myTeam ? (
+          // Eigenes Team ist automatisch Herausforderer – keine Auswahl nötig.
+          <div className="field">
+            <span>Team A (Herausforderer)</span>
+            <p className="challenge-own-team" style={{ color: myTeam.color }}>
+              {myTeam.name}
+            </p>
+          </div>
+        ) : (
+          <label className="field">
+            <span>Team A (Herausforderer)</span>
+            <select value={challengerId} onChange={(e) => setChallengerId(e.target.value)}>
+              <option value="">— Team wählen —</option>
+              {state.teams.map((t) => (
+                <option key={t.id} value={t.id} disabled={t.id === opponentId}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <span className="vs-badge">VS</span>
 
@@ -87,11 +99,13 @@ export function ChallengeView() {
           <span>Team B (Gegner)</span>
           <select value={opponentId} onChange={(e) => setOpponentId(e.target.value)}>
             <option value="">— Team wählen —</option>
-            {state.teams.map((t) => (
-              <option key={t.id} value={t.id} disabled={t.id === challengerId}>
-                {t.name}
-              </option>
-            ))}
+            {state.teams
+              .filter((t) => t.id !== challengerId)
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
           </select>
         </label>
       </div>
