@@ -23,14 +23,28 @@ export interface Transaction {
   at: number
 }
 
+/** Getrunkene Biere eines Teams – Grundlage für die Endstatistik. */
+export interface BeerCounts {
+  /** Normale Biere. */
+  normal: number
+  /** Spaßbiere (freiwillig getrunken). */
+  fun: number
+  /** Strafbiere. */
+  penalty: number
+}
+
 export interface Team {
   id: string
   name: string
   color: string
   cash: number
+  /** Anzahl der Spieler im Team (bei der Erstellung gezählt). */
+  players: number
   job: Job | null
   actionCards: ActionCard[]
   transactions: Transaction[]
+  /** Gezählte Biere (normal / Spaß / Strafe). */
+  beers: BeerCounts
   createdAt: number
 }
 

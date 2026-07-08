@@ -1,15 +1,18 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { TeamsView } from './components/TeamsView'
-import { DiceView } from './components/DiceView'
-import { ChallengeView } from './components/ChallengeView'
 import { AdminView } from './components/AdminView'
+import { BoardView } from './components/BoardView'
+import { ChallengeView } from './components/ChallengeView'
+import { FlunkView } from './components/FlunkView'
 import { ConnectionBar } from './components/ConnectionBar'
 import { Announcements } from './components/Announcements'
 
-type Tab = 'teams' | 'dice' | 'challenge' | 'admin'
+type Tab = 'board' | 'teams' | 'admin'
+type Overlay = null | 'challenge' | 'flunk'
 
 export function App() {
-  const [tab, setTab] = useState<Tab>('teams')
+  const [tab, setTab] = useState<Tab>('board')
+  const [overlay, setOverlay] = useState<Overlay>(null)
 
   return (
     <div className="app">
@@ -27,42 +30,92 @@ export function App() {
       <Announcements />
 
       <main className="app-main">
-        {tab === 'teams' && <TeamsView />}
-        {tab === 'dice' && <DiceView />}
-        {tab === 'challenge' && <ChallengeView />}
-        {tab === 'admin' && <AdminView />}
+        {overlay === 'challenge' ? (
+          <OverlayShell title="⚔️ Challenge" onBack={() => setOverlay(null)}>
+            <ChallengeView />
+          </OverlayShell>
+        ) : overlay === 'flunk' ? (
+          <OverlayShell title="🚩 Flunk-Feld" onBack={() => setOverlay(null)}>
+            <FlunkView />
+          </OverlayShell>
+        ) : (
+          <>
+            {tab === 'board' && (
+              <BoardView
+                onOpenChallenge={() => setOverlay('challenge')}
+                onOpenFlunk={() => setOverlay('flunk')}
+              />
+            )}
+            {tab === 'teams' && <TeamsView />}
+            {tab === 'admin' && <AdminView />}
+          </>
+        )}
       </main>
 
-      <nav className="tabbar">
-        <button
-          className={tab === 'teams' ? 'tab active' : 'tab'}
-          onClick={() => setTab('teams')}
-        >
-          <span className="tab-icon">👥</span>
-          <span>Mein Team</span>
+      {overlay === null && (
+        <nav className="tabbar">
+          <TabButton
+            active={tab === 'board'}
+            onClick={() => setTab('board')}
+            icon="🎲"
+            label="Spielbrett"
+          />
+          <TabButton
+            active={tab === 'teams'}
+            onClick={() => setTab('teams')}
+            icon="👥"
+            label="Teams"
+          />
+          <TabButton
+            active={tab === 'admin'}
+            onClick={() => setTab('admin')}
+            icon="⚙️"
+            label="Setup"
+          />
+        </nav>
+      )}
+    </div>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean
+  onClick: () => void
+  icon: string
+  label: string
+}) {
+  return (
+    <button className={active ? 'tab active' : 'tab'} onClick={onClick}>
+      <span className="tab-icon">{icon}</span>
+      <span>{label}</span>
+    </button>
+  )
+}
+
+function OverlayShell({
+  title,
+  onBack,
+  children,
+}: {
+  title: string
+  onBack: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="overlay-screen">
+      <div className="overlay-head">
+        <button className="btn ghost small" onClick={onBack}>
+          ‹ Zurück
         </button>
-        <button
-          className={tab === 'dice' ? 'tab active' : 'tab'}
-          onClick={() => setTab('dice')}
-        >
-          <span className="tab-icon">🎲</span>
-          <span>Würfeln</span>
-        </button>
-        <button
-          className={tab === 'challenge' ? 'tab active' : 'tab'}
-          onClick={() => setTab('challenge')}
-        >
-          <span className="tab-icon">⚔️</span>
-          <span>Challenge</span>
-        </button>
-        <button
-          className={tab === 'admin' ? 'tab active' : 'tab'}
-          onClick={() => setTab('admin')}
-        >
-          <span className="tab-icon">⚙️</span>
-          <span>Admin</span>
-        </button>
-      </nav>
+        <h2>{title}</h2>
+        <span className="overlay-spacer" />
+      </div>
+      {children}
     </div>
   )
 }

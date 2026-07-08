@@ -6,14 +6,13 @@ export function TeamsView() {
   const { state, setCurrentTeam } = useStore()
 
   const current = state.teams.find((t) => t.id === state.currentTeamId) ?? null
-  const others = state.teams.filter((t) => t.id !== state.currentTeamId)
 
   if (state.teams.length === 0) {
     return (
       <div className="empty">
         <p className="empty-emoji">🍺</p>
         <p>Noch keine Teams.</p>
-        <p className="muted">Lege im Tab „Admin“ die Teams für euer Spiel an.</p>
+        <p className="muted">Lege im Tab „Setup“ die Teams für euer Spiel an.</p>
       </div>
     )
   }
@@ -37,28 +36,36 @@ export function TeamsView() {
         </label>
       </div>
 
-      {current ? (
-        <TeamCard team={current} defaultOpen />
-      ) : (
-        <div className="empty">
-          <p className="muted">Wähle oben dein Team aus, um loszulegen.</p>
-        </div>
-      )}
+      {current && <TeamCard team={current} defaultOpen />}
 
-      {others.length > 0 && (
-        <details className="other-teams">
-          <summary>Andere Teams ({others.length})</summary>
-          <ul className="other-list">
-            {others.map((t) => (
-              <li key={t.id} className="other-row">
-                <span className="other-dot" style={{ background: t.color }} />
-                <span className="other-name">{t.name}</span>
-                <span className="other-cash">{formatMoney(t.cash)}</span>
+      <div className="overview">
+        <h3 className="overview-h">Alle Teams</h3>
+        <ul className="overview-list">
+          {state.teams.map((t) => {
+            const beers = t.beers.normal + t.beers.fun + t.beers.penalty
+            return (
+              <li key={t.id} className="overview-row" style={{ borderLeftColor: t.color }}>
+                <div className="overview-main">
+                  <span className="overview-name">
+                    {t.name}
+                    <span className="muted small"> · {t.players}👤</span>
+                  </span>
+                  <span className="overview-job muted small">
+                    {t.job?.title ? t.job.title : 'Kein Beruf'}
+                    {t.job && t.job.salary > 0
+                      ? ` · ${formatMoney(t.job.salary)}${t.job.beerTax ? ` · BS ${t.job.beerTax}` : ''}`
+                      : ''}
+                  </span>
+                </div>
+                <div className="overview-side">
+                  <span className="overview-cash">{formatMoney(t.cash)}</span>
+                  <span className="overview-beers muted small">🍺 {beers}</span>
+                </div>
               </li>
-            ))}
-          </ul>
-        </details>
-      )}
+            )
+          })}
+        </ul>
+      </div>
     </section>
   )
 }

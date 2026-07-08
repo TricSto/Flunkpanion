@@ -11,6 +11,7 @@ import type {
   ActionCard,
   AppState,
   Announcement,
+  BeerCounts,
   Card,
   Challenge,
   ChallengeReward,
@@ -49,6 +50,19 @@ function generateCode(len = 4): string {
   return out
 }
 
+/**
+ * Sorgt dafür, dass geladene/empfangene Teams alle neueren Felder besitzen
+ * (players, beers, transactions) – schützt vor Abstürzen bei älteren Ständen.
+ */
+function normalizeTeams(teams: Team[] | undefined): Team[] {
+  return (teams ?? []).map((t) => ({
+    ...t,
+    transactions: t.transactions ?? [],
+    players: t.players ?? 1,
+    beers: t.beers ?? { normal: 0, fun: 0, penalty: 0 },
+  }))
+}
+
 /** Nur die Felder, die zwischen allen Geräten geteilt werden. */
 function sharedOf(state: AppState): SharedState {
   return {
@@ -68,8 +82,8 @@ function loadState(): AppState {
     // Bei neuer Deck-Version die mitgelieferten Karten übernehmen, Teams behalten.
     const decksCurrent = parsed.decksVersion === DECKS_VERSION && parsed.decks
     return {
-      // Ältere gespeicherte Teams besitzen evtl. noch kein transactions-Feld.
-      teams: (parsed.teams ?? []).map((t) => ({ ...t, transactions: t.transactions ?? [] })),
+      // Ältere gespeicherte Teams besitzen evtl. noch keine neuen Felder.
+      teams: normalizeTeams(parsed.teams),
       decks: decksCurrent ? parsed.decks! : initialState.decks,
       currentTeamId: parsed.currentTeamId ?? null,
       decksVersion: DECKS_VERSION,
@@ -105,9 +119,11 @@ interface Store {
   /** Online-Spiel verlassen (zurück in den lokalen Modus). */
   leaveGame: () => void
   // Teams
-  addTeam: (name: string) => void
+  addTeam: (name: string, players?: number) => void
   removeTeam: (teamId: string) => void
   renameTeam: (teamId: string, name: string) => void
+  setPlayers: (teamId: string, players: number) => void
+  addBeer: (teamId: string, kind: keyof BeerCounts, delta: number) => void
   adjustCash: (teamId: string, delta: number, reason?: string) => void
   undoTransaction: (teamId: string, txId: string) => void
   setJob: (teamId: string, job: Job | null) => void
@@ -167,7 +183,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const json = JSON.stringify(shared)
     if (json === lastSyncedRef.current) return
     lastSyncedRef.current = json
-    setState((s) => ({ ...s, ...shared, currentTeamId: s.currentTeamId }))
+    setState((s) => ({
+      ...s,
+      ...shared,
+      teams: normalizeTeams(shared.teams),
+      currentTeamId: s.currentTeamId,
+    }))
   }
 
   // --- Realtime: abonnieren & Startzustand laden --------------------------
@@ -314,7 +335,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (error) return { ok: false, error: 'Verbindungsfehler. Bitte erneut versuchen.' }
         if (!data) return { ok: false, error: 'Spiel nicht gefunden. Code prüfen.' }
         lastSyncedRef.current = JSON.stringify(data.state)
-        setState((s) => ({ ...s, ...(data.state as SharedState), currentTeamId: null }))
+        setState((s) => ({
+          ...s,
+          ...(data.state as SharedState),
+          teams: normalizeTeams((data.state as SharedState).teams),
+          currentTeamId: null,
+        }))
         setSession({ code })
         return { ok: true }
       },
@@ -325,7 +351,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setConnectionStatus('local')
       },
 
-      addTeam: (name) =>
+      addTeam: (name, players = 1) =>
         setState((s) => {
           const color = TEAM_COLORS[s.teams.length % TEAM_COLORS.length]
           const team: Team = {
@@ -333,13 +359,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             name: name.trim() || `Team ${s.teams.length + 1}`,
             color,
             cash: 0,
+            players: Math.max(1, Math.round(players) || 1),
             job: null,
             actionCards: [],
             transactions: [],
+            beers: { normal: 0, fun: 0, penalty: 0 },
             createdAt: Date.now(),
           }
           return { ...s, teams: [...s.teams, team] }
         }),
+
+      setPlayers: (teamId, players) =>
+        mutateTeam(teamId, (t) => ({
+          ...t,
+          players: Math.max(1, Math.round(players) || 1),
+        })),
+
+      addBeer: (teamId, kind, delta) =>
+        mutateTeam(teamId, (t) => ({
+          ...t,
+          beers: { ...t.beers, [kind]: Math.max(0, t.beers[kind] + delta) },
+        })),
 
       removeTeam: (teamId) =>
         setState((s) => ({

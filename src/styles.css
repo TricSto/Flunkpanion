@@ -1313,8 +1313,375 @@ select {
   background: rgba(99, 102, 241, 0.12);
 }
 
-/* Vier Tabs: etwas kompakter, damit alles passt */
+/* Drei Tabs: gleichmäßig verteilt */
 .tabbar .tab {
   flex: 1;
   padding: 4px 4px;
+}
+
+/* ---- Spielbrett ----------------------------------------------------------- */
+.board {
+  display: flex;
+  flex-direction: column;
+}
+
+.board-hint {
+  margin: 6px 0 10px;
+}
+
+.board-note {
+  margin: 14px 2px 0;
+  text-align: center;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field-tile {
+  --tile: var(--primary);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  padding: 13px 13px 12px;
+  min-height: 104px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--tile) 50%, var(--border));
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--tile) 24%, var(--bg-elev)),
+    var(--bg-elev) 70%
+  );
+  color: var(--text);
+  box-shadow: var(--shadow);
+  transition: transform 0.08s;
+}
+
+.field-tile:active {
+  transform: scale(0.97);
+}
+
+.field-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  line-height: 1;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tile) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tile) 55%, transparent);
+}
+
+.field-label {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.field-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.flunk-tile {
+  width: 100%;
+  margin-top: 10px;
+  min-height: 118px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  border-width: 2px;
+}
+
+.flunk-tile .field-icon {
+  width: 54px;
+  height: 54px;
+  font-size: 30px;
+}
+
+.flunk-tile .field-label {
+  font-size: 21px;
+}
+
+.flunk-tile .field-sub {
+  font-size: 12px;
+}
+
+/* ---- Feld-Aktionssheet ---------------------------------------------------- */
+.sheet-info {
+  font-size: 14px;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.sheet-flash {
+  margin: 12px 0 0;
+}
+
+.sheet-drawn {
+  margin-top: 12px;
+}
+
+.sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sheet-current {
+  margin-top: 10px;
+}
+
+.btn.block {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* ---- Overlay-Screens (Challenge / Flunk) ---------------------------------- */
+.overlay-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+.overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 0 14px;
+}
+
+.overlay-head h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.overlay-spacer {
+  width: 72px;
+  flex-shrink: 0;
+}
+
+/* ---- Teamübersicht -------------------------------------------------------- */
+.overview {
+  margin-top: 18px;
+}
+
+.overview-h {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.overview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.overview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.overview-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.overview-name {
+  font-weight: 700;
+}
+
+.overview-job {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-side {
+  text-align: right;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overview-cash {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Biere zählen --------------------------------------------------------- */
+.beer-counters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.beer-counter {
+  background: var(--bg-elev-2);
+  border-radius: 10px;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.beer-count {
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.beer-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.beer-btns .btn.tiny {
+  padding: 4px 12px;
+}
+
+/* ---- Setup: Spieleranzahl ------------------------------------------------- */
+.players-input {
+  width: 66px;
+  text-align: center;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 11px 8px;
+  flex-shrink: 0;
+}
+
+.admin-players {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* ---- Flunk-Ablauf --------------------------------------------------------- */
+.flunk {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.flunk-teams {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flunk-team-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.flunk-team-name {
+  font-weight: 700;
+}
+
+.flunk-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flunk-ok {
+  color: var(--pos);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.flunk-draw {
+  margin-top: 4px;
+}
+
+.flunk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.flunk-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flunk-match {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flunk-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.flunk-team {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.flunk-win-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.flunk-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.flunk-beer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
