@@ -9,6 +9,12 @@ export function DiceView() {
 
   const selectedTeam = state.teams.find((t) => t.id === teamId) ?? null
 
+  // Beruf, Gehalt und Aktionskarten werden direkt auf der Teamkarte gewürfelt.
+  // Hier nur die gemeinsamen Decks für alle Teams.
+  const sharedDecks = state.decks.filter((d) =>
+    ['event', 'challenge', 'lifestyle', 'equipment'].includes(d.type),
+  )
+
   return (
     <section>
       <div className="dice-team-picker">
@@ -25,13 +31,13 @@ export function DiceView() {
         </label>
         {state.teams.length === 0 && (
           <p className="muted small">
-            Lege zuerst unter „Teams“ ein Team an, um Ergebnisse direkt zu übernehmen.
+            Lege zuerst im Tab „Admin“ ein Team an, um Ergebnisse direkt zu übernehmen.
           </p>
         )}
       </div>
 
       <div className="dice-tables">
-        {state.decks.map((deck) => (
+        {sharedDecks.map((deck) => (
           <DeckCard key={deck.id} deck={deck} teamId={selectedTeam?.id ?? null} />
         ))}
       </div>

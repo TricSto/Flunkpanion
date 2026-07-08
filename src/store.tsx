@@ -33,6 +33,7 @@ function loadState(): AppState {
       // Ältere gespeicherte Teams besitzen evtl. noch kein transactions-Feld.
       teams: (parsed.teams ?? []).map((t) => ({ ...t, transactions: t.transactions ?? [] })),
       decks: parsed.decks ?? initialState.decks,
+      currentTeamId: parsed.currentTeamId ?? null,
     }
   } catch {
     return initialState
@@ -48,7 +49,11 @@ interface Store {
   adjustCash: (teamId: string, delta: number, reason?: string) => void
   undoTransaction: (teamId: string, txId: string) => void
   setJob: (teamId: string, job: Job | null) => void
+  setJobTitle: (teamId: string, title: string, effect?: string) => void
+  setSalary: (teamId: string, salary: number, beerTax: number) => void
   payBeerTax: (teamId: string) => void
+  // Team-Auswahl („Beitreten“)
+  setCurrentTeam: (teamId: string | null) => void
   // Aktionskarten
   addActionCard: (teamId: string, title: string, note: string) => void
   removeActionCard: (teamId: string, cardId: string) => void
@@ -101,7 +106,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
 
       removeTeam: (teamId) =>
-        setState((s) => ({ ...s, teams: s.teams.filter((t) => t.id !== teamId) })),
+        setState((s) => ({
+          ...s,
+          teams: s.teams.filter((t) => t.id !== teamId),
+          currentTeamId: s.currentTeamId === teamId ? null : s.currentTeamId,
+        })),
+
+      setCurrentTeam: (teamId) => setState((s) => ({ ...s, currentTeamId: teamId })),
 
       renameTeam: (teamId, name) =>
         mutateTeam(teamId, (t) => ({ ...t, name: name.trim() || t.name })),
@@ -133,6 +144,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
 
       setJob: (teamId, job) => mutateTeam(teamId, (t) => ({ ...t, job })),
+
+      setJobTitle: (teamId, title) =>
+        mutateTeam(teamId, (t) => ({
+          ...t,
+          job: { title, salary: t.job?.salary ?? 0, beerTax: t.job?.beerTax ?? 0 },
+        })),
+
+      setSalary: (teamId, salary, beerTax) =>
+        mutateTeam(teamId, (t) => ({
+          ...t,
+          job: { title: t.job?.title ?? '', salary, beerTax },
+        })),
 
       payBeerTax: (teamId) =>
         mutateTeam(teamId, (t) => {

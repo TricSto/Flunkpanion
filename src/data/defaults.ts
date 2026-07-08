@@ -34,16 +34,26 @@ function deck(
   return { id, name, icon, type, mode, cards }
 }
 
-// --- Berufe (D8-Tabelle) – Gehalt & Biersteuer aus dem Sheet -----------------
+// --- Berufe (D8-Tabelle) – nur Beruf & Effekt, Gehalt separat ----------------
 const berufe = deck('berufe', 'Berufe', '💼', 'job', 'roll', [
-  c('Braumeister (Diplom)', '1× 0,3 im Team pro Flunk', null, { salary: 10, beerTax: 5 }),
-  c('Bier Sommelier (Diplom)', '1× kleiner Schluck', null, { salary: 12, beerTax: 6 }),
-  c('Flunkologe (Diplom)', 'Erster Wurf immer Advantage', null, { salary: 14, beerTax: 7 }),
-  c('Flunk Consultant (Diplom)', 'Darf 1 Aktionskarte pro Runde ziehen', null, { salary: 14, beerTax: 7 }),
-  c('Dr. Flunk (Diplom)', 'Kronkorkenregel: Gegner trinken aus, wenn fertig', null, { salary: 16, beerTax: 8 }),
-  c('Flunkierer (Diplom)', 'Darf links & rechts je einen Spieler positionieren', null, { salary: 16, beerTax: 8 }),
-  c('Hartz-Bier-Empfänger', 'Darf chillen', null, { salary: 18, beerTax: 9 }),
-  c('Bierwart', 'Verantwortlich für Bierholung', null, { salary: 20, beerTax: 10 }),
+  c('Braumeister (Diplom)', '1× 0,3 im Team pro Flunk'),
+  c('Bier Sommelier (Diplom)', '1× kleiner Schluck'),
+  c('Flunkologe (Diplom)', 'Erster Wurf immer Advantage'),
+  c('Flunk Consultant (Diplom)', 'Darf 1 Aktionskarte pro Runde ziehen'),
+  c('Dr. Flunk (Diplom)', 'Kronkorkenregel: Gegner trinken aus, wenn fertig'),
+  c('Flunkierer (Diplom)', 'Darf links & rechts je einen Spieler positionieren'),
+  c('Hartz-Bier-Empfänger', 'Darf chillen'),
+  c('Bierwart', 'Verantwortlich für Bierholung'),
+])
+
+// --- Gehalt (D6-Tabelle) – wird separat vom Beruf gewürfelt ------------------
+const gehalt = deck('gehalt', 'Gehalt', '💶', 'salary', 'roll', [
+  c('Gehalt', 'Einstieg', null, { salary: 10, beerTax: 5 }),
+  c('Gehalt', 'Solide', null, { salary: 12, beerTax: 6 }),
+  c('Gehalt', 'Gut', null, { salary: 14, beerTax: 7 }),
+  c('Gehalt', 'Sehr gut', null, { salary: 16, beerTax: 8 }),
+  c('Gehalt', 'Top', null, { salary: 18, beerTax: 9 }),
+  c('Gehalt', 'Spitze', null, { salary: 20, beerTax: 10 }),
 ])
 
 // --- Ereigniskarten ----------------------------------------------------------
@@ -135,6 +145,7 @@ const equipment = deck('equipment', 'Equipment', '🎒', 'equipment', 'draw', [
 
 const defaultDecks: Deck[] = [
   berufe,
+  gehalt,
   ereignisse,
   bonus,
   special,
@@ -146,4 +157,5 @@ const defaultDecks: Deck[] = [
 export const initialState: AppState = {
   teams: [],
   decks: defaultDecks,
+  currentTeamId: null,
 }

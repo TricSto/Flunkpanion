@@ -1,24 +1,31 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import type { Card, Deck } from '../types'
+import { formatMoney } from '../util'
 
-export function SettingsView() {
-  const { state, updateDecks, resetAll } = useStore()
-  const [openId, setOpenId] = useState<string | null>(null)
+export function AdminView() {
+  const { state, addTeam, renameTeam, removeTeam, updateDecks, resetAll } = useStore()
+  const [name, setName] = useState('')
+  const [openDeck, setOpenDeck] = useState<string | null>(null)
 
-  const updateDeck = (id: string, fn: (d: Deck) => Deck) => {
-    updateDecks(state.decks.map((d) => (d.id === id ? fn(d) : d)))
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    addTeam(name)
+    setName('')
   }
 
-  const updateCard = (deckId: string, cardId: string, patch: Partial<Card>) => {
+  const updateDeck = (id: string, fn: (d: Deck) => Deck) =>
+    updateDecks(state.decks.map((d) => (d.id === id ? fn(d) : d)))
+
+  const updateCard = (deckId: string, cardId: string, patch: Partial<Card>) =>
     updateDeck(deckId, (d) => ({
       ...d,
       cards: d.cards.map((c) => (c.id === cardId ? { ...c, ...patch } : c)),
     }))
-  }
 
-  const addCard = (deckId: string, isJob: boolean) => {
-    updateDeck(deckId, (d) => ({
+  const addCard = (deck: Deck) =>
+    updateDeck(deck.id, (d) => ({
       ...d,
       cards: [
         ...d.cards,
@@ -27,31 +34,82 @@ export function SettingsView() {
           title: 'Neue Karte',
           detail: '',
           amount: null,
-          ...(isJob ? { salary: 0, beerTax: 0 } : {}),
+          ...(d.type === 'job' || d.type === 'salary' ? { salary: 0, beerTax: 0 } : {}),
         },
       ],
     }))
-  }
 
-  const removeCard = (deckId: string, cardId: string) => {
+  const removeCard = (deckId: string, cardId: string) =>
     updateDeck(deckId, (d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) }))
-  }
 
   return (
     <section>
+      {/* Teams verwalten */}
+      <h2 className="admin-h">Teams</h2>
       <p className="muted small settings-intro">
-        Hier könnt ihr alle Decks und Karten anpassen. Änderungen werden
+        Legt hier die Teams für euer Spiel an. Die Spieler wählen ihr Team dann
+        im Tab „Mein Team“.
+      </p>
+
+      <form className="add-team" onSubmit={submit}>
+        <input
+          type="text"
+          placeholder="Teamname eingeben…"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          aria-label="Teamname"
+        />
+        <button type="submit" className="btn primary">
+          + Team
+        </button>
+      </form>
+
+      {state.teams.length === 0 ? (
+        <p className="muted small">Noch keine Teams angelegt.</p>
+      ) : (
+        <ul className="admin-team-list">
+          {state.teams.map((t) => (
+            <li key={t.id} className="admin-team-row">
+              <span className="other-dot" style={{ background: t.color }} />
+              <span className="admin-team-name">{t.name}</span>
+              <span className="muted small">{formatMoney(t.cash)}</span>
+              <button
+                className="btn tiny ghost"
+                onClick={() => {
+                  const next = prompt('Neuer Teamname', t.name)
+                  if (next != null) renameTeam(t.id, next)
+                }}
+              >
+                Umbenennen
+              </button>
+              <button
+                className="btn tiny danger"
+                onClick={() => {
+                  if (confirm(`Team „${t.name}“ wirklich löschen?`)) removeTeam(t.id)
+                }}
+              >
+                Löschen
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Decks & Karten */}
+      <h2 className="admin-h">Decks &amp; Karten</h2>
+      <p className="muted small settings-intro">
+        Passt Berufe, Gehälter und alle Kartenstapel an. Änderungen werden
         automatisch gespeichert.
       </p>
 
       {state.decks.map((deck) => {
-        const isJob = deck.type === 'job'
-        const open = openId === deck.id
+        const hasSalary = deck.type === 'job' || deck.type === 'salary'
+        const open = openDeck === deck.id
         return (
           <div key={deck.id} className="settings-table">
             <button
               className="settings-deck-head"
-              onClick={() => setOpenId(open ? null : deck.id)}
+              onClick={() => setOpenDeck(open ? null : deck.id)}
             >
               <span>
                 {deck.icon} <strong>{deck.name}</strong>{' '}
@@ -103,7 +161,7 @@ export function SettingsView() {
                           updateCard(deck.id, card.id, { detail: e.target.value })
                         }
                       />
-                      {isJob ? (
+                      {hasSalary ? (
                         <div className="settings-inline">
                           <input
                             type="number"
@@ -147,7 +205,7 @@ export function SettingsView() {
 
                 <button
                   className="btn small ghost add-card-btn"
-                  onClick={() => addCard(deck.id, isJob)}
+                  onClick={() => addCard(deck)}
                 >
                   + Karte hinzufügen
                 </button>

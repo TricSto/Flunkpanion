@@ -1,30 +1,76 @@
 import { useState } from 'react'
-import type { Team } from '../types'
+import type { Card, Team } from '../types'
 import { useStore } from '../store'
 import { formatMoney, formatTime } from '../util'
 import { Modal } from './Modal'
 
-const QUICK_AMOUNTS = [100, 500, 1000, 5000]
+const QUICK_AMOUNTS = [5, 10, 15, 20]
 
-export function TeamCard({ team }: { team: Team }) {
+function pickRandom<T>(items: T[]): T | undefined {
+  if (items.length === 0) return undefined
+  return items[Math.floor(Math.random() * items.length)]
+}
+
+export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen?: boolean }) {
   const {
+    state,
     adjustCash,
     undoTransaction,
-    setJob,
+    setJobTitle,
+    setSalary,
     payBeerTax,
     addActionCard,
     removeActionCard,
     addProperty,
     removeProperty,
-    removeTeam,
     renameTeam,
   } = useStore()
 
-  const [open, setOpen] = useState(true)
-  const [modal, setModal] = useState<null | 'cash' | 'job' | 'card' | 'property'>(null)
+  const [open, setOpen] = useState(defaultOpen)
+  const [modal, setModal] = useState<null | 'cash' | 'card' | 'property'>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+
+  const berufe = state.decks.find((d) => d.type === 'job')
+  const gehalt = state.decks.find((d) => d.type === 'salary')
+  const actionDecks = state.decks.filter((d) => d.type === 'action' || d.type === 'special')
+
+  const heldTitles = new Set(team.actionCards.map((c) => c.title))
 
   const propertyTotal = team.properties.reduce((sum, p) => sum + p.value, 0)
   const netWorth = team.cash + propertyTotal
+
+  const showFlash = (msg: string) => {
+    setFlash(msg)
+    window.setTimeout(() => setFlash((f) => (f === msg ? null : f)), 2500)
+  }
+
+  const rollBeruf = () => {
+    const card = pickRandom(berufe?.cards ?? [])
+    if (!card) return
+    setJobTitle(team.id, card.title)
+    showFlash(`Beruf: ${card.title}`)
+  }
+
+  const rollGehalt = () => {
+    const card = pickRandom(gehalt?.cards ?? [])
+    if (!card) return
+    setSalary(team.id, card.salary ?? 0, card.beerTax ?? 0)
+    showFlash(`Gehalt: ${formatMoney(card.salary ?? 0)} · BS ${card.beerTax ?? 0}`)
+  }
+
+  const drawAction = (deckId: string) => {
+    const deck = state.decks.find((d) => d.id === deckId)
+    if (!deck) return
+    // Keine Doppelten: nur Karten ziehen, die das Team noch nicht hat.
+    const available = deck.cards.filter((c) => !heldTitles.has(c.title))
+    if (available.length === 0) {
+      showFlash(`Alle Karten aus „${deck.name}“ bereits im Team`)
+      return
+    }
+    const card = pickRandom(available) as Card
+    addActionCard(team.id, card.title, card.detail)
+    showFlash(`Gezogen: ${card.title}`)
+  }
 
   return (
     <article className="team-card" style={{ borderTopColor: team.color }}>
@@ -39,58 +85,72 @@ export function TeamCard({ team }: { team: Team }) {
         </button>
         <div className="team-cash">
           <span className="cash-value">{formatMoney(team.cash)}</span>
-          <span className="cash-label">Cash</span>
+          <span className="cash-label">Kronkorken</span>
         </div>
       </header>
 
+      {flash && <div className="flash">{flash}</div>}
+
       {open && (
         <div className="team-body">
-          {/* Job */}
+          {/* Beruf & Gehalt (separat würfelbar) */}
           <div className="row">
             <div className="row-main">
-              <span className="row-label">💼 Job</span>
-              {team.job ? (
+              <span className="row-label">💼 Beruf</span>
+              {team.job && team.job.title ? (
+                <span className="row-value">{team.job.title}</span>
+              ) : (
+                <span className="row-value muted">Kein Beruf</span>
+              )}
+            </div>
+            <button className="btn small" onClick={rollBeruf}>
+              🎲 Beruf
+            </button>
+          </div>
+
+          <div className="row">
+            <div className="row-main">
+              <span className="row-label">💶 Gehalt</span>
+              {team.job && team.job.salary > 0 ? (
                 <span className="row-value">
-                  {team.job.title} · {formatMoney(team.job.salary)}
+                  {formatMoney(team.job.salary)}
                   {team.job.beerTax > 0 && (
                     <span className="muted"> · BS {team.job.beerTax}</span>
                   )}
                 </span>
               ) : (
-                <span className="row-value muted">Kein Job</span>
+                <span className="row-value muted">Kein Gehalt</span>
               )}
             </div>
             <div className="row-actions">
-              {team.job && (
-                <button
-                  className="btn small"
-                  onClick={() =>
-                    adjustCash(team.id, team.job!.salary, `Gehalt: ${team.job!.title}`)
-                  }
-                  title="Gehalt auszahlen"
-                >
-                  Gehalt +
-                </button>
-              )}
-              {team.job && team.job.beerTax > 0 && (
-                <button
-                  className="btn small minus"
-                  onClick={() => payBeerTax(team.id)}
-                  title="Biersteuer zahlen"
-                >
-                  BS −
-                </button>
-              )}
-              <button className="btn small ghost" onClick={() => setModal('job')}>
-                {team.job ? 'Ändern' : 'Setzen'}
+              <button className="btn small" onClick={rollGehalt}>
+                🎲 Gehalt
               </button>
             </div>
           </div>
 
-          {/* Cash-Buttons */}
+          {team.job && team.job.salary > 0 && (
+            <div className="cash-controls">
+              <button
+                className="btn small plus"
+                onClick={() =>
+                  adjustCash(team.id, team.job!.salary, `Gehalt: ${team.job!.title || 'Job'}`)
+                }
+              >
+                Gehalt auszahlen +{team.job.salary}
+              </button>
+              {team.job.beerTax > 0 && (
+                <button className="btn small minus" onClick={() => payBeerTax(team.id)}>
+                  Biersteuer −{team.job.beerTax}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Kronkorken-Buttons */}
           <div className="cash-controls">
             <button className="btn small" onClick={() => setModal('cash')}>
-              💶 Betrag buchen
+              💰 Betrag buchen
             </button>
             {QUICK_AMOUNTS.map((amt) => (
               <span key={amt} className="quick-pair">
@@ -110,13 +170,21 @@ export function TeamCard({ team }: { team: Team }) {
             ))}
           </div>
 
-          {/* Aktionskarten */}
+          {/* Aktionskarten – direkt ziehen, keine Doppelten */}
           <div className="section">
             <div className="section-head">
               <h4>🃏 Aktionskarten ({team.actionCards.length})</h4>
-              <button className="btn small ghost" onClick={() => setModal('card')}>
-                + Karte
-              </button>
+            </div>
+            <div className="draw-controls">
+              {actionDecks.map((deck) => (
+                <button
+                  key={deck.id}
+                  className="btn small"
+                  onClick={() => drawAction(deck.id)}
+                >
+                  {deck.icon} {deck.name} ziehen
+                </button>
+              ))}
             </div>
             {team.actionCards.length === 0 ? (
               <p className="muted small">Noch keine Karten gezogen.</p>
@@ -131,7 +199,8 @@ export function TeamCard({ team }: { team: Team }) {
                     <button
                       className="chip-x"
                       onClick={() => removeActionCard(team.id, c.id)}
-                      aria-label="Karte entfernen"
+                      title="Karte benutzen / ablegen (wird wieder ziehbar)"
+                      aria-label="Karte benutzen"
                     >
                       ✕
                     </button>
@@ -202,7 +271,7 @@ export function TeamCard({ team }: { team: Team }) {
             )}
           </div>
 
-          {/* Fußzeile: Vermögen + Verwaltung */}
+          {/* Fußzeile */}
           <div className="team-footer">
             <span className="networth">
               Vermögen (inkl. Besitz): <strong>{formatMoney(netWorth)}</strong>
@@ -217,14 +286,6 @@ export function TeamCard({ team }: { team: Team }) {
               >
                 Umbenennen
               </button>
-              <button
-                className="btn tiny danger"
-                onClick={() => {
-                  if (confirm(`Team „${team.name}“ wirklich löschen?`)) removeTeam(team.id)
-                }}
-              >
-                Löschen
-              </button>
             </div>
           </div>
         </div>
@@ -235,25 +296,6 @@ export function TeamCard({ team }: { team: Team }) {
           onClose={() => setModal(null)}
           onSubmit={(delta, reason) => {
             adjustCash(team.id, delta, reason)
-            setModal(null)
-          }}
-        />
-      )}
-      {modal === 'job' && (
-        <JobModal
-          initial={team.job}
-          onClose={() => setModal(null)}
-          onSubmit={(job) => {
-            setJob(team.id, job)
-            setModal(null)
-          }}
-        />
-      )}
-      {modal === 'card' && (
-        <CardModal
-          onClose={() => setModal(null)}
-          onSubmit={(title, note) => {
-            addActionCard(team.id, title, note)
             setModal(null)
           }}
         />
@@ -286,14 +328,14 @@ function CashModal({
   return (
     <Modal title="Betrag buchen" onClose={onClose}>
       <label className="field">
-        <span>Betrag (negativ = Ausgabe)</span>
+        <span>Betrag in KK (negativ = Ausgabe)</span>
         <input
           type="number"
           inputMode="numeric"
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="z. B. 1500 oder -500"
+          placeholder="z. B. 10 oder -5"
         />
       </label>
       <label className="field">
@@ -321,123 +363,6 @@ function CashModal({
   )
 }
 
-function JobModal({
-  initial,
-  onClose,
-  onSubmit,
-}: {
-  initial: Team['job']
-  onClose: () => void
-  onSubmit: (job: Team['job']) => void
-}) {
-  const [title, setTitle] = useState(initial?.title ?? '')
-  const [salary, setSalary] = useState(initial ? String(initial.salary) : '')
-  const [beerTax, setBeerTax] = useState(initial ? String(initial.beerTax) : '')
-  return (
-    <Modal title="Job setzen" onClose={onClose}>
-      <label className="field">
-        <span>Berufsbezeichnung</span>
-        <input
-          type="text"
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="z. B. Braumeister"
-        />
-      </label>
-      <label className="field">
-        <span>Gehalt (KK)</span>
-        <input
-          type="number"
-          inputMode="numeric"
-          value={salary}
-          onChange={(e) => setSalary(e.target.value)}
-          placeholder="z. B. 14"
-        />
-      </label>
-      <label className="field">
-        <span>Biersteuer / BS (KK)</span>
-        <input
-          type="number"
-          inputMode="numeric"
-          value={beerTax}
-          onChange={(e) => setBeerTax(e.target.value)}
-          placeholder="z. B. 7"
-        />
-      </label>
-      <div className="modal-actions">
-        {initial && (
-          <button className="btn danger ghost" onClick={() => onSubmit(null)}>
-            Job entfernen
-          </button>
-        )}
-        <button className="btn ghost" onClick={onClose}>
-          Abbrechen
-        </button>
-        <button
-          className="btn primary"
-          disabled={!title.trim()}
-          onClick={() =>
-            onSubmit({
-              title: title.trim(),
-              salary: Number(salary) || 0,
-              beerTax: Number(beerTax) || 0,
-            })
-          }
-        >
-          Speichern
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
-function CardModal({
-  onClose,
-  onSubmit,
-}: {
-  onClose: () => void
-  onSubmit: (title: string, note: string) => void
-}) {
-  const [title, setTitle] = useState('')
-  const [note, setNote] = useState('')
-  return (
-    <Modal title="Aktionskarte hinzufügen" onClose={onClose}>
-      <label className="field">
-        <span>Titel</span>
-        <input
-          type="text"
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="z. B. Joker"
-        />
-      </label>
-      <label className="field">
-        <span>Notiz (optional)</span>
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Kurze Beschreibung"
-        />
-      </label>
-      <div className="modal-actions">
-        <button className="btn ghost" onClick={onClose}>
-          Abbrechen
-        </button>
-        <button
-          className="btn primary"
-          disabled={!title.trim()}
-          onClick={() => onSubmit(title, note)}
-        >
-          Hinzufügen
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
 function PropertyModal({
   onClose,
   onSubmit,
@@ -457,17 +382,17 @@ function PropertyModal({
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="z. B. Villa am See"
+          placeholder="z. B. Zwei-Zimmer-Wohnung"
         />
       </label>
       <label className="field">
-        <span>Wert</span>
+        <span>Wert (KK)</span>
         <input
           type="number"
           inputMode="numeric"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="z. B. 25000"
+          placeholder="z. B. 20"
         />
       </label>
       <label className="field">

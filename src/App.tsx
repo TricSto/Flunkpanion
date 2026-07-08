@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { TeamsView } from './components/TeamsView'
 import { DiceView } from './components/DiceView'
-import { SettingsView } from './components/SettingsView'
+import { AdminView } from './components/AdminView'
 
-type Tab = 'teams' | 'dice' | 'settings'
+type Tab = 'teams' | 'dice' | 'admin'
 
 export function App() {
   const [tab, setTab] = useState<Tab>('teams')
@@ -23,7 +23,7 @@ export function App() {
       <main className="app-main">
         {tab === 'teams' && <TeamsView />}
         {tab === 'dice' && <DiceView />}
-        {tab === 'settings' && <SettingsView />}
+        {tab === 'admin' && <AdminView />}
       </main>
 
       <nav className="tabbar">
@@ -32,7 +32,7 @@ export function App() {
           onClick={() => setTab('teams')}
         >
           <span className="tab-icon">👥</span>
-          <span>Teams</span>
+          <span>Mein Team</span>
         </button>
         <button
           className={tab === 'dice' ? 'tab active' : 'tab'}
@@ -42,11 +42,11 @@ export function App() {
           <span>Würfeln</span>
         </button>
         <button
-          className={tab === 'settings' ? 'tab active' : 'tab'}
-          onClick={() => setTab('settings')}
+          className={tab === 'admin' ? 'tab active' : 'tab'}
+          onClick={() => setTab('admin')}
         >
           <span className="tab-icon">⚙️</span>
-          <span>Tabellen</span>
+          <span>Admin</span>
         </button>
       </nav>
     </div>

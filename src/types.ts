@@ -48,6 +48,7 @@ export interface Team {
  */
 export type DeckType =
   | 'job'
+  | 'salary'
   | 'event'
   | 'action'
   | 'special'
@@ -85,4 +86,6 @@ export interface Deck {
 export interface AppState {
   teams: Team[]
   decks: Deck[]
+  /** Das aktuell „beigetretene“ Team dieses Geräts. */
+  currentTeamId: string | null
 }
