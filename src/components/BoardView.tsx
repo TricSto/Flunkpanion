@@ -209,8 +209,8 @@ function FieldBody({
 
   // --- Karten ziehen (Aktionskarten / Spielverändernd) ---------------------
   if (field.key === 'aktionskarten' || field.key === 'spielveraendernd') {
-    const deckId = field.key === 'aktionskarten' ? 'aktionskarten' : 'spielveraendernd'
-    const deck = state.decks.find((d) => d.id === deckId)
+    const kind = field.key === 'spielveraendernd' ? 'special' : 'action'
+    const deck = state.decks.find((d) => d.type === kind)
     const draw = () => {
       if (!deck || deck.cards.length === 0) return
       const held = new Set(team.actionCards.map((c) => c.title))
@@ -220,7 +220,7 @@ function FieldBody({
         say(`Alle Karten aus „${deck.name}“ bereits im Team`)
         return
       }
-      addActionCard(team.id, card.title, card.detail)
+      addActionCard(team.id, card.title, card.detail, kind)
       setDrawn(card)
     }
     return (

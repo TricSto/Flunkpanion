@@ -1,51 +1,50 @@
+import { useState } from 'react'
+import type { ActionCard } from '../types'
 import { useStore } from '../store'
-import { pickRandom } from '../util'
+import { Modal } from './Modal'
 
 /**
  * Flunk-Ablauf – live geteilt über den gemeinsamen Zustand (state.flunk):
- * Teams kommen an → warten eine Runde → bekommen eine Aktionskarte. Sind
- * mindestens zwei Teams bereit, werden die Matches ausgelost (neu auslosbar).
- * Danach je Match: Gewinner wählen (zählt als Flunk-Sieg) + Strafbiere für den
- * Verlierer zählen. Alle Geräte sehen Bereit-Status, Matches und Sieger live.
+ * Teams kommen an („bereit") oder warten Runden – pro gewarteter Runde gibt es
+ * eine Aktionskarte (bei „zurück" werden sie wieder eingezogen). Sind
+ * mindestens zwei Teams bereit, werden die Matches ausgelost. Danach je Match:
+ * Gewinner wählen (zählt als Flunk-Sieg) + Biere für den Verlierer zählen.
+ * „Flunk-Runde beenden" schickt allen Geräten eine Nachricht.
  */
 export function FlunkView() {
   const {
     state,
-    addActionCard,
     addBeer,
     flunkArrive,
+    flunkWaitRound,
     flunkUnready,
     flunkDrawMatches,
     flunkSetWinner,
     flunkBackToSetup,
+    flunkFinish,
     flunkReset,
   } = useStore()
   const teams = state.teams
-  const aktionsDeck = state.decks.find((d) => d.id === 'aktionskarten')
 
   const ready = new Set(state.flunk?.readyIds ?? [])
   const matches = state.flunk?.matches ?? null
+  const waitCardIds = state.flunk?.waitCardIds ?? {}
+
+  const [waitDrawn, setWaitDrawn] = useState<{ teamName: string; card: ActionCard } | null>(null)
 
   const name = (id: string | null) => teams.find((t) => t.id === id)?.name ?? 'Freilos'
 
-  const arrive = (id: string) => {
+  const waitRound = (id: string) => {
     const team = teams.find((t) => t.id === id)
-    if (!team || ready.has(id)) return
-    // Belohnung fürs Warten: eine Aktionskarte (keine Doppelten).
-    if (aktionsDeck && aktionsDeck.cards.length > 0) {
-      const held = new Set(team.actionCards.map((c) => c.title))
-      const card =
-        pickRandom(aktionsDeck.cards.filter((c) => !held.has(c.title))) ??
-        pickRandom(aktionsDeck.cards)
-      if (card) addActionCard(id, card.title, card.detail)
-    }
-    flunkArrive(id)
+    const card = flunkWaitRound(id)
+    if (team && card) setWaitDrawn({ teamName: team.name, card })
   }
 
   const readyCount = ready.size
 
   // --- Match-Phase ---------------------------------------------------------
   if (matches) {
+    const allDecided = matches.every((m) => m.b == null || m.winnerId != null)
     return (
       <section className="flunk">
         <div className="flunk-bar">
@@ -94,18 +93,18 @@ export function FlunkView() {
                     {loser && (
                       <div className="flunk-beer">
                         <span className="muted small">
-                          Strafbiere für {loser.name}: <strong>{loser.beers.penalty}</strong>
+                          Biere für {loser.name}: <strong>{loser.beers.normal}</strong>
                         </span>
                         <div className="quick-pair">
                           <button
                             className="btn small minus"
-                            onClick={() => addBeer(loser.id, 'penalty', -1)}
+                            onClick={() => addBeer(loser.id, 'normal', -1)}
                           >
                             −
                           </button>
                           <button
                             className="btn small plus"
-                            onClick={() => addBeer(loser.id, 'penalty', 1)}
+                            onClick={() => addBeer(loser.id, 'normal', 1)}
                           >
                             +
                           </button>
@@ -122,9 +121,21 @@ export function FlunkView() {
           })}
         </div>
 
+        <button
+          className="btn primary block"
+          disabled={!allDecided}
+          onClick={flunkFinish}
+          title="Beendet die Runde und benachrichtigt alle Geräte"
+        >
+          🏁 Flunk-Runde beenden
+        </button>
+        {!allDecided && (
+          <p className="muted small center">Erst alle Sieger eintragen, dann beenden.</p>
+        )}
+
         <div className="danger-zone">
           <button className="btn ghost" onClick={flunkReset}>
-            Flunk-Runde zurücksetzen
+            Abbrechen (verwirft Siege)
           </button>
         </div>
       </section>
@@ -145,28 +156,42 @@ export function FlunkView() {
   return (
     <section className="flunk">
       <p className="muted small settings-intro">
-        Jedes Team, das auf dem Flunk-Feld ankommt, wartet eine Runde und bekommt
-        dann eine Aktionskarte. Sind alle da, werden die Matches ausgelost.
+        Auf dem Flunk-Feld angekommen? „Bereit zum Spielen" drücken. Muss ein
+        Team auf die anderen warten, gibt es pro gewarteter Runde eine
+        Aktionskarte. Sind alle da, werden die Matches ausgelost.
       </p>
 
       <ul className="flunk-teams">
         {teams.map((t) => {
           const isReady = ready.has(t.id)
+          const waited = waitCardIds[t.id]?.length ?? 0
           return (
             <li key={t.id} className="flunk-team-row" style={{ borderLeftColor: t.color }}>
-              <span className="flunk-team-name">{t.name}</span>
-              {isReady ? (
-                <span className="flunk-ready">
-                  <span className="flunk-ok">✓ bereit</span>
-                  <button className="btn tiny ghost" onClick={() => flunkUnready(t.id)}>
-                    zurück
-                  </button>
-                </span>
-              ) : (
-                <button className="btn small" onClick={() => arrive(t.id)}>
-                  Runde gewartet → 🃏 Karte
+              <span className="flunk-team-name">
+                {t.name}
+                {waited > 0 && <span className="muted small"> · {waited}× gewartet</span>}
+              </span>
+              <span className="flunk-ready">
+                <button className="btn small" onClick={() => waitRound(t.id)}>
+                  🃏 Runde gewartet
                 </button>
-              )}
+                {isReady ? (
+                  <>
+                    <span className="flunk-ok">✓ bereit</span>
+                    <button
+                      className="btn tiny ghost"
+                      onClick={() => flunkUnready(t.id)}
+                      title="Bereit zurücknehmen – Warte-Karten werden wieder entfernt"
+                    >
+                      zurück
+                    </button>
+                  </>
+                ) : (
+                  <button className="btn small primary" onClick={() => flunkArrive(t.id)}>
+                    ✅ Bereit zum Spielen
+                  </button>
+                )}
+              </span>
             </li>
           )
         })}
@@ -181,6 +206,27 @@ export function FlunkView() {
       </button>
       {readyCount < 2 && (
         <p className="muted small center">Mindestens zwei bereite Teams nötig.</p>
+      )}
+
+      {waitDrawn && (
+        <Modal
+          title={`🃏 Karte für ${waitDrawn.teamName}`}
+          onClose={() => setWaitDrawn(null)}
+        >
+          <div className="drawn-card reward-card">
+            <strong className="drawn-title">{waitDrawn.card.title}</strong>
+            {waitDrawn.card.note && <p className="drawn-detail">{waitDrawn.card.note}</p>}
+          </div>
+          <p className="muted small">
+            Die Karte liegt im Team-Inventar. Drückt das Team „zurück", wird sie
+            wieder entfernt.
+          </p>
+          <div className="modal-actions">
+            <button className="btn primary" onClick={() => setWaitDrawn(null)}>
+              Alles klar
+            </button>
+          </div>
+        </Modal>
       )}
     </section>
   )

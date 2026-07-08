@@ -21,9 +21,14 @@ export function sampleDistinct<T>(items: T[], n: number): T[] {
   return out
 }
 
-/** Wie viele Berufe zur Auswahl stehen – abhängig vom Ausbildungsstand. */
-export function berufChoiceCount(education: 'none' | 'ausbildung' | 'studium'): number {
-  return education === 'studium' ? 3 : education === 'ausbildung' ? 2 : 1
+/** Diplom-Berufe gibt es nur über das Studium. */
+export function isDiplomJob(title: string): boolean {
+  return title.includes('(Diplom)')
+}
+
+/** Wie viele Berufe zur Auswahl stehen: Studium 3, Ausbildung 2. */
+export function berufChoiceCount(education: 'ausbildung' | 'studium'): number {
+  return education === 'studium' ? 3 : 2
 }
 
 /**

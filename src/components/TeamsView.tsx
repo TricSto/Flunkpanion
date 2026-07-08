@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { useStore } from '../store'
 import { formatMoney } from '../util'
 import { TeamCard } from './TeamCard'
 
 export function TeamsView() {
   const { state, setCurrentTeam } = useStore()
+  const [switching, setSwitching] = useState(false)
 
   const current = state.teams.find((t) => t.id === state.currentTeamId) ?? null
+  const showPicker = !current || switching
 
   if (state.teams.length === 0) {
     return (
@@ -19,22 +22,35 @@ export function TeamsView() {
 
   return (
     <section>
-      <div className="join-picker">
-        <label>
-          Ich spiele als Team:
-          <select
-            value={state.currentTeamId ?? ''}
-            onChange={(e) => setCurrentTeam(e.target.value || null)}
-          >
-            <option value="">— Team wählen —</option>
-            {state.teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      {showPicker ? (
+        <div className="join-picker">
+          <label>
+            Ich spiele als Team:
+            <select
+              value={state.currentTeamId ?? ''}
+              onChange={(e) => {
+                setCurrentTeam(e.target.value || null)
+                setSwitching(false)
+              }}
+            >
+              <option value="">— Team wählen —</option>
+              {state.teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : (
+        // Eigenes Team im Fokus – der Auswahlblock verschwindet nach der Wahl.
+        <div className="my-team-bar">
+          <span className="muted small">Mein Team</span>
+          <button className="btn tiny ghost" onClick={() => setSwitching(true)}>
+            Team wechseln
+          </button>
+        </div>
+      )}
 
       {current && <TeamCard team={current} defaultOpen />}
 
@@ -49,6 +65,9 @@ export function TeamsView() {
                   <span className="overview-name">
                     {t.name}
                     <span className="muted small"> · {t.players}👤</span>
+                    {t.stockNumber != null && (
+                      <span className="muted small"> · 📈 Nr. {t.stockNumber}</span>
+                    )}
                   </span>
                   <span className="overview-job muted small">
                     {t.job?.title ? t.job.title : 'Kein Beruf'}

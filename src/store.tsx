@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type {
   ActionCard,
+  ActionCardKind,
   AppState,
   Announcement,
   BeerCounts,
@@ -18,15 +19,17 @@ import type {
   Deck,
   Education,
   FlunkMatch,
+  FlunkRound,
   Job,
   SharedState,
   Team,
   TeamStats,
   Transaction,
 } from './types'
-import { STOCK_PRICE } from './types'
+import { STOCK_NUMBERS, STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
+import { pickRandom } from './util'
 
 const STORAGE_KEY = 'flunk-des-lebens/state/v1'
 const SESSION_KEY = 'flunk-des-lebens/session/v1'
@@ -62,16 +65,53 @@ function emptyStats(): TeamStats {
   return { actionCardsUsed: 0, flunkWins: 0, challengeWins: 0, minigameWins: 0 }
 }
 
-function normalizeTeams(teams: Team[] | undefined): Team[] {
-  return (teams ?? []).map((t) => ({
-    ...t,
-    transactions: t.transactions ?? [],
-    players: t.players ?? 1,
-    education: t.education ?? 'none',
-    stock: t.stock ?? false,
-    beers: t.beers ?? { normal: 0, fun: 0, penalty: 0 },
-    stats: { ...emptyStats(), ...(t.stats ?? {}) },
-  }))
+/**
+ * WICHTIG: Diese Normalisierung läuft auf jedem Gerät über den empfangenen
+ * Remote-Zustand – sie muss deterministisch sein (kein Zufall), sonst
+ * schaukeln sich die Geräte gegenseitig hoch (Sync-Ping-Pong).
+ */
+function normalizeTeams(teams: Team[] | undefined, decks: Deck[]): Team[] {
+  // Titel der spielverändernden Karten, um Alt-Karten ohne `kind` einzuordnen.
+  const specialTitles = new Set(
+    decks.filter((d) => d.type === 'special').flatMap((d) => d.cards.map((c) => c.title)),
+  )
+  // Bereits vergebene Aktien-Nummern (neue Feld-Variante).
+  const usedNumbers = new Set(
+    (teams ?? []).map((t) => t.stockNumber).filter((n): n is number => typeof n === 'number'),
+  )
+  return (teams ?? []).map((t) => {
+    // Altdaten: `stock: true` (boolean) → deterministisch kleinste freie Nummer.
+    const legacy = t as Team & { stock?: boolean }
+    let stockNumber = typeof t.stockNumber === 'number' ? t.stockNumber : null
+    if (stockNumber == null && legacy.stock === true) {
+      const free = STOCK_NUMBERS.find((n) => !usedNumbers.has(n))
+      if (free != null) {
+        stockNumber = free
+        usedNumbers.add(free)
+      }
+    }
+    const { stock: _legacyStock, ...rest } = legacy
+    void _legacyStock
+    return {
+      ...rest,
+      transactions: t.transactions ?? [],
+      players: t.players ?? 1,
+      education: t.education ?? 'none',
+      stockNumber,
+      actionCards: (t.actionCards ?? []).map((c) => ({
+        ...c,
+        kind: c.kind ?? (specialTitles.has(c.title) ? 'special' : 'action'),
+      })),
+      beers: t.beers ?? { normal: 0, fun: 0, penalty: 0 },
+      stats: { ...emptyStats(), ...(t.stats ?? {}) },
+    }
+  })
+}
+
+/** Ergänzt fehlende Felder älterer Flunk-Runden (z. B. `waitCardIds`). */
+function normalizeFlunk(flunk: FlunkRound | null | undefined): FlunkRound | null {
+  if (!flunk) return null
+  return { ...flunk, waitCardIds: flunk.waitCardIds ?? {} }
 }
 
 /** Nur die Felder, die zwischen allen Geräten geteilt werden. */
@@ -93,14 +133,15 @@ function loadState(): AppState {
     const parsed = JSON.parse(raw) as Partial<AppState>
     // Bei neuer Deck-Version die mitgelieferten Karten übernehmen, Teams behalten.
     const decksCurrent = parsed.decksVersion === DECKS_VERSION && parsed.decks
+    const decks = decksCurrent ? parsed.decks! : initialState.decks
     return {
       // Ältere gespeicherte Teams besitzen evtl. noch keine neuen Felder.
-      teams: normalizeTeams(parsed.teams),
-      decks: decksCurrent ? parsed.decks! : initialState.decks,
+      teams: normalizeTeams(parsed.teams, decks),
+      decks,
       currentTeamId: parsed.currentTeamId ?? null,
       decksVersion: DECKS_VERSION,
       challenge: parsed.challenge ?? null,
-      flunk: parsed.flunk ?? null,
+      flunk: normalizeFlunk(parsed.flunk),
       announcements: parsed.announcements ?? [],
     }
   } catch {
@@ -137,9 +178,11 @@ interface Store {
   renameTeam: (teamId: string, name: string) => void
   setPlayers: (teamId: string, players: number) => void
   addBeer: (teamId: string, kind: keyof BeerCounts, delta: number) => void
-  setEducation: (teamId: string, education: Education) => void
-  /** Aktie kaufen (kostet STOCK_PRICE KK, max. 1 pro Team). Gibt false zurück, wenn zu wenig KK. */
-  buyStock: (teamId: string) => boolean
+  /**
+   * Aktie mit Wunsch-Nummer (1–8) kaufen. Gibt false zurück, wenn die Nummer
+   * vergeben ist, das Team schon eine Aktie hat oder die KK nicht reichen.
+   */
+  buyStock: (teamId: string, stockNumber: number) => boolean
   /** Aktie entfernen (Korrektur, ohne Rückerstattung). */
   removeStock: (teamId: string) => void
   /** Aktien-Auszahlung: selbst angegebenen KK-Betrag gutschreiben. */
@@ -150,12 +193,17 @@ interface Store {
   undoTransaction: (teamId: string, txId: string) => void
   setJob: (teamId: string, job: Job | null) => void
   setJobTitle: (teamId: string, title: string, effect?: string) => void
+  /**
+   * Berufswahl über den Ausbildung/Studium-Flow: setzt Bildungsweg und Beruf
+   * atomar in einem Update (bleibt so auch im Live-Modus konsistent).
+   */
+  chooseJob: (teamId: string, education: Education, title: string) => void
   setSalary: (teamId: string, salary: number, beerTax: number) => void
   payBeerTax: (teamId: string) => void
   // Team-Auswahl („Beitreten“)
   setCurrentTeam: (teamId: string | null) => void
   // Aktionskarten
-  addActionCard: (teamId: string, title: string, note: string) => void
+  addActionCard: (teamId: string, title: string, note: string, kind: ActionCardKind) => void
   removeActionCard: (teamId: string, cardId: string) => void
   // Challenges
   startChallenge: (challengerId: string, opponentId: string, card: Card) => void
@@ -164,7 +212,17 @@ interface Store {
   // Flunk-Runde (geteilt, live)
   /** Team ist auf dem Flunk-Feld angekommen und bereit. */
   flunkArrive: (teamId: string) => void
-  /** Bereit-Status eines Teams zurücknehmen (nur vor der Auslosung). */
+  /**
+   * Team hat (eine weitere) Runde gewartet: zieht eine zufällige normale
+   * Aktionskarte als Belohnung und merkt sie sich in der Flunk-Runde, damit
+   * „zurück" sie wieder entfernen kann. Gibt die gezogene Karte zurück
+   * (null, wenn das Deck leer ist).
+   */
+  flunkWaitRound: (teamId: string) => ActionCard | null
+  /**
+   * Bereit-Status eines Teams zurücknehmen (nur vor der Auslosung).
+   * Entfernt auch alle in dieser Runde durchs Warten erhaltenen Karten.
+   */
   flunkUnready: (teamId: string) => void
   /** Matches aus den bereiten Teams auslosen (auch neu auslosen). */
   flunkDrawMatches: () => void
@@ -172,7 +230,12 @@ interface Store {
   flunkSetWinner: (matchIndex: number, teamId: string | null) => void
   /** Zurück zur Ankommens-Phase (nimmt gezählte Siege zurück). */
   flunkBackToSetup: () => void
-  /** Flunk-Runde komplett beenden/zurücksetzen. */
+  /**
+   * Flunk-Runde regulär beenden: Sieger bleiben gezählt, alle Geräte bekommen
+   * eine Broadcast-Nachricht, danach ist die Runde geschlossen.
+   */
+  flunkFinish: () => void
+  /** Flunk-Runde abbrechen/zurücksetzen (nimmt gezählte Siege zurück). */
   flunkReset: () => void
   // Decks / Würfeltabellen
   updateDecks: (decks: Deck[]) => void
@@ -218,12 +281,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const json = JSON.stringify(shared)
     if (json === lastSyncedRef.current) return
     lastSyncedRef.current = json
-    setState((s) => ({
-      ...s,
-      ...shared,
-      teams: normalizeTeams(shared.teams),
-      currentTeamId: s.currentTeamId,
-    }))
+    setState((s) => {
+      let teams = normalizeTeams(shared.teams, shared.decks ?? s.decks)
+      // Merge-Schutz: Der Sync schreibt immer den ganzen Zustand (Last-Write-
+      // Wins). Ein gerade lokal angelegtes Team könnte ein zeitgleicher Write
+      // eines anderen Geräts sonst verschlucken – junge lokale Teams, die im
+      // Remote-Stand fehlen, deshalb wieder anhängen. Der Debounce-Writer
+      // synct den zusammengeführten Stand automatisch zurück.
+      const remoteIds = new Set(teams.map((t) => t.id))
+      const rescued = s.teams.filter(
+        (t) => !remoteIds.has(t.id) && Date.now() - t.createdAt < 15_000,
+      )
+      if (rescued.length > 0) teams = [...teams, ...rescued]
+      return {
+        ...s,
+        ...shared,
+        teams,
+        flunk: normalizeFlunk(shared.flunk),
+        currentTeamId: s.currentTeamId,
+      }
+    })
   }
 
   // --- Realtime: abonnieren & Startzustand laden --------------------------
@@ -392,10 +469,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (error) return { ok: false, error: 'Verbindungsfehler. Bitte erneut versuchen.' }
         if (!data) return { ok: false, error: 'Spiel nicht gefunden. Code prüfen.' }
         lastSyncedRef.current = JSON.stringify(data.state)
+        const shared = data.state as SharedState
         setState((s) => ({
           ...s,
-          ...(data.state as SharedState),
-          teams: normalizeTeams((data.state as SharedState).teams),
+          ...shared,
+          teams: normalizeTeams(shared.teams, shared.decks ?? s.decks),
+          flunk: normalizeFlunk(shared.flunk),
           currentTeamId: null,
         }))
         setSession({ code })
@@ -419,7 +498,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             players: Math.max(1, Math.round(players) || 1),
             job: null,
             education: 'none',
-            stock: false,
+            stockNumber: null,
             actionCards: [],
             transactions: [],
             beers: { normal: 0, fun: 0, penalty: 0 },
@@ -441,29 +520,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           beers: { ...t.beers, [kind]: Math.max(0, t.beers[kind] + delta) },
         })),
 
-      setEducation: (teamId, education) =>
-        mutateTeam(teamId, (t) => ({ ...t, education })),
-
-      buyStock: (teamId) => {
-        const team = stateRef.current.teams.find((t) => t.id === teamId)
-        if (!team || team.stock || team.cash < STOCK_PRICE) return false
+      buyStock: (teamId, stockNumber) => {
+        const s = stateRef.current
+        const team = s.teams.find((t) => t.id === teamId)
+        if (!team || team.stockNumber != null || team.cash < STOCK_PRICE) return false
+        if (!STOCK_NUMBERS.includes(stockNumber)) return false
+        // Jede Zahl nur einmal – auch bei parallelen Käufen im Live-Modus.
+        if (s.teams.some((t) => t.id !== teamId && t.stockNumber === stockNumber)) return false
         mutateTeam(teamId, (t) => ({
           ...t,
-          stock: true,
+          stockNumber,
           cash: t.cash - STOCK_PRICE,
           transactions: [
-            { id: uid(), delta: -STOCK_PRICE, reason: 'Aktie gekauft', at: Date.now() },
+            {
+              id: uid(),
+              delta: -STOCK_PRICE,
+              reason: `Aktie Nr. ${stockNumber} gekauft`,
+              at: Date.now(),
+            },
             ...t.transactions,
           ],
         }))
         return true
       },
 
-      removeStock: (teamId) => mutateTeam(teamId, (t) => ({ ...t, stock: false })),
+      removeStock: (teamId) => mutateTeam(teamId, (t) => ({ ...t, stockNumber: null })),
 
       payoutStock: (teamId, amount) =>
         mutateTeam(teamId, (t) => {
-          if (!t.stock || !amount) return t
+          if (t.stockNumber == null || !amount) return t
           return {
             ...t,
             cash: t.cash + amount,
@@ -487,7 +572,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           currentTeamId: s.currentTeamId === teamId ? null : s.currentTeamId,
           // Gelöschte Teams aus der laufenden Flunk-Runde nehmen.
           flunk: s.flunk
-            ? { ...s.flunk, readyIds: s.flunk.readyIds.filter((id) => id !== teamId) }
+            ? {
+                ...s.flunk,
+                readyIds: s.flunk.readyIds.filter((id) => id !== teamId),
+                waitCardIds: Object.fromEntries(
+                  Object.entries(s.flunk.waitCardIds).filter(([id]) => id !== teamId),
+                ),
+              }
             : null,
         })),
 
@@ -539,6 +630,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         }),
 
+      chooseJob: (teamId, education, title) =>
+        setState((s) => {
+          // Jeder Beruf max. 1× – schützt auch bei parallelen Zugriffen live.
+          if (s.teams.some((t) => t.id !== teamId && t.job?.title === title)) return s
+          return {
+            ...s,
+            teams: s.teams.map((t) =>
+              t.id === teamId
+                ? {
+                    ...t,
+                    education,
+                    job: {
+                      title,
+                      salary: t.job?.salary ?? 0,
+                      beerTax: t.job?.beerTax ?? 0,
+                    },
+                  }
+                : t,
+            ),
+          }
+        }),
+
       setSalary: (teamId, salary, beerTax) =>
         mutateTeam(teamId, (t) => ({
           ...t,
@@ -561,12 +674,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         }),
 
-      addActionCard: (teamId, title, note) =>
+      addActionCard: (teamId, title, note, kind) =>
         mutateTeam(teamId, (t) => {
           const card: ActionCard = {
             id: uid(),
             title: title.trim() || 'Aktionskarte',
             note: note.trim(),
+            kind,
             createdAt: Date.now(),
           }
           return { ...t, actionCards: [card, ...t.actionCards] }
@@ -624,18 +738,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   }
                 : t,
             )
-          } else if (reward.kind === 'card') {
-            teams = teams.map((t) =>
-              t.id === winnerId
-                ? {
-                    ...t,
-                    actionCards: [
-                      { id: uid(), title: ch.title, note: ch.detail, createdAt: Date.now() },
-                      ...t.actionCards,
-                    ],
-                  }
-                : t,
-            )
+          } else if (reward.kind === 'card' && reward.cardTitle) {
+            // Belohnung ist eine zufällig gezogene normale Aktionskarte
+            // (nicht die Challenge selbst). Keine Doppelten pro Team.
+            teams = teams.map((t) => {
+              if (t.id !== winnerId) return t
+              if (t.actionCards.some((c) => c.title === reward.cardTitle)) return t
+              return {
+                ...t,
+                actionCards: [
+                  {
+                    id: uid(),
+                    title: reward.cardTitle!,
+                    note: reward.cardNote ?? '',
+                    kind: 'action' as const,
+                    createdAt: Date.now(),
+                  },
+                  ...t.actionCards,
+                ],
+              }
+            })
           }
 
           // Challenge-Sieg für die Statistik zählen.
@@ -648,8 +770,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const rewardText =
             reward.kind === 'cash' && reward.amount
               ? ` (+${reward.amount} KK)`
-              : reward.kind === 'card'
-                ? ' (Aktionskarte erhalten)'
+              : reward.kind === 'card' && reward.cardTitle
+                ? ` (Aktionskarte „${reward.cardTitle}")`
                 : ''
 
           const announcement: Announcement = {
@@ -674,18 +796,77 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       flunkArrive: (teamId) =>
         setState((s) => {
-          const flunk = s.flunk ?? { id: uid(), readyIds: [], matches: null, at: Date.now() }
+          const flunk =
+            s.flunk ?? { id: uid(), readyIds: [], matches: null, waitCardIds: {}, at: Date.now() }
           if (flunk.readyIds.includes(teamId)) return s
           return { ...s, flunk: { ...flunk, readyIds: [...flunk.readyIds, teamId] } }
         }),
+
+      flunkWaitRound: (teamId) => {
+        const s = stateRef.current
+        const team = s.teams.find((t) => t.id === teamId)
+        // Nach der Auslosung gibt es kein Warten mehr.
+        if (!team || s.flunk?.matches) return null
+        const deck = s.decks.find((d) => d.id === 'aktionskarten')
+        if (!deck || deck.cards.length === 0) return null
+        const held = new Set(team.actionCards.map((c) => c.title))
+        const drawn =
+          pickRandom(deck.cards.filter((c) => !held.has(c.title))) ??
+          pickRandom(deck.cards)
+        if (!drawn) return null
+        const card: ActionCard = {
+          id: uid(),
+          title: drawn.title,
+          note: drawn.detail,
+          kind: 'action',
+          createdAt: Date.now(),
+        }
+        setState((prev) => {
+          const flunk =
+            prev.flunk ??
+            { id: uid(), readyIds: [], matches: null, waitCardIds: {}, at: Date.now() }
+          if (flunk.matches) return prev
+          return {
+            ...prev,
+            teams: prev.teams.map((t) =>
+              t.id === teamId ? { ...t, actionCards: [card, ...t.actionCards] } : t,
+            ),
+            flunk: {
+              ...flunk,
+              waitCardIds: {
+                ...flunk.waitCardIds,
+                [teamId]: [...(flunk.waitCardIds[teamId] ?? []), card.id],
+              },
+            },
+          }
+        })
+        return card
+      },
 
       flunkUnready: (teamId) =>
         setState((s) => {
           // Nach der Auslosung nicht mehr abmelden (Matches blieben sonst hängen).
           if (!s.flunk || s.flunk.matches) return s
+          // Fürs Warten erhaltene Karten wieder einziehen – ohne sie als
+          // „ausgespielt" zu zählen (das war der Karten-bleibt-drin-Bug).
+          const waitIds = new Set(s.flunk.waitCardIds[teamId] ?? [])
+          const restWaitCards = { ...s.flunk.waitCardIds }
+          delete restWaitCards[teamId]
           return {
             ...s,
-            flunk: { ...s.flunk, readyIds: s.flunk.readyIds.filter((id) => id !== teamId) },
+            teams:
+              waitIds.size === 0
+                ? s.teams
+                : s.teams.map((t) =>
+                    t.id === teamId
+                      ? { ...t, actionCards: t.actionCards.filter((c) => !waitIds.has(c.id)) }
+                      : t,
+                  ),
+            flunk: {
+              ...s.flunk,
+              readyIds: s.flunk.readyIds.filter((id) => id !== teamId),
+              waitCardIds: restWaitCards,
+            },
           }
         }),
 
@@ -743,6 +924,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               }
             : s,
         ),
+
+      flunkFinish: () =>
+        setState((s) => {
+          if (!s.flunk) return s
+          const winnerNames = (s.flunk.matches ?? [])
+            .map((m) => s.teams.find((t) => t.id === m.winnerId)?.name)
+            .filter((n): n is string => Boolean(n))
+          const announcement: Announcement = {
+            id: uid(),
+            // Broadcast: auch Teams, die nicht mitgespielt haben, sollen es sehen.
+            teamId: null,
+            title: '🚩 Flunk-Runde beendet',
+            message:
+              winnerNames.length > 0
+                ? `Sieger: ${winnerNames.join(', ')} 🏆`
+                : 'Die Flunk-Runde ist vorbei.',
+            at: Date.now(),
+          }
+          return {
+            ...s,
+            flunk: null,
+            announcements: [announcement, ...s.announcements].slice(0, 20),
+          }
+        }),
 
       flunkReset: () =>
         setState((s) =>

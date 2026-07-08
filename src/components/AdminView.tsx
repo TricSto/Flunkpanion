@@ -1,8 +1,17 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import type { Card, Deck } from '../types'
+import type { Theme } from '../theme'
 
-export function AdminView({ onEndGame }: { onEndGame: () => void }) {
+export function AdminView({
+  onEndGame,
+  theme,
+  onThemeChange,
+}: {
+  onEndGame: () => void
+  theme: Theme
+  onThemeChange: (theme: Theme) => void
+}) {
   const { state, addTeam, renameTeam, removeTeam, setPlayers, updateDecks, resetAll } =
     useStore()
   const [name, setName] = useState('')
@@ -122,6 +131,24 @@ export function AdminView({ onEndGame }: { onEndGame: () => void }) {
           ))}
         </ul>
       )}
+
+      {/* Erscheinungsbild (gerätelokal) */}
+      <h2 className="admin-h">Erscheinungsbild</h2>
+      <div className="theme-toggle">
+        <button
+          className={theme === 'light' ? 'edu-opt active' : 'edu-opt'}
+          onClick={() => onThemeChange('light')}
+        >
+          🌞 Hell
+        </button>
+        <button
+          className={theme === 'dark' ? 'edu-opt active' : 'edu-opt'}
+          onClick={() => onThemeChange('dark')}
+        >
+          🌙 Dunkel
+        </button>
+        <span className="muted small">gilt nur für dieses Gerät</span>
+      </div>
 
       {/* Host-Aktionen */}
       <h2 className="admin-h">Host</h2>

@@ -1,10 +1,15 @@
 // Zentrale Datentypen für die Flunk-des-Lebens-App.
 // Währung im Spiel: KK = Kronkorken.
 
+/** Kategorie einer Aktionskarte: normal ('action') oder spielverändernd ('special'). */
+export type ActionCardKind = 'action' | 'special'
+
 export interface ActionCard {
   id: string
   title: string
   note: string
+  /** Aus welcher Deck-Kategorie die Karte stammt. */
+  kind: ActionCardKind
   createdAt: number
 }
 
@@ -34,9 +39,8 @@ export interface BeerCounts {
 }
 
 /**
- * Ausbildungsstand – steuert, aus wie vielen Berufen bei der Berufswahl
- * ausgewählt werden darf (kein Studium/Ausbildung = 1, Ausbildung = 2,
- * Studium = 3).
+ * Ausbildungsstand – wird bei der Berufswahl mitgewählt: Ausbildung bietet
+ * 2 normale Berufe, Studium 3 Diplom-Berufe. 'none' = noch nichts gewählt.
  */
 export type Education = 'none' | 'ausbildung' | 'studium'
 
@@ -62,8 +66,11 @@ export interface Team {
   job: Job | null
   /** Ausbildungsstand für die Berufswahl. */
   education: Education
-  /** Besitzt das Team eine Aktie? (max. 1 pro Team, kostet 20 KK). */
-  stock: boolean
+  /**
+   * Gekaufte Aktie als Zahl 1–8 (null = keine). Jede Zahl kann nur von einem
+   * Team gehalten werden.
+   */
+  stockNumber: number | null
   actionCards: ActionCard[]
   transactions: Transaction[]
   /** Gezählte Biere (normal / Spaß / Strafe). */
@@ -75,6 +82,9 @@ export interface Team {
 
 /** Preis einer Aktie in KK. */
 export const STOCK_PRICE = 20
+
+/** Die kaufbaren Aktien-Zahlen. */
+export const STOCK_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 /**
  * Art eines Decks – steuert, welche „Anwenden“-Aktionen beim Ziehen
@@ -139,8 +149,12 @@ export interface Challenge {
 
 export interface ChallengeReward {
   kind: 'card' | 'cash' | 'none'
-  /** Bei 'cash': gutgeschriebene KK. */
+  /** Bei 'cash' (Altdaten): gutgeschriebene KK. */
   amount?: number
+  /** Bei 'card': Titel der zufällig gezogenen Aktionskarte. */
+  cardTitle?: string
+  /** Bei 'card': Beschreibung der gezogenen Aktionskarte. */
+  cardNote?: string
 }
 
 /** Ein ausgelostes Flunk-Match. `b = null` bedeutet Freilos. */
@@ -161,6 +175,11 @@ export interface FlunkRound {
   readyIds: string[]
   /** Ausgeloste Matches; null = noch in der Ankommens-/Warte-Phase. */
   matches: FlunkMatch[] | null
+  /**
+   * Fürs Runden-Warten vergebene Aktionskarten dieser Flunk-Runde:
+   * teamId → IDs der Karten. Nötig, um sie bei „zurück" wieder zu entfernen.
+   */
+  waitCardIds: Record<string, string[]>
   at: number
 }
 
