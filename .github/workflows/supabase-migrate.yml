@@ -1,11 +1,15 @@
 name: Supabase Migrationen
 
 # Wendet Datenbank-Migrationen automatisch auf das Supabase-Projekt an –
-# bei jedem Push auf `main`, der etwas unter supabase/migrations/ ändert.
-# Manuell auslösbar über den "Run workflow"-Button (workflow_dispatch).
+# bei jedem Push auf den Produktions-/Default-Branch, der etwas unter
+# supabase/migrations/ ändert. Manuell auslösbar über den "Run workflow"-Button.
+# Nur der Default-Branch darf die Produktions-DB migrieren – Feature-Branches
+# bewusst NICHT (sonst würden ungemergte Migrationen live angewandt).
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - claude/flunk-des-lebens-app-iprjtq
     paths:
       - 'supabase/migrations/**'
       - 'supabase/config.toml'

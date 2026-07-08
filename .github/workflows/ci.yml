@@ -2,9 +2,14 @@ name: CI
 
 # Baut die App bei jedem Push/PR – fängt Typ- und Build-Fehler ab, bevor
 # Vercel deployt.
+# Hinweis: Produktions-/Default-Branch dieses Repos ist derzeit
+# `claude/flunk-des-lebens-app-iprjtq`. Falls ihr ihn später zu `main`
+# umbenennt, ist `main` bereits mit aufgeführt.
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - claude/flunk-des-lebens-app-iprjtq
   pull_request:
 
 jobs:
