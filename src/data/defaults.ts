@@ -188,5 +188,6 @@ export const initialState: AppState = {
   currentTeamId: null,
   decksVersion: DECKS_VERSION,
   challenge: null,
+  flunk: null,
   announcements: [],
 }
