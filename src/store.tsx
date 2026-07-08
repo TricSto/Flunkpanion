@@ -169,8 +169,10 @@ interface Store {
   connectionStatus: ConnectionStatus
   isRemoteConfigured: boolean
   /**
-   * Ist dieses Gerät der Spielleiter? Im lokalen Modus immer, online nur der
-   * Ersteller des Spiels – Beitreter sehen keine Host-Aktionen.
+   * Ist dieses Gerät der Spielleiter? Host wird man erst durch „Spiel
+   * erstellen" – Beitreter und Geräte ohne Spiel sehen keine Host-Aktionen.
+   * (Ohne konfigurierten Server gibt es kein „Spiel erstellen", dann ist das
+   * einzelne Gerät automatisch der Host.)
    */
   isHost: boolean
   /** Neues Online-Spiel erstellen; gibt den Spiel-Code zurück (oder null bei Fehler). */
@@ -440,7 +442,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       session,
       connectionStatus,
       isRemoteConfigured,
-      isHost: session ? session.isHost : true,
+      isHost: session ? session.isHost : !isRemoteConfigured,
 
       createGame: async () => {
         const client = supabase
