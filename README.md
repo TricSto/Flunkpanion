@@ -1,4 +1,4 @@
-# Flunk des Lebens 🎲
+# Flunkpanion 🎲
 
 Companion-App für das Brettspiel **Flunk des Lebens** (Spiel des Lebens meets Funkyball).
 
