@@ -17,6 +17,7 @@ import type {
   ChallengeReward,
   Deck,
   Education,
+  FlunkMatch,
   Job,
   SharedState,
   Team,
@@ -80,6 +81,7 @@ function sharedOf(state: AppState): SharedState {
     decks: state.decks,
     decksVersion: state.decksVersion,
     challenge: state.challenge,
+    flunk: state.flunk,
     announcements: state.announcements,
   }
 }
@@ -98,6 +100,7 @@ function loadState(): AppState {
       currentTeamId: parsed.currentTeamId ?? null,
       decksVersion: DECKS_VERSION,
       challenge: parsed.challenge ?? null,
+      flunk: parsed.flunk ?? null,
       announcements: parsed.announcements ?? [],
     }
   } catch {
@@ -158,6 +161,19 @@ interface Store {
   startChallenge: (challengerId: string, opponentId: string, card: Card) => void
   resolveChallenge: (winnerId: string, reward: ChallengeReward, message: string) => void
   clearChallenge: () => void
+  // Flunk-Runde (geteilt, live)
+  /** Team ist auf dem Flunk-Feld angekommen und bereit. */
+  flunkArrive: (teamId: string) => void
+  /** Bereit-Status eines Teams zurücknehmen (nur vor der Auslosung). */
+  flunkUnready: (teamId: string) => void
+  /** Matches aus den bereiten Teams auslosen (auch neu auslosen). */
+  flunkDrawMatches: () => void
+  /** Sieger eines Matches setzen bzw. mit null zurücknehmen (pflegt flunkWins). */
+  flunkSetWinner: (matchIndex: number, teamId: string | null) => void
+  /** Zurück zur Ankommens-Phase (nimmt gezählte Siege zurück). */
+  flunkBackToSetup: () => void
+  /** Flunk-Runde komplett beenden/zurücksetzen. */
+  flunkReset: () => void
   // Decks / Würfeltabellen
   updateDecks: (decks: Deck[]) => void
   resetAll: () => void
@@ -312,6 +328,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         teams: s.teams.map((t) => (t.id === teamId ? fn(t) : t)),
       }))
 
+    // Bereits gezählte Flunk-Siege dieser Matches wieder abziehen
+    // (vor Neu-Auslosen / Zurück / Reset der Flunk-Runde).
+    const revertFlunkWins = (teams: Team[], matches: FlunkMatch[] | null): Team[] => {
+      if (!matches) return teams
+      const wins = new Map<string, number>()
+      for (const m of matches) {
+        if (m.winnerId) wins.set(m.winnerId, (wins.get(m.winnerId) ?? 0) + 1)
+      }
+      if (wins.size === 0) return teams
+      return teams.map((t) =>
+        wins.has(t.id)
+          ? {
+              ...t,
+              stats: {
+                ...t.stats,
+                flunkWins: Math.max(0, t.stats.flunkWins - wins.get(t.id)!),
+              },
+            }
+          : t,
+      )
+    }
+
     return {
       state,
       session,
@@ -447,6 +485,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...s,
           teams: s.teams.filter((t) => t.id !== teamId),
           currentTeamId: s.currentTeamId === teamId ? null : s.currentTeamId,
+          // Gelöschte Teams aus der laufenden Flunk-Runde nehmen.
+          flunk: s.flunk
+            ? { ...s.flunk, readyIds: s.flunk.readyIds.filter((id) => id !== teamId) }
+            : null,
         })),
 
       setCurrentTeam: (teamId) => setState((s) => ({ ...s, currentTeamId: teamId })),
@@ -629,6 +671,85 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
 
       clearChallenge: () => setState((s) => ({ ...s, challenge: null })),
+
+      flunkArrive: (teamId) =>
+        setState((s) => {
+          const flunk = s.flunk ?? { id: uid(), readyIds: [], matches: null, at: Date.now() }
+          if (flunk.readyIds.includes(teamId)) return s
+          return { ...s, flunk: { ...flunk, readyIds: [...flunk.readyIds, teamId] } }
+        }),
+
+      flunkUnready: (teamId) =>
+        setState((s) => {
+          // Nach der Auslosung nicht mehr abmelden (Matches blieben sonst hängen).
+          if (!s.flunk || s.flunk.matches) return s
+          return {
+            ...s,
+            flunk: { ...s.flunk, readyIds: s.flunk.readyIds.filter((id) => id !== teamId) },
+          }
+        }),
+
+      flunkDrawMatches: () =>
+        setState((s) => {
+          const flunk = s.flunk
+          if (!flunk) return s
+          // Nur noch existierende Teams auslosen.
+          const ids = flunk.readyIds.filter((id) => s.teams.some((t) => t.id === id))
+          if (ids.length < 2) return s
+          for (let i = ids.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            ;[ids[i], ids[j]] = [ids[j], ids[i]]
+          }
+          const matches: FlunkMatch[] = []
+          for (let i = 0; i < ids.length; i += 2) {
+            matches.push({ a: ids[i], b: ids[i + 1] ?? null, winnerId: null })
+          }
+          // Siege einer evtl. vorherigen Auslosung zurücknehmen.
+          return { ...s, teams: revertFlunkWins(s.teams, flunk.matches), flunk: { ...flunk, matches } }
+        }),
+
+      flunkSetWinner: (matchIndex, teamId) =>
+        setState((s) => {
+          const matches = s.flunk?.matches
+          const match = matches?.[matchIndex]
+          if (!matches || !match || match.winnerId === teamId) return s
+          // flunkWins im selben Update pflegen – bleibt so auch im Live-Modus konsistent.
+          const bump = (teams: Team[], id: string, delta: number) =>
+            teams.map((t) =>
+              t.id === id
+                ? { ...t, stats: { ...t.stats, flunkWins: Math.max(0, t.stats.flunkWins + delta) } }
+                : t,
+            )
+          let teams = s.teams
+          if (match.winnerId) teams = bump(teams, match.winnerId, -1)
+          if (teamId) teams = bump(teams, teamId, 1)
+          return {
+            ...s,
+            teams,
+            flunk: {
+              ...s.flunk!,
+              matches: matches.map((m, i) => (i === matchIndex ? { ...m, winnerId: teamId } : m)),
+            },
+          }
+        }),
+
+      flunkBackToSetup: () =>
+        setState((s) =>
+          s.flunk
+            ? {
+                ...s,
+                teams: revertFlunkWins(s.teams, s.flunk.matches),
+                flunk: { ...s.flunk, matches: null },
+              }
+            : s,
+        ),
+
+      flunkReset: () =>
+        setState((s) =>
+          s.flunk
+            ? { ...s, teams: revertFlunkWins(s.teams, s.flunk.matches), flunk: null }
+            : s,
+        ),
 
       updateDecks: (decks) => setState((s) => ({ ...s, decks })),
 

@@ -143,6 +143,27 @@ export interface ChallengeReward {
   amount?: number
 }
 
+/** Ein ausgelostes Flunk-Match. `b = null` bedeutet Freilos. */
+export interface FlunkMatch {
+  a: string
+  b: string | null
+  /** Gewinner-Team (null = noch nicht entschieden). */
+  winnerId: string | null
+}
+
+/**
+ * Eine laufende Flunk-Runde. Liegt im geteilten Zustand, damit alle Geräte
+ * Bereit-Status, ausgeloste Matches und Sieger live sehen.
+ */
+export interface FlunkRound {
+  id: string
+  /** Teams, die auf dem Flunk-Feld angekommen und bereit sind. */
+  readyIds: string[]
+  /** Ausgeloste Matches; null = noch in der Ankommens-/Warte-Phase. */
+  matches: FlunkMatch[] | null
+  at: number
+}
+
 /**
  * Eine live an alle Geräte verteilte Nachricht (z. B. „Team X hat die
  * Challenge gewonnen"). Wird beim Empfänger als Banner angezeigt.
@@ -165,6 +186,8 @@ export interface AppState {
   decksVersion: number
   /** Aktuell laufende/aufgelöste Challenge (geteilt, live). */
   challenge: Challenge | null
+  /** Aktuell laufende Flunk-Runde (geteilt, live). */
+  flunk: FlunkRound | null
   /** Live-Nachrichten an die Teams (geteilt). */
   announcements: Announcement[]
 }

@@ -12,11 +12,16 @@ type Tab = 'board' | 'teams' | 'admin'
 type Overlay = null | 'challenge' | 'flunk' | 'stats'
 
 export function App() {
-  const [tab, setTab] = useState<Tab>('board')
+  // Start auf der Setup-Seite – dort werden Teams angelegt und das
+  // Online-Spiel erstellt/beigetreten.
+  const [tab, setTab] = useState<Tab>('admin')
   const [overlay, setOverlay] = useState<Overlay>(null)
 
+  // Das Spielfeld soll komplett ohne Scrollen auf den Bildschirm passen.
+  const boardActive = tab === 'board' && overlay === null
+
   return (
-    <div className="app">
+    <div className={boardActive ? 'app app-fit' : 'app'}>
       <header className="app-header">
         <div className="brand">
           <img src="./icon.svg" alt="" className="brand-icon" />
@@ -25,7 +30,8 @@ export function App() {
             <p className="tagline">Companion für Flunk des Lebens</p>
           </div>
         </div>
-        <ConnectionBar />
+        {/* Spiel-Code & Live-Status nur auf der Setup-Seite. */}
+        {tab === 'admin' && overlay === null && <ConnectionBar />}
       </header>
 
       <Announcements />
@@ -63,7 +69,7 @@ export function App() {
             active={tab === 'board'}
             onClick={() => setTab('board')}
             icon="🎲"
-            label="Spielbrett"
+            label="Spiel"
           />
           <TabButton
             active={tab === 'teams'}

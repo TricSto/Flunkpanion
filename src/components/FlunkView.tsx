@@ -1,33 +1,36 @@
-import { useState } from 'react'
 import { useStore } from '../store'
 import { pickRandom } from '../util'
 
-interface Match {
-  a: string
-  b: string | null
-}
-
 /**
- * Erste Version des Flunk-Ablaufs (host-seitig, noch nicht live geteilt):
+ * Flunk-Ablauf – live geteilt über den gemeinsamen Zustand (state.flunk):
  * Teams kommen an → warten eine Runde → bekommen eine Aktionskarte. Sind
- * mindestens zwei Teams bereit, lost der Host die Matches aus (neu auslosbar).
+ * mindestens zwei Teams bereit, werden die Matches ausgelost (neu auslosbar).
  * Danach je Match: Gewinner wählen (zählt als Flunk-Sieg) + Strafbiere für den
- * Verlierer zählen.
+ * Verlierer zählen. Alle Geräte sehen Bereit-Status, Matches und Sieger live.
  */
 export function FlunkView() {
-  const { state, addActionCard, addBeer, bumpStat } = useStore()
+  const {
+    state,
+    addActionCard,
+    addBeer,
+    flunkArrive,
+    flunkUnready,
+    flunkDrawMatches,
+    flunkSetWinner,
+    flunkBackToSetup,
+    flunkReset,
+  } = useStore()
   const teams = state.teams
   const aktionsDeck = state.decks.find((d) => d.id === 'aktionskarten')
 
-  const [ready, setReady] = useState<Set<string>>(new Set())
-  const [matches, setMatches] = useState<Match[] | null>(null)
-  const [winners, setWinners] = useState<Record<number, string>>({})
+  const ready = new Set(state.flunk?.readyIds ?? [])
+  const matches = state.flunk?.matches ?? null
 
   const name = (id: string | null) => teams.find((t) => t.id === id)?.name ?? 'Freilos'
 
   const arrive = (id: string) => {
     const team = teams.find((t) => t.id === id)
-    if (!team) return
+    if (!team || ready.has(id)) return
     // Belohnung fürs Warten: eine Aktionskarte (keine Doppelten).
     if (aktionsDeck && aktionsDeck.cards.length > 0) {
       const held = new Set(team.actionCards.map((c) => c.title))
@@ -36,65 +39,7 @@ export function FlunkView() {
         pickRandom(aktionsDeck.cards)
       if (card) addActionCard(id, card.title, card.detail)
     }
-    setReady((s) => new Set(s).add(id))
-  }
-
-  const unready = (id: string) =>
-    setReady((s) => {
-      const n = new Set(s)
-      n.delete(id)
-      return n
-    })
-
-  // Alle bereits gezählten Flunk-Siege wieder abziehen (vor Neu-Auslosen/Reset).
-  const clearRecordedWins = () => {
-    Object.values(winners).forEach((id) => bumpStat(id, 'flunkWins', -1))
-  }
-
-  const recordWinner = (i: number, teamId: string) => {
-    const prev = winners[i]
-    if (prev === teamId) return
-    if (prev) bumpStat(prev, 'flunkWins', -1)
-    bumpStat(teamId, 'flunkWins', 1)
-    setWinners((w) => ({ ...w, [i]: teamId }))
-  }
-
-  const clearWinner = (i: number) => {
-    const prev = winners[i]
-    if (prev) bumpStat(prev, 'flunkWins', -1)
-    setWinners((w) => {
-      const n = { ...w }
-      delete n[i]
-      return n
-    })
-  }
-
-  const drawMatches = () => {
-    clearRecordedWins()
-    const ids = [...ready]
-    for (let i = ids.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[ids[i], ids[j]] = [ids[j], ids[i]]
-    }
-    const ms: Match[] = []
-    for (let i = 0; i < ids.length; i += 2) {
-      ms.push({ a: ids[i], b: ids[i + 1] ?? null })
-    }
-    setMatches(ms)
-    setWinners({})
-  }
-
-  const backToSetup = () => {
-    clearRecordedWins()
-    setWinners({})
-    setMatches(null)
-  }
-
-  const reset = () => {
-    clearRecordedWins()
-    setReady(new Set())
-    setMatches(null)
-    setWinners({})
+    flunkArrive(id)
   }
 
   const readyCount = ready.size
@@ -108,10 +53,10 @@ export function FlunkView() {
             {matches.length} Match{matches.length === 1 ? '' : 'es'}
           </span>
           <div className="sheet-actions">
-            <button className="btn small" onClick={drawMatches}>
+            <button className="btn small" onClick={flunkDrawMatches}>
               ↻ Neu auslosen
             </button>
-            <button className="btn small ghost" onClick={backToSetup}>
+            <button className="btn small ghost" onClick={flunkBackToSetup}>
               ‹ Zurück
             </button>
           </div>
@@ -119,7 +64,7 @@ export function FlunkView() {
 
         <div className="flunk-matches">
           {matches.map((m, i) => {
-            const winnerId = winners[i] ?? null
+            const winnerId = m.winnerId
             const loserId = winnerId && m.b ? (winnerId === m.a ? m.b : m.a) : null
             const loser = teams.find((t) => t.id === loserId) ?? null
             return (
@@ -134,10 +79,10 @@ export function FlunkView() {
                   <p className="muted small center">Freilos – kein Gegner.</p>
                 ) : winnerId == null ? (
                   <div className="flunk-win-buttons">
-                    <button className="btn primary big" onClick={() => recordWinner(i, m.a)}>
+                    <button className="btn primary big" onClick={() => flunkSetWinner(i, m.a)}>
                       🏆 {name(m.a)}
                     </button>
-                    <button className="btn primary big" onClick={() => recordWinner(i, m.b!)}>
+                    <button className="btn primary big" onClick={() => flunkSetWinner(i, m.b!)}>
                       🏆 {name(m.b)}
                     </button>
                   </div>
@@ -167,7 +112,7 @@ export function FlunkView() {
                         </div>
                       </div>
                     )}
-                    <button className="btn tiny ghost" onClick={() => clearWinner(i)}>
+                    <button className="btn tiny ghost" onClick={() => flunkSetWinner(i, null)}>
                       Sieger ändern
                     </button>
                   </div>
@@ -178,7 +123,7 @@ export function FlunkView() {
         </div>
 
         <div className="danger-zone">
-          <button className="btn ghost" onClick={reset}>
+          <button className="btn ghost" onClick={flunkReset}>
             Flunk-Runde zurücksetzen
           </button>
         </div>
@@ -213,7 +158,7 @@ export function FlunkView() {
               {isReady ? (
                 <span className="flunk-ready">
                   <span className="flunk-ok">✓ bereit</span>
-                  <button className="btn tiny ghost" onClick={() => unready(t.id)}>
+                  <button className="btn tiny ghost" onClick={() => flunkUnready(t.id)}>
                     zurück
                   </button>
                 </span>
@@ -230,7 +175,7 @@ export function FlunkView() {
       <button
         className="btn primary block flunk-draw"
         disabled={readyCount < 2}
-        onClick={drawMatches}
+        onClick={flunkDrawMatches}
       >
         🎲 Matches auslosen ({readyCount} bereit)
       </button>
