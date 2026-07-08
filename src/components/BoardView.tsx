@@ -54,9 +54,11 @@ function tileStyle(color: string): CSSProperties {
 export function BoardView({
   onOpenChallenge,
   onOpenFlunk,
+  onGoToTeams,
 }: {
   onOpenChallenge: () => void
   onOpenFlunk: () => void
+  onGoToTeams: () => void
 }) {
   const [active, setActive] = useState<FieldDef | null>(null)
 
@@ -84,26 +86,41 @@ export function BoardView({
         ))}
       </div>
 
-      {active && <FieldSheet field={active} onClose={() => setActive(null)} />}
+      {active && (
+        <FieldSheet field={active} onClose={() => setActive(null)} onGoToTeams={onGoToTeams} />
+      )}
     </section>
   )
 }
 
 // ---------------------------------------------------------------------------
 
-function FieldSheet({ field, onClose }: { field: FieldDef; onClose: () => void }) {
+function FieldSheet({
+  field,
+  onClose,
+  onGoToTeams,
+}: {
+  field: FieldDef
+  onClose: () => void
+  onGoToTeams: () => void
+}) {
   const { state } = useStore()
   const needsTeam = field.key !== 'kingstabelle'
-  const [teamId, setTeamId] = useState<string>(
-    state.currentTeamId ?? state.teams[0]?.id ?? '',
-  )
-  const team = state.teams.find((t) => t.id === teamId) ?? null
+  // Das eigene (beigetretene) Team wird direkt genutzt – keine Auswahl nötig.
+  // Nur Geräte ohne eigenes Team (z. B. Spielleitung) wählen manuell.
+  const myTeam = state.teams.find((t) => t.id === state.currentTeamId) ?? null
+  const [teamId, setTeamId] = useState<string>(state.teams[0]?.id ?? '')
+  const team = myTeam ?? state.teams.find((t) => t.id === teamId) ?? null
 
   return (
     <Modal title={`${field.icon} ${field.label}`} onClose={onClose}>
       {needsTeam &&
         (state.teams.length === 0 ? (
           <p className="muted small">Noch keine Teams. Lege sie im Tab „Setup“ an.</p>
+        ) : myTeam ? (
+          <p className="sheet-team-hint">
+            Für <strong style={{ color: myTeam.color }}>{myTeam.name}</strong>
+          </p>
         ) : (
           <label className="field">
             <span>Team auf diesem Feld</span>
@@ -117,7 +134,7 @@ function FieldSheet({ field, onClose }: { field: FieldDef; onClose: () => void }
           </label>
         ))}
 
-      <FieldBody field={field} team={team} onClose={onClose} />
+      <FieldBody field={field} team={team} onClose={onClose} onGoToTeams={onGoToTeams} />
     </Modal>
   )
 }
@@ -128,16 +145,17 @@ function FieldBody({
   field,
   team,
   onClose,
+  onGoToTeams,
 }: {
   field: FieldDef
   team: Team | null
   onClose: () => void
+  onGoToTeams: () => void
 }) {
   const { state, adjustCash, payBeerTax, addActionCard, setJobTitle, setSalary, addBeer, bumpStat } =
     useStore()
   const [flash, setFlash] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Card | null>(null)
-  const [eventBooked, setEventBooked] = useState(false)
 
   // Kingstabelle: reines Info-Feld, kein Team nötig.
   if (field.key === 'kingstabelle') {
@@ -245,45 +263,48 @@ function FieldBody({
     const draw = () => {
       if (!deck || deck.cards.length === 0) return
       setDrawn(pickRandom(deck.cards) ?? null)
-      setEventBooked(false)
     }
     const amount = drawn?.amount ?? null
+    const hasBooking = amount != null && amount !== 0
     return (
       <>
-        <button className="btn primary block" onClick={draw}>
-          🎲 {drawn ? 'Neues Ereignis' : 'Ereignis ziehen'}
-        </button>
-        {drawn && (
-          <div className="drawn-card sheet-drawn">
-            <div className="drawn-top">
-              <strong className="drawn-title">{drawn.title}</strong>
-              {amount != null && amount !== 0 && (
-                <span className={amount > 0 ? 'dice-amount pos' : 'dice-amount neg'}>
-                  {amount > 0 ? '+' : ''}
-                  {formatMoney(amount)}
-                </span>
-              )}
+        {!drawn ? (
+          <button className="btn primary block" onClick={draw}>
+            🎲 Ereignis ziehen
+          </button>
+        ) : (
+          <>
+            <div className="drawn-card sheet-drawn">
+              <div className="drawn-top">
+                <strong className="drawn-title">{drawn.title}</strong>
+                {hasBooking && (
+                  <span className={amount > 0 ? 'dice-amount pos' : 'dice-amount neg'}>
+                    {amount > 0 ? '+' : ''}
+                    {formatMoney(amount)}
+                  </span>
+                )}
+              </div>
+              {drawn.detail && <p className="drawn-detail">{drawn.detail}</p>}
             </div>
-            {drawn.detail && <p className="drawn-detail">{drawn.detail}</p>}
-            <div className="sheet-actions">
-              {amount != null && amount !== 0 && !eventBooked && (
+            {/* Zwei große Buttons: links ohne Buchung fertig, rechts buchen. */}
+            <div className="event-actions">
+              <button className="btn big ghost" onClick={onClose}>
+                {hasBooking ? 'Ohne Buchung fertig' : 'Fertig'}
+              </button>
+              {hasBooking && (
                 <button
-                  className={amount > 0 ? 'btn small plus' : 'btn small minus'}
+                  className={amount > 0 ? 'btn big plus' : 'btn big minus'}
                   onClick={() => {
                     adjustCash(team.id, amount, `Ereignis: ${drawn.title}`)
-                    setEventBooked(true)
-                    say(`${amount > 0 ? '+' : ''}${amount} KK gebucht`)
+                    onClose()
                   }}
                 >
                   {amount > 0 ? 'KK gutschreiben' : 'KK abziehen'} ({amount > 0 ? '+' : ''}
                   {amount})
                 </button>
               )}
-              <button className="btn small ghost" onClick={onClose}>
-                {amount != null && amount !== 0 && !eventBooked ? 'Ohne Buchung fertig' : 'Fertig'}
-              </button>
             </div>
-          </div>
+          </>
         )}
         {flashEl}
       </>
@@ -344,13 +365,14 @@ function FieldBody({
         <button
           className="btn primary block"
           onClick={() => {
+            // Direkt zählen, Fenster schließen und zur Teamseite wechseln.
             addBeer(team.id, 'normal', 1)
-            say('+1 Bier gezählt')
+            onClose()
+            onGoToTeams()
           }}
         >
           🍺 Getränk zählen (+1 Bier)
         </button>
-        {flashEl}
       </>
     )
   }
