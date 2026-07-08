@@ -1,15 +1,10 @@
 import { useState } from 'react'
 import type { Card, Team } from '../types'
 import { useStore } from '../store'
-import { formatMoney, formatTime } from '../util'
+import { formatMoney, formatTime, pickRandom, takenJobTitles } from '../util'
 import { Modal } from './Modal'
 
 const QUICK_AMOUNTS = [5, 10, 15, 20]
-
-function pickRandom<T>(items: T[]): T | undefined {
-  if (items.length === 0) return undefined
-  return items[Math.floor(Math.random() * items.length)]
-}
 
 export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen?: boolean }) {
   const {
@@ -22,6 +17,8 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
     addActionCard,
     removeActionCard,
     renameTeam,
+    setPlayers,
+    addBeer,
   } = useStore()
 
   const [open, setOpen] = useState(defaultOpen)
@@ -40,8 +37,14 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
   }
 
   const rollBeruf = () => {
-    const card = pickRandom(berufe?.cards ?? [])
-    if (!card) return
+    // Jeder Beruf max. 1× im Spiel – bereits vergebene ausschließen.
+    const taken = takenJobTitles(state.teams, team.id)
+    const available = (berufe?.cards ?? []).filter((c) => !taken.has(c.title))
+    const card = pickRandom(available)
+    if (!card) {
+      showFlash('Kein Beruf mehr frei – alle vergeben.')
+      return
+    }
     setJobTitle(team.id, card.title)
     showFlash(`Beruf: ${card.title}`)
   }
@@ -88,6 +91,28 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
 
       {open && (
         <div className="team-body">
+          {/* Spieleranzahl */}
+          <div className="row">
+            <div className="row-main">
+              <span className="row-label">👤 Spieler</span>
+              <span className="row-value">{team.players}</span>
+            </div>
+            <div className="quick-pair">
+              <button
+                className="btn small minus"
+                onClick={() => setPlayers(team.id, team.players - 1)}
+              >
+                −
+              </button>
+              <button
+                className="btn small plus"
+                onClick={() => setPlayers(team.id, team.players + 1)}
+              >
+                +
+              </button>
+            </div>
+          </div>
+
           {/* Beruf & Gehalt (separat würfelbar) */}
           <div className="row">
             <div className="row-main">
@@ -163,6 +188,30 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
                 </button>
               </span>
             ))}
+          </div>
+
+          {/* Biere zählen (für die Endstatistik) */}
+          <div className="section">
+            <div className="section-head">
+              <h4>🍺 Biere</h4>
+            </div>
+            <div className="beer-counters">
+              <BeerCounter
+                label="Biere"
+                value={team.beers.normal}
+                onChange={(d) => addBeer(team.id, 'normal', d)}
+              />
+              <BeerCounter
+                label="Spaß"
+                value={team.beers.fun}
+                onChange={(d) => addBeer(team.id, 'fun', d)}
+              />
+              <BeerCounter
+                label="Strafe"
+                value={team.beers.penalty}
+                onChange={(d) => addBeer(team.id, 'penalty', d)}
+              />
+            </div>
           </div>
 
           {/* Aktionskarten – direkt ziehen, keine Doppelten */}
@@ -262,6 +311,33 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
         />
       )}
     </article>
+  )
+}
+
+// ---- Kleine Bausteine ------------------------------------------------------
+
+function BeerCounter({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (delta: number) => void
+}) {
+  return (
+    <div className="beer-counter">
+      <span className="beer-count">{value}</span>
+      <span className="beer-label muted small">{label}</span>
+      <div className="beer-btns">
+        <button className="btn tiny minus" onClick={() => onChange(-1)} aria-label={`${label} weniger`}>
+          −
+        </button>
+        <button className="btn tiny plus" onClick={() => onChange(1)} aria-label={`${label} mehr`}>
+          +
+        </button>
+      </div>
+    </div>
   )
 }
 
