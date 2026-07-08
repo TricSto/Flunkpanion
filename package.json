@@ -1,9 +1,9 @@
 {
-  "name": "flunk-des-lebens",
+  "name": "flunkpanion",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Companion-App für das Brettspiel 'Flunk des Lebens'",
+  "description": "Flunkpanion – Companion-App für das Brettspiel 'Flunk des Lebens'",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

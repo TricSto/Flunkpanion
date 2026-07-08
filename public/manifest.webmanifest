@@ -1,7 +1,7 @@
 {
-  "name": "Flunk des Lebens",
-  "short_name": "Flunk",
-  "description": "Companion-App für das Brettspiel 'Flunk des Lebens'",
+  "name": "Flunkpanion",
+  "short_name": "Flunkpanion",
+  "description": "Flunkpanion – Companion-App für das Brettspiel 'Flunk des Lebens'",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

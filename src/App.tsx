@@ -17,8 +17,8 @@ export function App() {
         <div className="brand">
           <img src="./icon.svg" alt="" className="brand-icon" />
           <div>
-            <h1>Flunk des Lebens</h1>
-            <p className="tagline">Spiel-Begleiter</p>
+            <h1>Flunkpanion</h1>
+            <p className="tagline">Companion für Flunk des Lebens</p>
           </div>
         </div>
         <ConnectionBar />
