@@ -18,8 +18,9 @@ export function loadTheme(): Theme {
   } catch {
     // ignorieren
   }
-  // Ohne gespeicherte Wahl der Systemeinstellung folgen.
-  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  // Ohne gespeicherte Wahl der Systemeinstellung folgen; nur bei explizitem
+  // System-Dunkelmodus dunkel starten, sonst ist Hell der Standard.
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 export function applyTheme(theme: Theme): void {
