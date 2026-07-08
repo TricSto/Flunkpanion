@@ -15,7 +15,7 @@ import type {
   Team,
   Transaction,
 } from './types'
-import { initialState, TEAM_COLORS } from './data/defaults'
+import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 
 const STORAGE_KEY = 'flunk-des-lebens/state/v1'
 
@@ -29,11 +29,14 @@ function loadState(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return initialState
     const parsed = JSON.parse(raw) as Partial<AppState>
+    // Bei neuer Deck-Version die mitgelieferten Karten übernehmen, Teams behalten.
+    const decksCurrent = parsed.decksVersion === DECKS_VERSION && parsed.decks
     return {
       // Ältere gespeicherte Teams besitzen evtl. noch kein transactions-Feld.
       teams: (parsed.teams ?? []).map((t) => ({ ...t, transactions: t.transactions ?? [] })),
-      decks: parsed.decks ?? initialState.decks,
+      decks: decksCurrent ? parsed.decks! : initialState.decks,
       currentTeamId: parsed.currentTeamId ?? null,
+      decksVersion: DECKS_VERSION,
     }
   } catch {
     return initialState

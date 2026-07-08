@@ -88,4 +88,6 @@ export interface AppState {
   decks: Deck[]
   /** Das aktuell „beigetretene“ Team dieses Geräts. */
   currentTeamId: string | null
+  /** Version der mitgelieferten Decks – steuert Content-Updates. */
+  decksVersion: number
 }
