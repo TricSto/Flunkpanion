@@ -16,11 +16,14 @@ import type {
   Challenge,
   ChallengeReward,
   Deck,
+  Education,
   Job,
   SharedState,
   Team,
+  TeamStats,
   Transaction,
 } from './types'
+import { STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
 
@@ -54,12 +57,19 @@ function generateCode(len = 4): string {
  * Sorgt dafür, dass geladene/empfangene Teams alle neueren Felder besitzen
  * (players, beers, transactions) – schützt vor Abstürzen bei älteren Ständen.
  */
+function emptyStats(): TeamStats {
+  return { actionCardsUsed: 0, flunkWins: 0, challengeWins: 0, minigameWins: 0 }
+}
+
 function normalizeTeams(teams: Team[] | undefined): Team[] {
   return (teams ?? []).map((t) => ({
     ...t,
     transactions: t.transactions ?? [],
     players: t.players ?? 1,
+    education: t.education ?? 'none',
+    stock: t.stock ?? false,
     beers: t.beers ?? { normal: 0, fun: 0, penalty: 0 },
+    stats: { ...emptyStats(), ...(t.stats ?? {}) },
   }))
 }
 
@@ -124,6 +134,15 @@ interface Store {
   renameTeam: (teamId: string, name: string) => void
   setPlayers: (teamId: string, players: number) => void
   addBeer: (teamId: string, kind: keyof BeerCounts, delta: number) => void
+  setEducation: (teamId: string, education: Education) => void
+  /** Aktie kaufen (kostet STOCK_PRICE KK, max. 1 pro Team). Gibt false zurück, wenn zu wenig KK. */
+  buyStock: (teamId: string) => boolean
+  /** Aktie entfernen (Korrektur, ohne Rückerstattung). */
+  removeStock: (teamId: string) => void
+  /** Aktien-Auszahlung: selbst angegebenen KK-Betrag gutschreiben. */
+  payoutStock: (teamId: string, amount: number) => void
+  /** Statistik-Zähler ändern (z. B. Flunk-/Minigame-Siege). */
+  bumpStat: (teamId: string, key: keyof TeamStats, delta: number) => void
   adjustCash: (teamId: string, delta: number, reason?: string) => void
   undoTransaction: (teamId: string, txId: string) => void
   setJob: (teamId: string, job: Job | null) => void
@@ -361,9 +380,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             cash: 0,
             players: Math.max(1, Math.round(players) || 1),
             job: null,
+            education: 'none',
+            stock: false,
             actionCards: [],
             transactions: [],
             beers: { normal: 0, fun: 0, penalty: 0 },
+            stats: emptyStats(),
             createdAt: Date.now(),
           }
           return { ...s, teams: [...s.teams, team] }
@@ -379,6 +401,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         mutateTeam(teamId, (t) => ({
           ...t,
           beers: { ...t.beers, [kind]: Math.max(0, t.beers[kind] + delta) },
+        })),
+
+      setEducation: (teamId, education) =>
+        mutateTeam(teamId, (t) => ({ ...t, education })),
+
+      buyStock: (teamId) => {
+        const team = stateRef.current.teams.find((t) => t.id === teamId)
+        if (!team || team.stock || team.cash < STOCK_PRICE) return false
+        mutateTeam(teamId, (t) => ({
+          ...t,
+          stock: true,
+          cash: t.cash - STOCK_PRICE,
+          transactions: [
+            { id: uid(), delta: -STOCK_PRICE, reason: 'Aktie gekauft', at: Date.now() },
+            ...t.transactions,
+          ],
+        }))
+        return true
+      },
+
+      removeStock: (teamId) => mutateTeam(teamId, (t) => ({ ...t, stock: false })),
+
+      payoutStock: (teamId, amount) =>
+        mutateTeam(teamId, (t) => {
+          if (!t.stock || !amount) return t
+          return {
+            ...t,
+            cash: t.cash + amount,
+            transactions: [
+              { id: uid(), delta: amount, reason: 'Aktien-Auszahlung', at: Date.now() },
+              ...t.transactions,
+            ],
+          }
+        }),
+
+      bumpStat: (teamId, key, delta) =>
+        mutateTeam(teamId, (t) => ({
+          ...t,
+          stats: { ...t.stats, [key]: Math.max(0, t.stats[key] + delta) },
         })),
 
       removeTeam: (teamId) =>
@@ -422,10 +483,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setJob: (teamId, job) => mutateTeam(teamId, (t) => ({ ...t, job })),
 
       setJobTitle: (teamId, title) =>
-        mutateTeam(teamId, (t) => ({
-          ...t,
-          job: { title, salary: t.job?.salary ?? 0, beerTax: t.job?.beerTax ?? 0 },
-        })),
+        setState((s) => {
+          // Jeder Beruf max. 1×: hält ihn bereits ein anderes Team, nicht zuweisen
+          // (schützt auch bei parallelen Zugriffen im Live-Modus).
+          if (s.teams.some((t) => t.id !== teamId && t.job?.title === title)) return s
+          return {
+            ...s,
+            teams: s.teams.map((t) =>
+              t.id === teamId
+                ? { ...t, job: { title, salary: t.job?.salary ?? 0, beerTax: t.job?.beerTax ?? 0 } }
+                : t,
+            ),
+          }
+        }),
 
       setSalary: (teamId, salary, beerTax) =>
         mutateTeam(teamId, (t) => ({
@@ -461,10 +531,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
 
       removeActionCard: (teamId, cardId) =>
-        mutateTeam(teamId, (t) => ({
-          ...t,
-          actionCards: t.actionCards.filter((c) => c.id !== cardId),
-        })),
+        mutateTeam(teamId, (t) => {
+          // Karte ablegen = ausgespielt → für die Statistik zählen.
+          if (!t.actionCards.some((c) => c.id === cardId)) return t
+          return {
+            ...t,
+            actionCards: t.actionCards.filter((c) => c.id !== cardId),
+            stats: { ...t.stats, actionCardsUsed: t.stats.actionCardsUsed + 1 },
+          }
+        }),
 
       startChallenge: (challengerId, opponentId, card) =>
         setState((s) => {
@@ -520,6 +595,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 : t,
             )
           }
+
+          // Challenge-Sieg für die Statistik zählen.
+          teams = teams.map((t) =>
+            t.id === winnerId
+              ? { ...t, stats: { ...t.stats, challengeWins: t.stats.challengeWins + 1 } }
+              : t,
+          )
 
           const rewardText =
             reward.kind === 'cash' && reward.amount

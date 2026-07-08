@@ -10,6 +10,22 @@ export function pickRandom<T>(items: T[]): T | undefined {
   return items[Math.floor(Math.random() * items.length)]
 }
 
+/** Bis zu n zufällige, verschiedene Elemente aus einer Liste. */
+export function sampleDistinct<T>(items: T[], n: number): T[] {
+  const pool = [...items]
+  const out: T[] = []
+  while (out.length < n && pool.length > 0) {
+    const i = Math.floor(Math.random() * pool.length)
+    out.push(pool.splice(i, 1)[0])
+  }
+  return out
+}
+
+/** Wie viele Berufe zur Auswahl stehen – abhängig vom Ausbildungsstand. */
+export function berufChoiceCount(education: 'none' | 'ausbildung' | 'studium'): number {
+  return education === 'studium' ? 3 : education === 'ausbildung' ? 2 : 1
+}
+
 /**
  * Berufe, die bereits von einem Team belegt sind (jeder Beruf max. 1×).
  * `exceptId` schließt ein Team aus (z. B. das Team, das gerade neu würfelt).
