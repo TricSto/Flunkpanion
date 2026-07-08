@@ -69,6 +69,7 @@ export function App() {
             {tab === 'admin' && (
               <AdminView
                 onEndGame={() => setOverlay('stats')}
+                onGoToTeams={() => setTab('teams')}
                 theme={theme}
                 onThemeChange={changeTheme}
               />

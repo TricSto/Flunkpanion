@@ -40,6 +40,8 @@ export type ConnectionStatus = 'local' | 'connecting' | 'live' | 'error'
 /** Aktuelle Online-Sitzung (welchem Spiel-Code dieses Gerät beigetreten ist). */
 export interface Session {
   code: string
+  /** Hat dieses Gerät das Spiel erstellt? Nur der Host sieht Host-Aktionen. */
+  isHost: boolean
 }
 
 // Eindeutige ID ohne externe Abhängigkeit.
@@ -154,7 +156,7 @@ function loadSession(): Session | null {
     const raw = localStorage.getItem(SESSION_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<Session>
-    return parsed.code ? { code: parsed.code } : null
+    return parsed.code ? { code: parsed.code, isHost: Boolean(parsed.isHost) } : null
   } catch {
     return null
   }
@@ -166,6 +168,11 @@ interface Store {
   session: Session | null
   connectionStatus: ConnectionStatus
   isRemoteConfigured: boolean
+  /**
+   * Ist dieses Gerät der Spielleiter? Im lokalen Modus immer, online nur der
+   * Ersteller des Spiels – Beitreter sehen keine Host-Aktionen.
+   */
+  isHost: boolean
   /** Neues Online-Spiel erstellen; gibt den Spiel-Code zurück (oder null bei Fehler). */
   createGame: () => Promise<string | null>
   /** Einem Online-Spiel per Code beitreten. */
@@ -173,7 +180,8 @@ interface Store {
   /** Online-Spiel verlassen (zurück in den lokalen Modus). */
   leaveGame: () => void
   // Teams
-  addTeam: (name: string, players?: number) => void
+  /** Team anlegen; gibt die ID des neuen Teams zurück (z. B. zum Direkt-Beitreten). */
+  addTeam: (name: string, players?: number) => string
   removeTeam: (teamId: string) => void
   renameTeam: (teamId: string, name: string) => void
   setPlayers: (teamId: string, players: number) => void
@@ -432,6 +440,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       session,
       connectionStatus,
       isRemoteConfigured,
+      isHost: session ? session.isHost : true,
 
       createGame: async () => {
         const client = supabase
@@ -444,7 +453,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             .insert({ code, state: shared, updated_at: new Date().toISOString() })
           if (!error) {
             lastSyncedRef.current = JSON.stringify(shared)
-            setSession({ code })
+            setSession({ code, isHost: true })
             return code
           }
           // 23505 = unique_violation → Code kollidiert, neu würfeln.
@@ -477,7 +486,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           flunk: normalizeFlunk(shared.flunk),
           currentTeamId: null,
         }))
-        setSession({ code })
+        setSession({ code, isHost: false })
         return { ok: true }
       },
 
@@ -487,11 +496,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setConnectionStatus('local')
       },
 
-      addTeam: (name, players = 1) =>
+      addTeam: (name, players = 1) => {
+        const id = uid()
         setState((s) => {
           const color = TEAM_COLORS[s.teams.length % TEAM_COLORS.length]
           const team: Team = {
-            id: uid(),
+            id,
             name: name.trim() || `Team ${s.teams.length + 1}`,
             color,
             cash: 0,
@@ -506,7 +516,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             createdAt: Date.now(),
           }
           return { ...s, teams: [...s.teams, team] }
-        }),
+        })
+        return id
+      },
 
       setPlayers: (teamId, players) =>
         mutateTeam(teamId, (t) => ({
