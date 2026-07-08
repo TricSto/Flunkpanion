@@ -12,7 +12,7 @@ export function DiceView() {
   // Beruf, Gehalt und Aktionskarten werden direkt auf der Teamkarte gewürfelt.
   // Hier nur die gemeinsamen Decks für alle Teams.
   const sharedDecks = state.decks.filter((d) =>
-    ['event', 'challenge', 'lifestyle', 'equipment'].includes(d.type),
+    ['event', 'challenge'].includes(d.type),
   )
 
   return (
@@ -119,7 +119,7 @@ function ApplyButtons({
   card: Card
   teamId: string
 }) {
-  const { adjustCash, setJob, addActionCard, addProperty } = useStore()
+  const { adjustCash, setJob, addActionCard } = useStore()
 
   const buttons: React.ReactNode[] = []
 
@@ -149,18 +149,6 @@ function ApplyButtons({
         onClick={() => adjustCash(teamId, card.amount!, `${deck.name}: ${card.title}`)}
       >
         {card.amount > 0 ? 'KK gutschreiben' : 'KK abziehen'}
-      </button>,
-    )
-  }
-
-  if (deck.type === 'lifestyle' || deck.type === 'equipment') {
-    buttons.push(
-      <button
-        key="prop"
-        className="btn small ghost"
-        onClick={() => addProperty(teamId, card.title, card.amount ?? 0, card.detail)}
-      >
-        Als Besitz
       </button>,
     )
   }

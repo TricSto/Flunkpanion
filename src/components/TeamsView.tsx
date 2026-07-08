@@ -49,18 +49,13 @@ export function TeamsView() {
         <details className="other-teams">
           <summary>Andere Teams ({others.length})</summary>
           <ul className="other-list">
-            {others.map((t) => {
-              const worth =
-                t.cash + t.properties.reduce((s, p) => s + p.value, 0)
-              return (
-                <li key={t.id} className="other-row">
-                  <span className="other-dot" style={{ background: t.color }} />
-                  <span className="other-name">{t.name}</span>
-                  <span className="other-cash">{formatMoney(t.cash)}</span>
-                  <span className="other-worth muted">Verm. {formatMoney(worth)}</span>
-                </li>
-              )
-            })}
+            {others.map((t) => (
+              <li key={t.id} className="other-row">
+                <span className="other-dot" style={{ background: t.color }} />
+                <span className="other-name">{t.name}</span>
+                <span className="other-cash">{formatMoney(t.cash)}</span>
+              </li>
+            ))}
           </ul>
         </details>
       )}

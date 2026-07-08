@@ -21,13 +21,11 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
     payBeerTax,
     addActionCard,
     removeActionCard,
-    addProperty,
-    removeProperty,
     renameTeam,
   } = useStore()
 
   const [open, setOpen] = useState(defaultOpen)
-  const [modal, setModal] = useState<null | 'cash' | 'card' | 'property'>(null)
+  const [modal, setModal] = useState<null | 'cash'>(null)
   const [flash, setFlash] = useState<string | null>(null)
 
   const berufe = state.decks.find((d) => d.type === 'job')
@@ -35,9 +33,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
   const actionDecks = state.decks.filter((d) => d.type === 'action' || d.type === 'special')
 
   const heldTitles = new Set(team.actionCards.map((c) => c.title))
-
-  const propertyTotal = team.properties.reduce((sum, p) => sum + p.value, 0)
-  const netWorth = team.cash + propertyTotal
 
   const showFlash = (msg: string) => {
     setFlash(msg)
@@ -210,37 +205,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
             )}
           </div>
 
-          {/* Besitz / Properties */}
-          <div className="section">
-            <div className="section-head">
-              <h4>🏠 Besitz ({team.properties.length})</h4>
-              <button className="btn small ghost" onClick={() => setModal('property')}>
-                + Besitz
-              </button>
-            </div>
-            {team.properties.length === 0 ? (
-              <p className="muted small">Noch kein Besitz.</p>
-            ) : (
-              <ul className="chip-list">
-                {team.properties.map((p) => (
-                  <li key={p.id} className="chip">
-                    <span className="chip-text">
-                      <strong>{p.name}</strong> · {formatMoney(p.value)}
-                      {p.note && <em> — {p.note}</em>}
-                    </span>
-                    <button
-                      className="chip-x"
-                      onClick={() => removeProperty(team.id, p.id)}
-                      aria-label="Besitz entfernen"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
           {/* Verlauf */}
           <div className="section">
             <div className="section-head">
@@ -273,9 +237,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
 
           {/* Fußzeile */}
           <div className="team-footer">
-            <span className="networth">
-              Vermögen (inkl. Besitz): <strong>{formatMoney(netWorth)}</strong>
-            </span>
             <div className="team-footer-actions">
               <button
                 className="btn tiny ghost"
@@ -296,15 +257,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
           onClose={() => setModal(null)}
           onSubmit={(delta, reason) => {
             adjustCash(team.id, delta, reason)
-            setModal(null)
-          }}
-        />
-      )}
-      {modal === 'property' && (
-        <PropertyModal
-          onClose={() => setModal(null)}
-          onSubmit={(name, value, note) => {
-            addProperty(team.id, name, value, note)
             setModal(null)
           }}
         />
@@ -357,63 +309,6 @@ function CashModal({
           onClick={() => onSubmit(num, reason.trim() || 'Buchung')}
         >
           Buchen
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
-function PropertyModal({
-  onClose,
-  onSubmit,
-}: {
-  onClose: () => void
-  onSubmit: (name: string, value: number, note: string) => void
-}) {
-  const [name, setName] = useState('')
-  const [value, setValue] = useState('')
-  const [note, setNote] = useState('')
-  return (
-    <Modal title="Besitz hinzufügen" onClose={onClose}>
-      <label className="field">
-        <span>Bezeichnung</span>
-        <input
-          type="text"
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="z. B. Zwei-Zimmer-Wohnung"
-        />
-      </label>
-      <label className="field">
-        <span>Wert (KK)</span>
-        <input
-          type="number"
-          inputMode="numeric"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="z. B. 20"
-        />
-      </label>
-      <label className="field">
-        <span>Notiz (optional)</span>
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Kurze Beschreibung"
-        />
-      </label>
-      <div className="modal-actions">
-        <button className="btn ghost" onClick={onClose}>
-          Abbrechen
-        </button>
-        <button
-          className="btn primary"
-          disabled={!name.trim()}
-          onClick={() => onSubmit(name, Number(value) || 0, note)}
-        >
-          Hinzufügen
         </button>
       </div>
     </Modal>

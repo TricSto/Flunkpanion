@@ -11,7 +11,6 @@ import type {
   AppState,
   Deck,
   Job,
-  Property,
   Team,
   Transaction,
 } from './types'
@@ -60,9 +59,6 @@ interface Store {
   // Aktionskarten
   addActionCard: (teamId: string, title: string, note: string) => void
   removeActionCard: (teamId: string, cardId: string) => void
-  // Besitz / Properties
-  addProperty: (teamId: string, name: string, value: number, note: string) => void
-  removeProperty: (teamId: string, propId: string) => void
   // Decks / Würfeltabellen
   updateDecks: (decks: Deck[]) => void
   resetAll: () => void
@@ -101,7 +97,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             cash: 0,
             job: null,
             actionCards: [],
-            properties: [],
             transactions: [],
             createdAt: Date.now(),
           }
@@ -191,23 +186,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         mutateTeam(teamId, (t) => ({
           ...t,
           actionCards: t.actionCards.filter((c) => c.id !== cardId),
-        })),
-
-      addProperty: (teamId, name, value, note) =>
-        mutateTeam(teamId, (t) => {
-          const prop: Property = {
-            id: uid(),
-            name: name.trim() || 'Besitz',
-            value: Number.isFinite(value) ? value : 0,
-            note: note.trim(),
-          }
-          return { ...t, properties: [prop, ...t.properties] }
-        }),
-
-      removeProperty: (teamId, propId) =>
-        mutateTeam(teamId, (t) => ({
-          ...t,
-          properties: t.properties.filter((p) => p.id !== propId),
         })),
 
       updateDecks: (decks) => setState((s) => ({ ...s, decks })),

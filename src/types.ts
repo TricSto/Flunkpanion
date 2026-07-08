@@ -8,13 +8,6 @@ export interface ActionCard {
   createdAt: number
 }
 
-export interface Property {
-  id: string
-  name: string
-  value: number
-  note: string
-}
-
 export interface Job {
   title: string
   salary: number
@@ -37,14 +30,13 @@ export interface Team {
   cash: number
   job: Job | null
   actionCards: ActionCard[]
-  properties: Property[]
   transactions: Transaction[]
   createdAt: number
 }
 
 /**
  * Art eines Decks – steuert, welche „Anwenden“-Aktionen beim Ziehen
- * angeboten werden (Job setzen, KK gutschreiben, Aktionskarte, Besitz …).
+ * angeboten werden (Job setzen, KK gutschreiben, Aktionskarte …).
  */
 export type DeckType =
   | 'job'
@@ -53,8 +45,6 @@ export type DeckType =
   | 'action'
   | 'special'
   | 'challenge'
-  | 'lifestyle'
-  | 'equipment'
 
 /** Eine einzelne Karte in einem Deck. */
 export interface Card {
