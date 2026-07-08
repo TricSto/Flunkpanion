@@ -13,6 +13,7 @@ import type {
   Job,
   Property,
   Team,
+  Transaction,
 } from './types'
 import { initialState, TEAM_COLORS } from './data/defaults'
 
@@ -29,7 +30,8 @@ function loadState(): AppState {
     if (!raw) return initialState
     const parsed = JSON.parse(raw) as Partial<AppState>
     return {
-      teams: parsed.teams ?? [],
+      // Ältere gespeicherte Teams besitzen evtl. noch kein transactions-Feld.
+      teams: (parsed.teams ?? []).map((t) => ({ ...t, transactions: t.transactions ?? [] })),
       diceTables: parsed.diceTables ?? initialState.diceTables,
     }
   } catch {
@@ -43,7 +45,8 @@ interface Store {
   addTeam: (name: string) => void
   removeTeam: (teamId: string) => void
   renameTeam: (teamId: string, name: string) => void
-  adjustCash: (teamId: string, delta: number) => void
+  adjustCash: (teamId: string, delta: number, reason?: string) => void
+  undoTransaction: (teamId: string, txId: string) => void
   setJob: (teamId: string, job: Job | null) => void
   // Aktionskarten
   addActionCard: (teamId: string, title: string, note: string) => void
@@ -90,6 +93,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             job: null,
             actionCards: [],
             properties: [],
+            transactions: [],
             createdAt: Date.now(),
           }
           return { ...s, teams: [...s.teams, team] }
@@ -101,8 +105,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       renameTeam: (teamId, name) =>
         mutateTeam(teamId, (t) => ({ ...t, name: name.trim() || t.name })),
 
-      adjustCash: (teamId, delta) =>
-        mutateTeam(teamId, (t) => ({ ...t, cash: t.cash + delta })),
+      adjustCash: (teamId, delta, reason = 'Buchung') =>
+        mutateTeam(teamId, (t) => {
+          const tx: Transaction = {
+            id: uid(),
+            delta,
+            reason: reason.trim() || 'Buchung',
+            at: Date.now(),
+          }
+          return {
+            ...t,
+            cash: t.cash + delta,
+            transactions: [tx, ...t.transactions],
+          }
+        }),
+
+      undoTransaction: (teamId, txId) =>
+        mutateTeam(teamId, (t) => {
+          const tx = t.transactions.find((x) => x.id === txId)
+          if (!tx) return t
+          return {
+            ...t,
+            cash: t.cash - tx.delta,
+            transactions: t.transactions.filter((x) => x.id !== txId),
+          }
+        }),
 
       setJob: (teamId, job) => mutateTeam(teamId, (t) => ({ ...t, job })),
 

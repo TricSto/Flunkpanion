@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Team } from '../types'
 import { useStore } from '../store'
-import { formatMoney } from '../util'
+import { formatMoney, formatTime } from '../util'
 import { Modal } from './Modal'
 
 const QUICK_AMOUNTS = [100, 500, 1000, 5000]
@@ -9,6 +9,7 @@ const QUICK_AMOUNTS = [100, 500, 1000, 5000]
 export function TeamCard({ team }: { team: Team }) {
   const {
     adjustCash,
+    undoTransaction,
     setJob,
     addActionCard,
     removeActionCard,
@@ -59,7 +60,9 @@ export function TeamCard({ team }: { team: Team }) {
               {team.job && (
                 <button
                   className="btn small"
-                  onClick={() => adjustCash(team.id, team.job!.salary)}
+                  onClick={() =>
+                    adjustCash(team.id, team.job!.salary, `Gehalt: ${team.job!.title}`)
+                  }
                   title="Gehalt auszahlen"
                 >
                   Gehalt +
@@ -80,13 +83,13 @@ export function TeamCard({ team }: { team: Team }) {
               <span key={amt} className="quick-pair">
                 <button
                   className="btn small plus"
-                  onClick={() => adjustCash(team.id, amt)}
+                  onClick={() => adjustCash(team.id, amt, 'Schnellbuchung')}
                 >
                   +{amt}
                 </button>
                 <button
                   className="btn small minus"
-                  onClick={() => adjustCash(team.id, -amt)}
+                  onClick={() => adjustCash(team.id, -amt, 'Schnellbuchung')}
                 >
                   −{amt}
                 </button>
@@ -156,6 +159,36 @@ export function TeamCard({ team }: { team: Team }) {
             )}
           </div>
 
+          {/* Verlauf */}
+          <div className="section">
+            <div className="section-head">
+              <h4>🧾 Verlauf ({team.transactions.length})</h4>
+            </div>
+            {team.transactions.length === 0 ? (
+              <p className="muted small">Noch keine Buchungen.</p>
+            ) : (
+              <ul className="tx-list">
+                {team.transactions.slice(0, 8).map((tx) => (
+                  <li key={tx.id} className="tx">
+                    <span className="tx-time">{formatTime(tx.at)}</span>
+                    <span className="tx-reason">{tx.reason}</span>
+                    <span className={tx.delta >= 0 ? 'tx-delta pos' : 'tx-delta neg'}>
+                      {tx.delta > 0 ? '+' : ''}
+                      {formatMoney(tx.delta)}
+                    </span>
+                    <button
+                      className="tx-undo"
+                      title="Buchung rückgängig machen"
+                      onClick={() => undoTransaction(team.id, tx.id)}
+                    >
+                      ↩
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {/* Fußzeile: Vermögen + Verwaltung */}
           <div className="team-footer">
             <span className="networth">
@@ -187,8 +220,8 @@ export function TeamCard({ team }: { team: Team }) {
       {modal === 'cash' && (
         <CashModal
           onClose={() => setModal(null)}
-          onSubmit={(delta) => {
-            adjustCash(team.id, delta)
+          onSubmit={(delta, reason) => {
+            adjustCash(team.id, delta, reason)
             setModal(null)
           }}
         />
@@ -232,9 +265,10 @@ function CashModal({
   onSubmit,
 }: {
   onClose: () => void
-  onSubmit: (delta: number) => void
+  onSubmit: (delta: number, reason: string) => void
 }) {
   const [value, setValue] = useState('')
+  const [reason, setReason] = useState('')
   const num = Number(value)
   return (
     <Modal title="Betrag buchen" onClose={onClose}>
@@ -249,6 +283,15 @@ function CashModal({
           placeholder="z. B. 1500 oder -500"
         />
       </label>
+      <label className="field">
+        <span>Grund (optional)</span>
+        <input
+          type="text"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="z. B. Miete, Bonus…"
+        />
+      </label>
       <div className="modal-actions">
         <button className="btn ghost" onClick={onClose}>
           Abbrechen
@@ -256,7 +299,7 @@ function CashModal({
         <button
           className="btn primary"
           disabled={!value || Number.isNaN(num)}
-          onClick={() => onSubmit(num)}
+          onClick={() => onSubmit(num, reason.trim() || 'Buchung')}
         >
           Buchen
         </button>

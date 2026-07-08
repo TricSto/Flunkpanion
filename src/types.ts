@@ -19,6 +19,14 @@ export interface Job {
   salary: number
 }
 
+/** Ein Eintrag im Cash-Verlauf eines Teams. */
+export interface Transaction {
+  id: string
+  delta: number
+  reason: string
+  at: number
+}
+
 export interface Team {
   id: string
   name: string
@@ -27,6 +35,7 @@ export interface Team {
   job: Job | null
   actionCards: ActionCard[]
   properties: Property[]
+  transactions: Transaction[]
   createdAt: number
 }
 

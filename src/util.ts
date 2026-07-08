@@ -13,3 +13,12 @@ export function formatMoney(value: number): string {
 export function rollDie(sides = 6): number {
   return Math.floor(Math.random() * sides) + 1
 }
+
+const time = new Intl.DateTimeFormat('de-DE', {
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+export function formatTime(ts: number): string {
+  return time.format(new Date(ts))
+}

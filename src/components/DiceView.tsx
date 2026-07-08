@@ -116,7 +116,9 @@ function DiceTableCard({
               {landed.amount != null && landed.amount !== 0 && (
                 <button
                   className="btn small"
-                  onClick={() => adjustCash(teamId, landed.amount!)}
+                  onClick={() =>
+                    adjustCash(teamId, landed.amount!, `Würfel: ${landed.label}`)
+                  }
                 >
                   Betrag gutschreiben
                 </button>
