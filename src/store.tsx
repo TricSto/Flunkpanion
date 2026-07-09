@@ -13,6 +13,7 @@ import type {
   AppState,
   Announcement,
   BeerCounts,
+  BoardBranch,
   BoardField,
   BoardFieldType,
   BoardState,
@@ -33,7 +34,7 @@ import type {
 } from './types'
 import { STOCK_NUMBERS, STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
-import { BOARD_COLS, BOARD_VERSION, defaultBoard } from './data/board'
+import { BOARD_COLS, BOARD_VERSION, defaultBoard, isBoardFieldType } from './data/board'
 import { GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
 import { isDiplomJob, pickRandom, sampleDistinct } from './util'
 
@@ -161,11 +162,17 @@ function normalizeFlunk(flunk: FlunkRound | null | undefined): FlunkRound | null
  * normalizeTeams deterministisch sein (läuft über empfangene Remote-Zustände).
  */
 function normalizeBoard(board: BoardState | null | undefined): BoardState {
-  if (!board || !Array.isArray(board.fields)) return defaultBoard()
+  // Ältere Brett-Versionen komplett durch das neue Standard-Layout ersetzen –
+  // dort gibt es noch die alten Canva-Feldtypen und keine zwei Startwege.
+  if (!board || !Array.isArray(board.fields) || board.version !== BOARD_VERSION) {
+    return defaultBoard()
+  }
   return {
-    fields: board.fields.filter((f): f is BoardField => Boolean(f && f.id && f.type)),
+    fields: board.fields.filter(
+      (f): f is BoardField => Boolean(f && f.id && f.type && isBoardFieldType(f.type)),
+    ),
     cols: typeof board.cols === 'number' && board.cols >= 3 ? board.cols : BOARD_COLS,
-    version: board.version ?? BOARD_VERSION,
+    version: BOARD_VERSION,
   }
 }
 
@@ -338,12 +345,15 @@ interface Store {
   /** Feedback-Eintrag löschen (nur Host). */
   removeFeedback: (feedbackId: string) => void
   // Spielbrett (temporäre Editor-Seite)
-  /** Feld im Laufweg verschieben (Index → Index, synct live). */
+  /**
+   * Feld im Laufweg verschieben (Index → Index, synct live). Das Feld
+   * übernimmt dabei den Weg (Startweg/Hauptweg) des Ziel-Felds.
+   */
   moveBoardField: (fromIndex: number, toIndex: number) => void
-  /** Typ/Text eines Felds ändern. */
-  updateBoardField: (fieldId: string, patch: Partial<Pick<BoardField, 'type' | 'text'>>) => void
-  /** Neues Feld an einer Position einfügen. */
-  insertBoardField: (index: number, type: BoardFieldType) => void
+  /** Typ/Text/Weg eines Felds ändern. */
+  updateBoardField: (fieldId: string, patch: Partial<Pick<BoardField, 'type' | 'text' | 'branch'>>) => void
+  /** Neues Feld an einer Position einfügen (optional auf einem Startweg). */
+  insertBoardField: (index: number, type: BoardFieldType, branch?: BoardBranch) => void
   /** Feld vom Brett entfernen. */
   removeBoardField: (fieldId: string) => void
   /** Spielbrett auf das mitgelieferte Standard-Brett zurücksetzen. */
@@ -1263,7 +1273,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ) {
             return s
           }
-          const [moved] = fields.splice(fromIndex, 1)
+          // Beim Verschieben den Weg des Ziel-Felds übernehmen, damit Felder
+          // per Drag zwischen Startwegen und Hauptweg wandern können.
+          const targetBranch = s.board.fields[toIndex]?.branch
+          const moved = { ...fields.splice(fromIndex, 1)[0] }
+          if (targetBranch) moved.branch = targetBranch
+          else delete moved.branch
           fields.splice(toIndex, 0, moved)
           return { ...s, board: { ...s.board, fields } }
         }),
@@ -1277,11 +1292,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           },
         })),
 
-      insertBoardField: (index, type) =>
+      insertBoardField: (index, type, branch) =>
         setState((s) => {
           const fields = [...s.board.fields]
           const at = Math.max(0, Math.min(fields.length, index))
-          fields.splice(at, 0, { id: uid(), type })
+          fields.splice(at, 0, { id: uid(), type, ...(branch ? { branch } : {}) })
           return { ...s, board: { ...s.board, fields } }
         }),
 

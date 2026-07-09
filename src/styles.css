@@ -2785,6 +2785,45 @@ button.stat-tile:active {
   color: #78716c;
 }
 
+/* Die zwei Startwege (Ausbildung/Studium) über dem Hauptweg. */
+.sb-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px dashed rgba(120, 80, 30, 0.35);
+  /* Im horizontal scrollenden Brett die volle Laufweg-Breite abdecken. */
+  min-width: fit-content;
+}
+
+.sb-lane {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sb-lane-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #57493a;
+}
+
+/* Startweg-Felder: gleiche Feldbreite wie der Hauptweg, linksbündig. */
+.sb-lane-row {
+  display: grid;
+  grid-template-columns: repeat(var(--sb-cols, 8), minmax(46px, 1fr));
+  gap: 3px;
+  min-width: 0;
+}
+
+.sb-merge-hint {
+  margin: 0;
+  font-size: 10px;
+  color: #78716c;
+}
+
 /* Serpentinen-Reihe: direction (ltr/rtl) kommt inline vom Editor. */
 .sb-row {
   display: grid;
@@ -2793,15 +2832,16 @@ button.stat-tile:active {
   min-width: 0;
 }
 
-/* Chevron-Feld in Laufrichtung; Inhalt bleibt immer ltr. */
+/* Rundes, modernes Brett-Feld; Inhalt bleibt immer ltr. */
 .sb-tile {
   direction: ltr;
   position: relative;
-  border: none;
-  background: var(--f);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--f) 82%, #ffffff), var(--f));
   color: #1c1917;
   aspect-ratio: 0.92;
-  clip-path: polygon(0 0, 76% 0, 100% 50%, 76% 100%, 0 100%, 24% 50%);
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(70, 45, 10, 0.25);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2813,8 +2853,10 @@ button.stat-tile:active {
   transition: transform 0.12s, filter 0.12s;
 }
 
-.sb-tile.rtl {
-  clip-path: polygon(100% 0, 24% 0, 0 50%, 24% 100%, 100% 100%, 76% 50%);
+/* Start- und Zielfelder stechen etwas hervor. */
+.sb-tile.special {
+  border-color: #292018;
+  box-shadow: 0 2px 8px rgba(70, 45, 10, 0.4);
 }
 
 /* Im Verschieben-Modus übernimmt der Drag die Touch-Gesten. */
@@ -2909,4 +2951,28 @@ button.stat-tile:active {
 .sb-type-icon {
   font-size: 18px;
   line-height: 1;
+}
+
+/* Weg-Auswahl (Hauptweg / Ausbildung / Studium) im Bearbeiten-Sheet. */
+.sb-branch-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.sb-branch {
+  padding: 10px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.sb-branch.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent);
+  font-weight: 700;
 }

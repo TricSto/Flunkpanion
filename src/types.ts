@@ -231,10 +231,9 @@ export interface FeedbackEntry {
 // ---- Spielbrett (temporäre Editor-Seite) -----------------------------------
 
 /**
- * Art eines Spielbrett-Felds. Farben/Icons orientieren sich am alten
- * Canva-Brett (docs/altes-spielbrett.pdf): Megafon = Ereignis,
- * Einhorn = Game Changer, Schwerter = Challenge, Kronkorken = KK kassieren,
- * TAX-Beutel = Biersteuer usw.
+ * Art eines Spielbrett-Felds. Bewusst schlank gehalten: nur die Feldtypen,
+ * die im aktuellen Spiel wirklich vorkommen (Karten, Challenges, Minigames,
+ * Flunk, Zahltag, Biersteuer, Berufs-/Gehaltswechsel) plus Start und Ziel.
  */
 export type BoardFieldType =
   | 'start'
@@ -242,25 +241,28 @@ export type BoardFieldType =
   | 'aktion'
   | 'gamechanger'
   | 'challenge'
-  | 'kronkorken'
-  | 'biersteuer'
-  | 'zahltag'
-  | 'berufswechsel'
-  | 'boerse'
   | 'minigame'
-  | 'kingstabelle'
-  | 'edward'
   | 'flunk'
-  | 'aussetzen'
-  | 'text'
+  | 'zahltag'
+  | 'biersteuer'
+  | 'berufswechsel'
   | 'rente'
+
+/**
+ * Startweg eines Felds: Ausbildung und Studium sind keine Entscheidung im
+ * Spiel, sondern zwei getrennte Startwege mit eigenen Feldern, die in den
+ * Hauptweg münden. Felder ohne `branch` liegen auf dem Hauptweg.
+ */
+export type BoardBranch = 'ausbildung' | 'studium'
 
 /** Ein einzelnes Feld auf dem Spielbrett (Reihenfolge = Laufweg). */
 export interface BoardField {
   id: string
   type: BoardFieldType
-  /** Optionale Zusatz-Beschriftung (z. B. „−2 KK“ oder ein Aussetzen-Text). */
+  /** Optionale Zusatz-Beschriftung (z. B. „−2 KK“). */
   text?: string
+  /** Startweg (Ausbildung/Studium); fehlt = Hauptweg. */
+  branch?: BoardBranch
 }
 
 /**
