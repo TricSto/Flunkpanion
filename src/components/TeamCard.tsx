@@ -14,8 +14,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
     state,
     adjustCash,
     undoTransaction,
-    setSalary,
-    payBeerTax,
     addActionCard,
     removeActionCard,
     renameTeam,
@@ -32,7 +30,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
   )
   const [flash, setFlash] = useState<string | null>(null)
 
-  const gehalt = state.decks.find((d) => d.type === 'salary')
   const berufeDeck = state.decks.find((d) => d.type === 'job')
   const jobCard = team.job ? berufeDeck?.cards.find((c) => c.title === team.job!.title) : null
 
@@ -43,13 +40,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
   const showFlash = (msg: string) => {
     setFlash(msg)
     window.setTimeout(() => setFlash((f) => (f === msg ? null : f)), 2500)
-  }
-
-  const rollGehalt = () => {
-    const card = pickRandom(gehalt?.cards ?? [])
-    if (!card) return
-    setSalary(team.id, card.salary ?? 0, card.beerTax ?? 0)
-    showFlash(`Gehalt: ${formatMoney(card.salary ?? 0)} · BS ${card.beerTax ?? 0}`)
   }
 
   const drawAction = (kind: ActionCardKind) => {
@@ -156,29 +146,8 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
             </button>
           </div>
 
-          {/* Kompakte Gehalts-Aktionen */}
-          <div className="quick-actions">
-            <button className="btn small" onClick={rollGehalt}>
-              🎲 Gehalt würfeln
-            </button>
-            {team.job && team.job.salary > 0 && (
-              <>
-                <button
-                  className="btn small plus"
-                  onClick={() =>
-                    adjustCash(team.id, team.job!.salary, `Gehalt: ${team.job!.title || 'Job'}`)
-                  }
-                >
-                  💰 auszahlen +{team.job.salary}
-                </button>
-                {team.job.beerTax > 0 && (
-                  <button className="btn small minus" onClick={() => payBeerTax(team.id)}>
-                    🍺 Biersteuer −{team.job.beerTax}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          {/* Gehalt würfeln/auszahlen & Biersteuer laufen bewusst NUR über die
+              Spiel-Seite (Feedback #23) – hier keine Buttons mehr dafür. */}
 
           {/* Kronkorken buchen: −1 · Betrag · +1 */}
           <div className="cash-controls">
