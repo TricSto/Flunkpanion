@@ -157,12 +157,25 @@ export interface ChallengeReward {
   cardNote?: string
 }
 
+/** KK-Bonus pro Bier bei der Flunk-Abrechnung (#62). */
+export const FLUNK_BEER_BONUS = 5
+
 /** Ein ausgelostes Flunk-Match. `b = null` bedeutet Freilos. */
 export interface FlunkMatch {
   a: string
   b: string | null
   /** Gewinner-Team (null = noch nicht entschieden). */
   winnerId: string | null
+  /**
+   * Nicht ausgetrunkene Biere des Verlierers – je FLUNK_BEER_BONUS KK extra
+   * für den Sieger dieses Matches (beim Beenden gebucht, #62).
+   */
+  loserUnfinished?: number
+  /**
+   * Leer getrunkene Biere des Verlierers (ohne Strafbiere) – je
+   * FLUNK_BEER_BONUS KK für den Verlierer (beim Beenden gebucht, #62).
+   */
+  loserFinished?: number
 }
 
 /**

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import type { ActionCard } from '../types'
+import { FLUNK_BEER_BONUS } from '../types'
 import { useStore } from '../store'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
 
-/** KK, die ein Match-Sieger beim Beenden der Runde standardmäßig bekommt. */
-const DEFAULT_WIN_REWARD = 5
+/** KK, die ein Match-Sieger beim Beenden der Runde standardmäßig bekommt (#62). */
+const DEFAULT_WIN_REWARD = 25
 
 /**
  * Flunk-Ablauf – live geteilt über den gemeinsamen Zustand (state.flunk):
@@ -27,6 +28,7 @@ export function FlunkView() {
     flunkUnready,
     flunkDrawMatches,
     flunkSetWinner,
+    flunkSetMatchBeers,
     flunkBackToSetup,
     flunkFinish,
     flunkReset,
@@ -133,6 +135,73 @@ export function FlunkView() {
                         </div>
                       </div>
                     )}
+                    {/* Bier-Abrechnung pro Match (#62): nicht ausgetrunkene
+                        Biere → Bonus für den Sieger; leer getrunkene Biere
+                        (ohne Strafbiere) → Bonus für den Verlierer. */}
+                    {loser && (
+                      <>
+                        <div className="flunk-beer">
+                          <span className="muted small">
+                            🍺 Nicht ausgetrunken ({loser.name}):{' '}
+                            <strong>{m.loserUnfinished ?? 0}</strong> · +
+                            {(m.loserUnfinished ?? 0) * FLUNK_BEER_BONUS} KK für{' '}
+                            {name(winnerId)}
+                          </span>
+                          <div className="quick-pair">
+                            <button
+                              className="btn small minus"
+                              onClick={() =>
+                                flunkSetMatchBeers(i, {
+                                  unfinished: (m.loserUnfinished ?? 0) - 1,
+                                })
+                              }
+                            >
+                              −
+                            </button>
+                            <button
+                              className="btn small plus"
+                              onClick={() =>
+                                flunkSetMatchBeers(i, {
+                                  unfinished: (m.loserUnfinished ?? 0) + 1,
+                                })
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flunk-beer">
+                          <span className="muted small">
+                            🍻 Leer getrunken, ohne Strafbiere ({loser.name}):{' '}
+                            <strong>{m.loserFinished ?? 0}</strong> · +
+                            {(m.loserFinished ?? 0) * FLUNK_BEER_BONUS} KK für{' '}
+                            {loser.name}
+                          </span>
+                          <div className="quick-pair">
+                            <button
+                              className="btn small minus"
+                              onClick={() =>
+                                flunkSetMatchBeers(i, {
+                                  finished: (m.loserFinished ?? 0) - 1,
+                                })
+                              }
+                            >
+                              −
+                            </button>
+                            <button
+                              className="btn small plus"
+                              onClick={() =>
+                                flunkSetMatchBeers(i, {
+                                  finished: (m.loserFinished ?? 0) + 1,
+                                })
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                     <button className="btn tiny ghost" onClick={() => flunkSetWinner(i, null)}>
                       Sieger ändern
                     </button>
@@ -144,7 +213,10 @@ export function FlunkView() {
         </div>
 
         <label className="field flunk-reward">
-          <span>🏆 KK-Gutschrift pro Flunk-Sieg (beim Beenden gebucht)</span>
+          <span>
+            🏆 Basis-Gutschrift pro Flunk-Sieg (+{FLUNK_BEER_BONUS} KK je Bier-Bonus,
+            beim Beenden gebucht)
+          </span>
           <input
             type="number"
             inputMode="numeric"
