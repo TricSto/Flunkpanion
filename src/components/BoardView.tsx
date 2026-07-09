@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { useStore } from '../store'
 import type { Card, Team } from '../types'
-import { formatMoney, pickRandom, takenJobTitles } from '../util'
+import { formatMoney, isDiplomJob, pickRandom, takenJobTitles } from '../util'
 import { Modal } from './Modal'
 
 type FieldKey =
@@ -105,8 +105,12 @@ function FieldSheet({
   onGoToTeams: () => void
 }) {
   const { state } = useStore()
-  // Minigames spielen alle – der Sieger wird im Feld selbst gewählt (#29).
-  const needsTeam = field.key !== 'kingstabelle' && field.key !== 'minigames'
+  // Minigames spielen alle (Sieger wird im Feld gewählt, #29) und der
+  // Gehaltswechsel betrifft alle Teams gleichzeitig (#32) – keine Team-Wahl.
+  const needsTeam =
+    field.key !== 'kingstabelle' &&
+    field.key !== 'minigames' &&
+    field.key !== 'gehaltswechsel'
   // Das eigene (beigetretene) Team wird direkt genutzt – keine Auswahl nötig.
   // Nur Geräte ohne eigenes Team (z. B. Spielleitung) wählen manuell.
   const myTeam = state.teams.find((t) => t.id === state.currentTeamId) ?? null
@@ -153,8 +157,7 @@ function FieldBody({
   onClose: () => void
   onGoToTeams: () => void
 }) {
-  const { state, adjustCash, payBeerTax, addActionCard, setJobTitle, setSalary, addBeer } =
-    useStore()
+  const { state, adjustCash, payBeerTax, addActionCard, addBeer } = useStore()
   const [flash, setFlash] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Card | null>(null)
 
@@ -181,6 +184,11 @@ function FieldBody({
         {flash && <div className="flash sheet-flash">{flash}</div>}
       </>
     )
+  }
+
+  // Gehaltswechsel: betrifft immer ALLE Teams gleichzeitig (#32).
+  if (field.key === 'gehaltswechsel') {
+    return <GehaltswechselBody />
   }
 
   if (!team) {
@@ -327,50 +335,6 @@ function FieldBody({
     )
   }
 
-  // --- Gehaltspflichtwechsel ----------------------------------------------
-  if (field.key === 'gehaltswechsel') {
-    const berufe = state.decks.find((d) => d.type === 'job')
-    const gehalt = state.decks.find((d) => d.type === 'salary')
-    const rollBeruf = () => {
-      const taken = takenJobTitles(state.teams, team.id)
-      const available = (berufe?.cards ?? []).filter((c) => !taken.has(c.title))
-      const card = pickRandom(available)
-      if (!card) {
-        say('Kein Beruf mehr frei – alle vergeben.')
-        return
-      }
-      setJobTitle(team.id, card.title)
-      say(`Neuer Beruf: ${card.title}`)
-    }
-    const rollGehalt = () => {
-      const card = pickRandom(gehalt?.cards ?? [])
-      if (!card) return
-      setSalary(team.id, card.salary ?? 0, card.beerTax ?? 0)
-      say(`Neues Gehalt: ${formatMoney(card.salary ?? 0)} · BS ${card.beerTax ?? 0}`)
-    }
-    return (
-      <>
-        <p className="sheet-info">
-          Beruf <strong>und</strong> Gehalt müssen neu erwürfelt werden.
-        </p>
-        {/* Zwei große Buttons wie beim Ereignis: links Beruf, rechts Gehalt. */}
-        <div className="event-actions">
-          <button className="btn big primary" onClick={rollBeruf}>
-            💼 Neuer Beruf
-          </button>
-          <button className="btn big primary" onClick={rollGehalt}>
-            💶 Neues Gehalt
-          </button>
-        </div>
-        <p className="muted small sheet-current">
-          Aktuell: {job?.title || 'kein Beruf'}
-          {job && job.salary > 0 ? ` · ${formatMoney(job.salary)} · BS ${job.beerTax}` : ''}
-        </p>
-        {flashEl}
-      </>
-    )
-  }
-
   // --- Edward 20 Hands -----------------------------------------------------
   if (field.key === 'edward') {
     return (
@@ -395,6 +359,92 @@ function FieldBody({
   }
 
   return null
+}
+
+// --- Gehaltswechsel: Beruf & Gehalt für ALLE Teams neu würfeln (#32) ---------
+
+function GehaltswechselBody() {
+  const { state, chooseJob, setSalary } = useStore()
+  const berufe = state.decks.find((d) => d.type === 'job')
+  const gehalt = state.decks.find((d) => d.type === 'salary')
+  // Bildungsweg pro Team – vorbelegt mit der bisherigen Wahl des Teams.
+  const [pfade, setPfade] = useState<Record<string, 'ausbildung' | 'studium'>>({})
+  const [results, setResults] = useState<Record<string, string>>({})
+
+  if (state.teams.length === 0) {
+    return <p className="muted small">Noch keine Teams. Lege sie im Tab „Setup“ an.</p>
+  }
+
+  const pfadOf = (t: Team): 'ausbildung' | 'studium' =>
+    pfade[t.id] ?? (t.education === 'studium' ? 'studium' : 'ausbildung')
+
+  const roll = (t: Team) => {
+    const pfad = pfadOf(t)
+    // Beruf passend zum Bildungsweg: Studium → Diplom, Ausbildung → normal.
+    const taken = takenJobTitles(state.teams, t.id)
+    const pool = (berufe?.cards ?? []).filter(
+      (c) => !taken.has(c.title) && isDiplomJob(c.title) === (pfad === 'studium'),
+    )
+    const berufCard = pickRandom(pool)
+    if (!berufCard) {
+      setResults((r) => ({ ...r, [t.id]: 'Kein passender Beruf mehr frei.' }))
+      return
+    }
+    const gehaltCard = pickRandom(gehalt?.cards ?? [])
+    chooseJob(t.id, pfad, berufCard.title)
+    if (gehaltCard) setSalary(t.id, gehaltCard.salary ?? 0, gehaltCard.beerTax ?? 0)
+    setResults((r) => ({
+      ...r,
+      [t.id]: `💼 ${berufCard.title} · 💶 ${formatMoney(gehaltCard?.salary ?? 0)} · BS ${
+        gehaltCard?.beerTax ?? 0
+      }`,
+    }))
+  }
+
+  return (
+    <>
+      <p className="sheet-info">
+        Beruf <strong>und</strong> Gehalt werden für <strong>alle Teams</strong>{' '}
+        neu erwürfelt. Jedes Team gibt vorher an, ob es Studium oder Ausbildung
+        gemacht hat.
+      </p>
+      <ul className="gw-list">
+        {state.teams.map((t) => (
+          <li key={t.id} className="gw-row" style={{ borderLeftColor: t.color }}>
+            <div className="gw-head">
+              <span className="gw-name">{t.name}</span>
+              <span className="muted small">
+                {t.job?.title || 'kein Beruf'}
+                {t.job && t.job.salary > 0
+                  ? ` · ${formatMoney(t.job.salary)} · BS ${t.job.beerTax}`
+                  : ''}
+              </span>
+            </div>
+            <div className="gw-actions">
+              <div className="gw-toggle">
+                <button
+                  className={pfadOf(t) === 'ausbildung' ? 'btn tiny active' : 'btn tiny ghost'}
+                  onClick={() => setPfade((p) => ({ ...p, [t.id]: 'ausbildung' }))}
+                >
+                  🔧 Ausbildung
+                </button>
+                <button
+                  className={pfadOf(t) === 'studium' ? 'btn tiny active' : 'btn tiny ghost'}
+                  onClick={() => setPfade((p) => ({ ...p, [t.id]: 'studium' }))}
+                >
+                  🎓 Studium
+                </button>
+              </div>
+              <button className="btn small primary" onClick={() => roll(t)}>
+                🎲 {results[t.id] ? 'nochmal' : 'würfeln'}
+              </button>
+            </div>
+            {results[t.id] && <p className="gw-result small">{results[t.id]}</p>}
+          </li>
+        ))}
+      </ul>
+    </>
+  )
 }
 
 // --- Minigames (alle spielen mit – Sieger per Dropdown wählen, #29) ---------
