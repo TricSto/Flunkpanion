@@ -168,17 +168,13 @@ function FieldBody({
     </button>
   )
 
-  // Kingstabelle: reines Info-Feld, kein Team nötig.
+  // Kingstabelle: Verlierer-Team wählen, −2 KK automatisch (#46).
   if (field.key === 'kingstabelle') {
     return (
       <>
-        <p className="sheet-info">
-          Dieses Feld wird <strong>am Spielbrett erwürfelt</strong> – es läuft nicht
-          über die App.
-        </p>
-        <button className="btn primary block" onClick={onClose}>
-          ✓ Fertig
-        </button>
+        <KingstabelleBody onDone={setFlash} />
+        {flash && <div className="flash sheet-flash">{flash}</div>}
+        {doneBtn}
       </>
     )
   }
@@ -490,6 +486,53 @@ function GehaltswechselBody({ onClose }: { onClose: () => void }) {
       </p>
       <button className="btn ghost block sheet-done" onClick={onClose}>
         ✓ Fertig
+      </button>
+    </>
+  )
+}
+
+/** KK-Strafe für das Verlierer-Team der Kingstabelle (#46). */
+const KINGSTABELLE_PENALTY = 2
+
+// --- Kingstabelle (am Brett gewürfelt – Verlierer zahlt automatisch, #46) ----
+
+function KingstabelleBody({ onDone }: { onDone: (msg: string) => void }) {
+  const { state, adjustCash } = useStore()
+  // Vorauswahl: eigenes Team, sonst das erste.
+  const [loserId, setLoserId] = useState<string>(
+    state.currentTeamId ?? state.teams[0]?.id ?? '',
+  )
+  if (state.teams.length === 0) {
+    return <p className="muted small">Noch keine Teams. Lege sie im Tab „Setup“ an.</p>
+  }
+  return (
+    <>
+      <p className="sheet-info">
+        Die Kingstabelle wird <strong>am Spielbrett erwürfelt</strong>. Wähle
+        hier das <strong>Verlierer-Team</strong> – ihm werden automatisch{' '}
+        {KINGSTABELLE_PENALTY} KK abgezogen.
+      </p>
+      <label className="field">
+        <span>Verlierer-Team</span>
+        <select value={loserId} onChange={(e) => setLoserId(e.target.value)}>
+          {state.teams.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        className="btn primary block"
+        disabled={!loserId}
+        onClick={() => {
+          const loser = state.teams.find((t) => t.id === loserId)
+          if (!loser) return
+          adjustCash(loser.id, -KINGSTABELLE_PENALTY, 'Kingstabelle verloren')
+          onDone(`👑 ${loser.name} verliert die Kingstabelle: −${KINGSTABELLE_PENALTY} KK`)
+        }}
+      >
+        👑 −{KINGSTABELLE_PENALTY} KK beim Verlierer abziehen
       </button>
     </>
   )
