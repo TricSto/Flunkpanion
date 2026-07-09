@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { useStore, type BerufswechselResult } from '../store'
 import type { Card, Team } from '../types'
+import { KINGSTABELLE, MINIGAMES } from '../data/tables'
 import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
@@ -555,6 +556,13 @@ function KingstabelleBody({ onDone }: { onDone: (msg: string) => void }) {
         hier das <strong>Verlierer-Team</strong> – ihm werden automatisch{' '}
         {KINGSTABELLE_PENALTY} KK abgezogen.
       </p>
+      <ol className="rule-table">
+        {KINGSTABELLE.map((row) => (
+          <li key={row.n} value={row.n}>
+            {row.text}
+          </li>
+        ))}
+      </ol>
       <TeamPicker label="Verlierer-Team" value={loserId} onChange={setLoserId} />
       <button
         className="btn primary block"
@@ -587,9 +595,17 @@ function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
     <>
       <p className="sheet-info">
         Minigame wird <strong>am Spielbrett</strong> gespielt – alle Teams machen
-        mit. Wähle hier, wer gewonnen hat: Das Team bekommt eine zufällige
-        Aktionskarte (und der Sieg zählt für die Endstatistik).
+        mit. Sucht euch eines aus der Tabelle aus (oder würfelt es). Wähle hier,
+        wer gewonnen hat: Das Team bekommt eine zufällige Aktionskarte (und der
+        Sieg zählt für die Endstatistik).
       </p>
+      <ol className="rule-table">
+        {MINIGAMES.map((row) => (
+          <li key={row.n} value={row.n}>
+            {row.text}
+          </li>
+        ))}
+      </ol>
       <TeamPicker label="Gewinner-Team" value={winnerId} onChange={setWinnerId} />
       <button
         className="btn primary block"
