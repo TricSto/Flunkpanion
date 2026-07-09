@@ -380,16 +380,57 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
-/* Flash-Meldung auf der Teamkarte */
-.flash {
-  margin: 0 14px 8px;
+/* Info-Popover (z. B. „Aktie gekauft"): schwebt fix über dem Inhalt und
+   verschiebt damit nichts auf der Seite; Tipp irgendwo oder ✕ schließt. */
+.flash-popover {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(92vw, 440px);
   background: color-mix(in srgb, var(--primary) 22%, var(--bg-elev-2));
   border: 1px solid var(--primary);
-  border-radius: 9px;
-  padding: 8px 12px;
+  border-radius: 14px;
+  padding: 10px 10px 10px 14px;
   font-size: 14px;
   font-weight: 600;
-  animation: pop 0.2s ease-out;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  animation: popover-in 0.2s ease-out;
+}
+
+.flash-popover-text {
+  line-height: 1.35;
+}
+
+.flash-popover-x {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 30%, transparent);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .draw-controls {
@@ -1758,10 +1799,6 @@ select {
   font-size: 14px;
   margin: 0 0 12px;
   line-height: 1.4;
-}
-
-.sheet-flash {
-  margin: 12px 0 0;
 }
 
 .sheet-drawn {

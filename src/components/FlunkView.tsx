@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ActionCard } from '../types'
 import { useStore } from '../store'
 import { Modal } from './Modal'
+import { FlashPopover } from './FlashPopover'
 
 /** KK, die ein Match-Sieger beim Beenden der Runde standardmäßig bekommt. */
 const DEFAULT_WIN_REWARD = 5
@@ -194,7 +195,7 @@ export function FlunkView() {
         Aktionskarte. Sind alle da, werden die Matches ausgelost.
       </p>
 
-      {paidMsg && <div className="flash">{paidMsg}</div>}
+      {paidMsg && <FlashPopover message={paidMsg} onClose={() => setPaidMsg(null)} />}
 
       <ul className="flunk-teams">
         {teams.map((t) => {
