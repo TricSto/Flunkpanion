@@ -21,7 +21,8 @@ on:
 
 permissions:
   issues: write
-  pull-requests: read
+  # write nötig: der Weckruf ist ein Kommentar auf dem Inbox-PR.
+  pull-requests: write
 
 # Läufe nicht überlappen lassen (5-Min-Takt + Issue-Events).
 concurrency:
@@ -147,27 +148,34 @@ jobs:
             // Weckruf: Kommentar auf dem dauerhaft offenen Feedback-Inbox-PR.
             // Die Claude-Session hat den PR abonniert und wird durch den
             // Kommentar sofort geweckt (statt auf den Stunden-Takt zu warten).
+            // Fehler hier dürfen den Lauf nicht abbrechen – sonst fällt auch
+            // der Status-Rückschreibe-Schritt aus (die Routine fängt
+            // verpasste Weckrufe ohnehin stündlich auf).
             if (created.length > 0) {
-              const { data: prs } = await github.rest.pulls.list({
-                ...context.repo,
-                state: 'open',
-                head: `${context.repo.owner}:claude/feedback-inbox`,
-                per_page: 1,
-              })
-              if (prs.length === 0) {
-                console.log('Kein offener Feedback-Inbox-PR – Weckruf übersprungen.')
-              } else {
-                await github.rest.issues.createComment({
+              try {
+                const { data: prs } = await github.rest.pulls.list({
                   ...context.repo,
-                  issue_number: prs[0].number,
-                  body: [
-                    '🔔 Neues App-Feedback eingetroffen:',
-                    '',
-                    ...created.map((n) => `- #${n}`),
-                    '',
-                    'Bitte gemäß CLAUDE.md (Abschnitt „App-Feedback") direkt umsetzen.',
-                  ].join('\n'),
+                  state: 'open',
+                  head: `${context.repo.owner}:claude/feedback-inbox`,
+                  per_page: 1,
                 })
+                if (prs.length === 0) {
+                  console.log('Kein offener Feedback-Inbox-PR – Weckruf übersprungen.')
+                } else {
+                  await github.rest.issues.createComment({
+                    ...context.repo,
+                    issue_number: prs[0].number,
+                    body: [
+                      '🔔 Neues App-Feedback eingetroffen:',
+                      '',
+                      ...created.map((n) => `- #${n}`),
+                      '',
+                      'Bitte gemäß CLAUDE.md (Abschnitt „App-Feedback") direkt umsetzen.',
+                    ].join('\n'),
+                  })
+                }
+              } catch (e) {
+                console.log(`Weckruf fehlgeschlagen (${e.status ?? e.message}) – Routine fängt auf.`)
               }
             }
 
