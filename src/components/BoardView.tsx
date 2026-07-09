@@ -105,7 +105,8 @@ function FieldSheet({
   onGoToTeams: () => void
 }) {
   const { state } = useStore()
-  const needsTeam = field.key !== 'kingstabelle'
+  // Minigames spielen alle – der Sieger wird im Feld selbst gewählt (#29).
+  const needsTeam = field.key !== 'kingstabelle' && field.key !== 'minigames'
   // Das eigene (beigetretene) Team wird direkt genutzt – keine Auswahl nötig.
   // Nur Geräte ohne eigenes Team (z. B. Spielleitung) wählen manuell.
   const myTeam = state.teams.find((t) => t.id === state.currentTeamId) ?? null
@@ -152,7 +153,7 @@ function FieldBody({
   onClose: () => void
   onGoToTeams: () => void
 }) {
-  const { state, adjustCash, payBeerTax, addActionCard, setJobTitle, setSalary, addBeer, bumpStat } =
+  const { state, adjustCash, payBeerTax, addActionCard, setJobTitle, setSalary, addBeer } =
     useStore()
   const [flash, setFlash] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Card | null>(null)
@@ -168,6 +169,16 @@ function FieldBody({
         <button className="btn primary block" onClick={onClose}>
           ✓ Fertig
         </button>
+      </>
+    )
+  }
+
+  // Minigames: Sieger wird im Feld per Dropdown gewählt – kein Team nötig.
+  if (field.key === 'minigames') {
+    return (
+      <>
+        <MinigameBody onDone={setFlash} />
+        {flash && <div className="flash sheet-flash">{flash}</div>}
       </>
     )
   }
@@ -383,27 +394,48 @@ function FieldBody({
     )
   }
 
-  // --- Minigames (am Brett gespielt, hier nur den Sieg zählen) -------------
-  if (field.key === 'minigames') {
-    return (
-      <>
-        <p className="sheet-info">
-          Minigame wird <strong>am Spielbrett</strong> gespielt. Trag hier nur den
-          Sieg fürs Team ein (für die Endstatistik).
-        </p>
-        <button
-          className="btn primary block"
-          onClick={() => {
-            bumpStat(team.id, 'minigameWins', 1)
-            say(`🏆 Minigame-Sieg für ${team.name}`)
-          }}
-        >
-          🏆 Minigame gewonnen
-        </button>
-        {flashEl}
-      </>
-    )
-  }
-
   return null
+}
+
+// --- Minigames (alle spielen mit – Sieger per Dropdown wählen, #29) ---------
+
+function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
+  const { state, bumpStat } = useStore()
+  // Vorauswahl: eigenes Team, sonst das erste.
+  const [winnerId, setWinnerId] = useState<string>(
+    state.currentTeamId ?? state.teams[0]?.id ?? '',
+  )
+  if (state.teams.length === 0) {
+    return <p className="muted small">Noch keine Teams. Lege sie im Tab „Setup“ an.</p>
+  }
+  return (
+    <>
+      <p className="sheet-info">
+        Minigame wird <strong>am Spielbrett</strong> gespielt – alle Teams machen
+        mit. Wähle hier, wer gewonnen hat (zählt für die Endstatistik).
+      </p>
+      <label className="field">
+        <span>Gewinner-Team</span>
+        <select value={winnerId} onChange={(e) => setWinnerId(e.target.value)}>
+          {state.teams.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        className="btn primary block"
+        disabled={!winnerId}
+        onClick={() => {
+          const winner = state.teams.find((t) => t.id === winnerId)
+          if (!winner) return
+          bumpStat(winner.id, 'minigameWins', 1)
+          onDone(`🏆 Minigame-Sieg für ${winner.name}`)
+        }}
+      >
+        🏆 Minigame gewonnen
+      </button>
+    </>
+  )
 }
