@@ -13,6 +13,9 @@ import type {
   AppState,
   Announcement,
   BeerCounts,
+  BoardField,
+  BoardFieldType,
+  BoardState,
   Card,
   Challenge,
   ChallengeReward,
@@ -30,6 +33,7 @@ import type {
 } from './types'
 import { STOCK_NUMBERS, STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
+import { BOARD_COLS, BOARD_VERSION, defaultBoard } from './data/board'
 import { GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
 import { isDiplomJob, pickRandom, sampleDistinct } from './util'
 
@@ -152,6 +156,19 @@ function normalizeFlunk(flunk: FlunkRound | null | undefined): FlunkRound | null
   return { ...flunk, waitCardIds: flunk.waitCardIds ?? {}, paidIds: flunk.paidIds ?? [] }
 }
 
+/**
+ * Ergänzt fehlende/kaputte Spielbrett-Daten älterer Stände. Muss wie
+ * normalizeTeams deterministisch sein (läuft über empfangene Remote-Zustände).
+ */
+function normalizeBoard(board: BoardState | null | undefined): BoardState {
+  if (!board || !Array.isArray(board.fields)) return defaultBoard()
+  return {
+    fields: board.fields.filter((f): f is BoardField => Boolean(f && f.id && f.type)),
+    cols: typeof board.cols === 'number' && board.cols >= 3 ? board.cols : BOARD_COLS,
+    version: board.version ?? BOARD_VERSION,
+  }
+}
+
 /** Frische Flunk-Runde in der Ankommens-Phase. */
 function emptyFlunk(): FlunkRound {
   return { id: uid(), readyIds: [], matches: null, waitCardIds: {}, paidIds: [], at: Date.now() }
@@ -167,6 +184,7 @@ function sharedOf(state: AppState): SharedState {
     flunk: state.flunk,
     announcements: state.announcements,
     feedback: state.feedback,
+    board: state.board,
   }
 }
 
@@ -188,6 +206,7 @@ function loadState(): AppState {
       flunk: normalizeFlunk(parsed.flunk),
       announcements: parsed.announcements ?? [],
       feedback: parsed.feedback ?? [],
+      board: normalizeBoard(parsed.board),
     }
   } catch {
     return initialState
@@ -318,6 +337,17 @@ interface Store {
   addFeedback: (kind: FeedbackKind, text: string, author: string) => void
   /** Feedback-Eintrag löschen (nur Host). */
   removeFeedback: (feedbackId: string) => void
+  // Spielbrett (temporäre Editor-Seite)
+  /** Feld im Laufweg verschieben (Index → Index, synct live). */
+  moveBoardField: (fromIndex: number, toIndex: number) => void
+  /** Typ/Text eines Felds ändern. */
+  updateBoardField: (fieldId: string, patch: Partial<Pick<BoardField, 'type' | 'text'>>) => void
+  /** Neues Feld an einer Position einfügen. */
+  insertBoardField: (index: number, type: BoardFieldType) => void
+  /** Feld vom Brett entfernen. */
+  removeBoardField: (fieldId: string) => void
+  /** Spielbrett auf das mitgelieferte Standard-Brett zurücksetzen. */
+  resetBoard: () => void
   // Decks / Würfeltabellen
   updateDecks: (decks: Deck[]) => void
   resetAll: () => void
@@ -391,6 +421,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         flunk: normalizeFlunk(shared.flunk),
         // Ältere Stände ohne Feedback-Feld dürfen lokales Feedback nicht löschen.
         feedback: shared.feedback ?? s.feedback,
+        // Dito: Stände älterer Clients ohne Spielbrett behalten das lokale Brett.
+        board: normalizeBoard(shared.board ?? s.board),
         currentTeamId: s.currentTeamId,
       }
     })
@@ -569,6 +601,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...shared,
           teams: normalizeTeams(shared.teams, shared.decks ?? s.decks),
           flunk: normalizeFlunk(shared.flunk),
+          board: normalizeBoard(shared.board ?? s.board),
           currentTeamId: null,
         }))
         setSession({ code, isHost: false })
@@ -1217,6 +1250,48 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...s,
           feedback: s.feedback.filter((f) => f.id !== feedbackId),
         })),
+
+      moveBoardField: (fromIndex, toIndex) =>
+        setState((s) => {
+          const fields = [...s.board.fields]
+          if (
+            fromIndex === toIndex ||
+            fromIndex < 0 ||
+            fromIndex >= fields.length ||
+            toIndex < 0 ||
+            toIndex >= fields.length
+          ) {
+            return s
+          }
+          const [moved] = fields.splice(fromIndex, 1)
+          fields.splice(toIndex, 0, moved)
+          return { ...s, board: { ...s.board, fields } }
+        }),
+
+      updateBoardField: (fieldId, patch) =>
+        setState((s) => ({
+          ...s,
+          board: {
+            ...s.board,
+            fields: s.board.fields.map((f) => (f.id === fieldId ? { ...f, ...patch } : f)),
+          },
+        })),
+
+      insertBoardField: (index, type) =>
+        setState((s) => {
+          const fields = [...s.board.fields]
+          const at = Math.max(0, Math.min(fields.length, index))
+          fields.splice(at, 0, { id: uid(), type })
+          return { ...s, board: { ...s.board, fields } }
+        }),
+
+      removeBoardField: (fieldId) =>
+        setState((s) => ({
+          ...s,
+          board: { ...s.board, fields: s.board.fields.filter((f) => f.id !== fieldId) },
+        })),
+
+      resetBoard: () => setState((s) => ({ ...s, board: defaultBoard() })),
 
       updateDecks: (decks) => setState((s) => ({ ...s, decks })),
 

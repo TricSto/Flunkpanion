@@ -228,6 +228,54 @@ export interface FeedbackEntry {
   status?: FeedbackStatus
 }
 
+// ---- Spielbrett (temporäre Editor-Seite) -----------------------------------
+
+/**
+ * Art eines Spielbrett-Felds. Farben/Icons orientieren sich am alten
+ * Canva-Brett (docs/altes-spielbrett.pdf): Megafon = Ereignis,
+ * Einhorn = Game Changer, Schwerter = Challenge, Kronkorken = KK kassieren,
+ * TAX-Beutel = Biersteuer usw.
+ */
+export type BoardFieldType =
+  | 'start'
+  | 'ereignis'
+  | 'aktion'
+  | 'gamechanger'
+  | 'challenge'
+  | 'kronkorken'
+  | 'biersteuer'
+  | 'zahltag'
+  | 'berufswechsel'
+  | 'boerse'
+  | 'minigame'
+  | 'kingstabelle'
+  | 'edward'
+  | 'flunk'
+  | 'aussetzen'
+  | 'text'
+  | 'rente'
+
+/** Ein einzelnes Feld auf dem Spielbrett (Reihenfolge = Laufweg). */
+export interface BoardField {
+  id: string
+  type: BoardFieldType
+  /** Optionale Zusatz-Beschriftung (z. B. „−2 KK“ oder ein Aussetzen-Text). */
+  text?: string
+}
+
+/**
+ * Das bearbeitbare Spielbrett. Liegt im geteilten Zustand, damit alle
+ * Geräte dieselbe Anordnung sehen und Änderungen gespeichert bleiben.
+ */
+export interface BoardState {
+  /** Felder in Laufweg-Reihenfolge (Serpentinen-Layout beim Rendern). */
+  fields: BoardField[]
+  /** Felder pro Reihe im Serpentinen-Layout. */
+  cols: number
+  /** Version des mitgelieferten Standard-Bretts – steuert Content-Updates. */
+  version: number
+}
+
 export interface AppState {
   teams: Team[]
   decks: Deck[]
@@ -243,6 +291,8 @@ export interface AppState {
   announcements: Announcement[]
   /** Feedback-Einträge der temporären Feedback-Seite (geteilt). */
   feedback: FeedbackEntry[]
+  /** Das bearbeitbare Spielbrett (temporäre Editor-Seite, geteilt). */
+  board: BoardState
 }
 
 /**
