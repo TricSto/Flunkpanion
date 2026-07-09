@@ -200,6 +200,10 @@ export function FlunkView() {
       <ul className="flunk-teams">
         {teams.map((t) => {
           const isReady = ready.has(t.id)
+          // „Runde gewartet"/„Bereit" nur fürs eigene Team (#59). Geräte ohne
+          // beigetretenes Team (Spielleitung) dürfen weiterhin alle steuern.
+          const canControl =
+            state.currentTeamId == null || state.currentTeamId === t.id
           const waited = waitCardIds[t.id]?.length ?? 0
           return (
             <li key={t.id} className="flunk-team-row" style={{ borderLeftColor: t.color }}>
@@ -208,24 +212,33 @@ export function FlunkView() {
                 {waited > 0 && <span className="muted small"> · {waited}× gewartet</span>}
               </span>
               <span className="flunk-ready">
-                <button className="btn small" onClick={() => waitRound(t.id)}>
-                  🃏 Runde gewartet
-                </button>
-                {isReady ? (
+                {canControl ? (
                   <>
-                    <span className="flunk-ok">✓ bereit</span>
-                    <button
-                      className="btn tiny ghost"
-                      onClick={() => flunkUnready(t.id)}
-                      title="Bereit zurücknehmen – Warte-Karten werden wieder entfernt"
-                    >
-                      zurück
+                    <button className="btn small" onClick={() => waitRound(t.id)}>
+                      🃏 Runde gewartet
                     </button>
+                    {isReady ? (
+                      <>
+                        <span className="flunk-ok">✓ bereit</span>
+                        <button
+                          className="btn tiny ghost"
+                          onClick={() => flunkUnready(t.id)}
+                          title="Bereit zurücknehmen – Warte-Karten werden wieder entfernt"
+                        >
+                          zurück
+                        </button>
+                      </>
+                    ) : (
+                      <button className="btn small primary" onClick={() => arrive(t.id)}>
+                        ✅ Bereit zum Spielen
+                      </button>
+                    )}
                   </>
+                ) : // Andere Teams: nur Status anzeigen, keine Bedienung (#59).
+                isReady ? (
+                  <span className="flunk-ok">✓ bereit</span>
                 ) : (
-                  <button className="btn small primary" onClick={() => arrive(t.id)}>
-                    ✅ Bereit zum Spielen
-                  </button>
+                  <span className="muted small">wartet noch …</span>
                 )}
               </span>
             </li>
