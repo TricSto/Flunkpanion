@@ -4,7 +4,7 @@ import type { Card, ChallengeReward } from '../types'
 import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
 
-export function ChallengeView() {
+export function ChallengeView({ onClose }: { onClose: () => void }) {
   const { state, startChallenge } = useStore()
   // Team A ist automatisch das eigene (beigetretene) Team dieses Geräts.
   const myTeam = state.teams.find((t) => t.id === state.currentTeamId) ?? null
@@ -53,6 +53,7 @@ export function ChallengeView() {
       <ActiveChallenge
         challengerName={teamById(challenge.challengerId)?.name ?? 'Team A'}
         opponentName={teamById(challenge.opponentId)?.name ?? 'Team B'}
+        onClose={onClose}
       />
     )
   }
@@ -126,9 +127,12 @@ export function ChallengeView() {
 function ActiveChallenge({
   challengerName,
   opponentName,
+  onClose,
 }: {
   challengerName: string
   opponentName: string
+  /** Schließt die Challenge-Seite und kehrt zum Spiel zurück. */
+  onClose: () => void
 }) {
   const { state, resolveChallenge, clearChallenge } = useStore()
   const challenge = state.challenge!
@@ -189,8 +193,15 @@ function ActiveChallenge({
           ) : (
             <p className="muted">Keine Belohnung.</p>
           )}
-          <button className="btn primary" onClick={clearChallenge}>
-            Neue Challenge
+          {/* Wie der Fertig-Button in den Feldern: ablegen & zurück zum Spiel. */}
+          <button
+            className="btn ghost block sheet-done"
+            onClick={() => {
+              clearChallenge()
+              onClose()
+            }}
+          >
+            ✓ Fertig
           </button>
         </div>
       )}

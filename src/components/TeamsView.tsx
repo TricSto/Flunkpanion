@@ -1,11 +1,34 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { formatMoney } from '../util'
 import { TeamCard } from './TeamCard'
 
-export function TeamsView() {
+export function TeamsView({
+  focusBeers = false,
+  onFocusDone,
+}: {
+  /** Nach der Weiterleitung (z. B. Edward 20 Hands) den Bierzähler zeigen. */
+  focusBeers?: boolean
+  onFocusDone?: () => void
+}) {
   const { state, setCurrentTeam } = useStore()
   const [switching, setSwitching] = useState(false)
+
+  // Zum Bierzähler scrollen und ihn kurz hervorheben, damit klar ist,
+  // warum man auf die Teamseite weitergeleitet wurde.
+  useEffect(() => {
+    if (!focusBeers) return
+    const timer = window.setTimeout(() => {
+      const el = document.querySelector('.beer-counters')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.classList.add('beer-focus')
+        window.setTimeout(() => el.classList.remove('beer-focus'), 2600)
+      }
+      onFocusDone?.()
+    }, 350) // kurz warten, bis die Seiten-Animation durch ist
+    return () => window.clearTimeout(timer)
+  }, [focusBeers, onFocusDone])
 
   const current = state.teams.find((t) => t.id === state.currentTeamId) ?? null
   const showPicker = !current || switching

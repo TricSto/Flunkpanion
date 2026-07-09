@@ -272,8 +272,8 @@ export function FlunkView() {
 
 /**
  * Kartenhand des eigenen (beigetretenen) Teams fürs Flunk-Spiel: normale
- * Aktionskarten und Game Changer (⚡) stehen direkt untereinander – ohne
- * Ausklappen. „Benutzen" spielt die Karte nach kurzer Bestätigung aus und
+ * Aktionskarten und Game Changer (⚡) in zwei getrennten Blöcken.
+ * „Benutzen" spielt die Karte nach kurzer Bestätigung aus und
  * meldet dem Gegner-Team live „Aktionskarte aktiviert" samt Effekt.
  * Geräte ohne beigetretenes Team sehen keine Kartenhand.
  */
@@ -283,7 +283,8 @@ function MyActionCards() {
   const team = state.teams.find((t) => t.id === state.currentTeamId) ?? null
   if (!team) return null
 
-  const specials = team.actionCards.filter((c) => c.kind === 'special').length
+  const normal = team.actionCards.filter((c) => c.kind !== 'special')
+  const specials = team.actionCards.filter((c) => c.kind === 'special')
 
   const play = () => {
     if (!confirm) return
@@ -291,34 +292,40 @@ function MyActionCards() {
     setConfirm(null)
   }
 
+  const cardList = (cards: ActionCard[]) => (
+    <ul className="hand-list">
+      {cards.map((c) => (
+        <li
+          key={c.id}
+          className={c.kind === 'special' ? 'hand-card hand-special' : 'hand-card'}
+        >
+          <div className="hand-card-text">
+            <strong className="hand-card-title">{c.title}</strong>
+            {c.note && <p className="hand-card-note">{c.note}</p>}
+          </div>
+          <button className="btn small primary" onClick={() => setConfirm(c)}>
+            Benutzen
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+
   return (
     <section className="flunk-hand" style={{ borderLeftColor: team.color }}>
-      <h3 className="flunk-hand-title">
-        🃏 Deine Aktionskarten ({team.actionCards.length}
-        {specials > 0 ? `, davon ${specials} ⚡ Game Changer` : ''})
-      </h3>
-      {team.actionCards.length === 0 ? (
-        <p className="muted small flunk-hand-empty">Keine Karten auf der Hand.</p>
-      ) : (
-        <ul className="hand-list">
-          {team.actionCards.map((c) => (
-            <li
-              key={c.id}
-              className={c.kind === 'special' ? 'hand-card hand-special' : 'hand-card'}
-            >
-              <div className="hand-card-text">
-                <strong className="hand-card-title">
-                  {c.kind === 'special' ? '⚡ ' : ''}
-                  {c.title}
-                </strong>
-                {c.note && <p className="hand-card-note">{c.note}</p>}
-              </div>
-              <button className="btn small primary" onClick={() => setConfirm(c)}>
-                Benutzen
-              </button>
-            </li>
-          ))}
-        </ul>
+      <div className="hand-group">
+        <h3 className="flunk-hand-title">🃏 Deine Aktionskarten ({normal.length})</h3>
+        {normal.length === 0 ? (
+          <p className="muted small flunk-hand-empty">Keine Aktionskarten auf der Hand.</p>
+        ) : (
+          cardList(normal)
+        )}
+      </div>
+      {specials.length > 0 && (
+        <div className="hand-group hand-group-special">
+          <h3 className="flunk-hand-title">⚡ Game Changer ({specials.length})</h3>
+          {cardList(specials)}
+        </div>
       )}
 
       {confirm && (
