@@ -385,8 +385,9 @@ function GehaltswechselBody({ onClose }: { onClose: () => void }) {
         <p className="sheet-info">
           <strong>Nur das erste Team löst den Berufswechsel aus.</strong>
         </p>
-        <button className="btn ghost block" onClick={() => setStep('frage')}>
-          ‹ Zurück
+        {/* Schließt das Fenster direkt – wie beim Kingstabelle-Feld (#42). */}
+        <button className="btn primary block" onClick={onClose}>
+          ✓ Fertig
         </button>
       </>
     )
