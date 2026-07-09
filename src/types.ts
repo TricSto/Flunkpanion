@@ -180,6 +180,11 @@ export interface FlunkRound {
    * teamId → IDs der Karten. Nötig, um sie bei „zurück" wieder zu entfernen.
    */
   waitCardIds: Record<string, string[]>
+  /**
+   * Teams, die in dieser Runde beim „Bereit" schon ihr Gehalt gutgeschrieben
+   * bekommen haben – die Auszahlung gibt es pro Flunk-Runde nur einmal.
+   */
+  paidIds: string[]
   at: number
 }
 
