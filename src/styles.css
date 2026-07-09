@@ -1154,6 +1154,31 @@ select {
   overflow-wrap: break-word;
 }
 
+.feedback-status {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.feedback-status.working {
+  color: var(--acc-orange);
+  border-color: var(--acc-orange);
+}
+
+.feedback-status.done {
+  color: var(--pos);
+  border-color: var(--pos);
+}
+
+.feedback-status.dropped {
+  color: var(--neg);
+  border-color: var(--neg);
+}
+
 /* ---- Verbindungsleiste (Online) ------------------------------------------ */
 .conn-bar {
   display: flex;

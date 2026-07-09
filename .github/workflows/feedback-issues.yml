@@ -5,6 +5,10 @@ name: App-Feedback zu Issues
 # GitHub-Issue mit dem Label "app-feedback" an (Dedup über die Feedback-ID
 # im Issue-Text). Die Issues werden von Claude aufgegriffen, als PR
 # umgesetzt und nach grünem CI direkt gemergt (siehe CLAUDE.md).
+# Zusätzlich fließt der Status zurück in die App: Issue offen = in-arbeit,
+# erledigt = umgesetzt, not_planned = verworfen – per RPC
+# apply_feedback_status in die Spielstände geschrieben, die Feedback-Liste
+# zeigt ihn live an.
 on:
   schedule:
     # Alle 30 Minuten (GitHub kann Schedules etwas verzögern).
@@ -34,6 +38,10 @@ jobs:
           if [ -z "$anon" ]; then
             echo "::error::anon-Key konnte nicht ermittelt werden"; exit 1
           fi
+          # Für den Status-Rückschreibe-Schritt bereitstellen (der Key ist
+          # ohnehin öffentlich – er steckt im ausgelieferten App-Bundle).
+          echo "::add-mask::$anon"
+          echo "SUPABASE_ANON_KEY=$anon" >> "$GITHUB_ENV"
           # Alle Spielstände lesen und die Feedback-Einträge herausziehen.
           # unique_by(.id): derselbe Eintrag kann in mehreren Spielen liegen
           # (z. B. wenn der Host mit bestehendem Zustand ein neues Spiel erstellt).
@@ -51,7 +59,20 @@ jobs:
           script: |
             const fs = require('fs')
             const entries = JSON.parse(fs.readFileSync('feedback.json', 'utf8'))
-            if (entries.length === 0) return
+            // Ohne Feedback gibt es nichts anzulegen und nichts zurückzuschreiben.
+            if (entries.length === 0) {
+              fs.writeFileSync('status-map.json', '{}')
+              return
+            }
+            // Status je Feedback-ID – wird anschließend nach Supabase
+            // zurückgeschrieben, damit die App ihn anzeigen kann.
+            const statusById = {}
+            const statusOf = (issue) =>
+              issue.state === 'open'
+                ? 'in-arbeit'
+                : issue.state_reason === 'not_planned'
+                  ? 'verworfen'
+                  : 'umgesetzt'
 
             // Label sicherstellen (422 = existiert schon).
             try {
@@ -72,7 +93,9 @@ jobs:
             )) {
               for (const issue of data) {
                 const m = (issue.body ?? '').match(/feedback-id:\s*([a-z0-9]+)/)
-                if (m) seen.add(m[1])
+                if (!m) continue
+                seen.add(m[1])
+                statusById[m[1]] = statusOf(issue)
               }
             }
 
@@ -103,5 +126,29 @@ jobs:
                 labels: ['app-feedback'],
                 body,
               })
+              statusById[f.id] = 'in-arbeit'
               console.log(`Issue angelegt für Feedback ${f.id}`)
             }
+
+            fs.writeFileSync('status-map.json', JSON.stringify(statusById))
+
+      - name: Status in die App zurückschreiben
+        run: |
+          # Für jedes Spiel den Status der Feedback-Einträge setzen. Die
+          # RPC-Funktion (siehe Migration apply_feedback_status) ändert nur
+          # state->feedback in einem atomaren UPDATE und schreibt nur, wenn
+          # sich wirklich etwas ändert.
+          statuses=$(cat status-map.json)
+          if [ "$statuses" = "{}" ]; then
+            echo "Keine Status zu schreiben."; exit 0
+          fi
+          for code in $(jq -r '.[].game' feedback.json | sort -u); do
+            result=$(curl -sf -X POST \
+              "https://$SUPABASE_PROJECT_ID.supabase.co/rest/v1/rpc/apply_feedback_status" \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg code "$code" --argjson st "$statuses" \
+                    '{p_code: $code, p_statuses: $st}')")
+            echo "Spiel $code: aktualisiert=$result"
+          done

@@ -200,6 +200,15 @@ export interface Announcement {
 export type FeedbackKind = 'fehler' | 'idee' | 'sonstiges'
 
 /**
+ * Umsetzungsstatus eines Feedback-Eintrags. Wird NICHT in der App gesetzt,
+ * sondern von der Feedback-Pipeline (GitHub-Workflow) anhand des
+ * zugehörigen Issues nach Supabase zurückgeschrieben:
+ * kein Status = eingereicht, Issue offen = 'in-arbeit',
+ * Issue erledigt = 'umgesetzt', Issue verworfen = 'verworfen'.
+ */
+export type FeedbackStatus = 'in-arbeit' | 'umgesetzt' | 'verworfen'
+
+/**
  * Ein Feedback-Eintrag von der (temporären) Feedback-Seite. Liegt im
  * geteilten Zustand, damit Feedback aller Geräte live beim Host ankommt.
  */
@@ -210,6 +219,8 @@ export interface FeedbackEntry {
   /** Absender (frei eingegeben, z. B. Team- oder Spielername). */
   author: string
   at: number
+  /** Umsetzungsstatus – siehe FeedbackStatus (fehlt bei neuen Einträgen). */
+  status?: FeedbackStatus
 }
 
 export interface AppState {

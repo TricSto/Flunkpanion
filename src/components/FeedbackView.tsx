@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import { formatTime } from '../util'
-import type { FeedbackKind } from '../types'
+import type { FeedbackKind, FeedbackStatus } from '../types'
 
 // Temporäre Feedback-Seite: sammelt Rückmeldungen zur App direkt im Spiel.
 // Die Einträge liegen im geteilten Zustand und kommen so live beim Host an.
@@ -14,6 +14,23 @@ const KINDS: { kind: FeedbackKind; icon: string; label: string }[] = [
 
 function kindOf(kind: FeedbackKind) {
   return KINDS.find((k) => k.kind === kind) ?? KINDS[2]
+}
+
+// Anzeige des Umsetzungsstatus – kommt live aus der Feedback-Pipeline.
+const STATUS: Record<FeedbackStatus, { icon: string; label: string; cls: string }> = {
+  'in-arbeit': { icon: '🔧', label: 'In Arbeit', cls: 'working' },
+  umgesetzt: { icon: '✅', label: 'Umgesetzt', cls: 'done' },
+  verworfen: { icon: '🚫', label: 'Verworfen', cls: 'dropped' },
+}
+
+function StatusBadge({ status }: { status?: FeedbackStatus }) {
+  const s = status ? STATUS[status] : null
+  if (!s) return <span className="feedback-status">🕓 Eingereicht</span>
+  return (
+    <span className={`feedback-status ${s.cls}`}>
+      {s.icon} {s.label}
+    </span>
+  )
 }
 
 export function FeedbackView() {
@@ -99,6 +116,7 @@ export function FeedbackView() {
                     {formatTime(f.at)}
                   </span>
                   <p className="feedback-text">{f.text}</p>
+                  <StatusBadge status={f.status} />
                 </div>
                 {isHost && (
                   <button
