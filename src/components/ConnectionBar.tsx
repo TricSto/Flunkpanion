@@ -102,6 +102,7 @@ function JoinModal({
   const [busy, setBusy] = useState(false)
 
   const submit = async () => {
+    if (busy || !code.trim()) return
     setBusy(true)
     setError(null)
     const res = await onJoin(code)
@@ -111,27 +112,39 @@ function JoinModal({
 
   return (
     <Modal title="Spiel beitreten" onClose={onClose}>
-      <label className="field">
-        <span>Spiel-Code</span>
-        <input
-          type="text"
-          value={code}
-          autoFocus
-          maxLength={6}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="z. B. 7Q2X"
-          className="code-input"
-        />
-      </label>
-      {error && <p className="form-error">{error}</p>}
-      <div className="modal-actions">
-        <button className="btn ghost" onClick={onClose}>
-          Abbrechen
-        </button>
-        <button className="btn primary" disabled={busy || !code.trim()} onClick={submit}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          void submit()
+        }}
+      >
+        <label className="field">
+          <span>Spiel-Code</span>
+          <input
+            type="text"
+            value={code}
+            autoFocus
+            maxLength={6}
+            autoComplete="off"
+            autoCapitalize="characters"
+            enterKeyHint="go"
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="z. B. 7Q2X"
+            className="code-input"
+          />
+        </label>
+        {error && <p className="form-error">{error}</p>}
+        <button
+          type="submit"
+          className="btn success big block join-submit"
+          disabled={busy || !code.trim()}
+        >
           {busy ? 'Verbinde…' : 'Beitreten'}
         </button>
-      </div>
+        <button type="button" className="btn ghost block" onClick={onClose}>
+          Abbrechen
+        </button>
+      </form>
     </Modal>
   )
 }
