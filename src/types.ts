@@ -241,6 +241,15 @@ export interface FeedbackEntry {
   status?: FeedbackStatus
 }
 
+// ---- Karten-Seite (Feldfarben & Karteninhalte) ------------------------------
+
+/**
+ * Individuell eingestellte Farben der Felder auf der Spiel-Seite:
+ * Feld-Key (z. B. 'zahltag') → Hex-Farbe. Felder ohne Eintrag behalten
+ * ihre Standardfarbe. Liegt im geteilten Zustand (alle Geräte gleich).
+ */
+export type FieldColors = Record<string, string>
+
 // ---- Spielbrett (temporäre Editor-Seite) -----------------------------------
 
 /**
@@ -308,6 +317,8 @@ export interface AppState {
   feedback: FeedbackEntry[]
   /** Das bearbeitbare Spielbrett (temporäre Editor-Seite, geteilt). */
   board: BoardState
+  /** Eingestellte Farben der Spiel-Felder (Karten-Seite, geteilt). */
+  fieldColors: FieldColors
 }
 
 /**

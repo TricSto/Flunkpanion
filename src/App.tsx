@@ -10,13 +10,14 @@ import { ConnectionBar } from './components/ConnectionBar'
 import { Announcements } from './components/Announcements'
 import { FeedbackView } from './components/FeedbackView'
 import { SpielbrettView } from './components/SpielbrettView'
+import { KartenView } from './components/KartenView'
 
 // 'feedback' und 'spielbrett' sind temporäre Seiten (können später wieder raus).
-type Tab = 'board' | 'teams' | 'admin' | 'feedback' | 'spielbrett'
+type Tab = 'board' | 'teams' | 'admin' | 'feedback' | 'spielbrett' | 'karten'
 type Overlay = null | 'challenge' | 'flunk' | 'stats'
 
 /** Reihenfolge der Seiten – bestimmt, wohin ein Wisch nach links/rechts führt. */
-const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'feedback', 'spielbrett']
+const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'feedback', 'spielbrett', 'karten']
 
 /** Mindest-Wischstrecke in px; quer muss klar dominieren, damit
     normales Scrollen nicht aus Versehen die Seite wechselt. */
@@ -127,6 +128,7 @@ export function App() {
             )}
             {tab === 'feedback' && <FeedbackView />}
             {tab === 'spielbrett' && <SpielbrettView />}
+            {tab === 'karten' && <KartenView />}
           </div>
         )}
       </main>
@@ -162,6 +164,12 @@ export function App() {
             onClick={() => switchTab('spielbrett')}
             icon="🗺️"
             label="Spielbrett"
+          />
+          <TabButton
+            active={tab === 'karten'}
+            onClick={() => switchTab('karten')}
+            icon="🃏"
+            label="Karten"
           />
         </nav>
       )}
