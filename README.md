@@ -118,6 +118,14 @@ Die App ist eine Progressive Web App. Auf dem Handy:
 2. „Zum Startbildschirm hinzufügen"
 3. Läuft dann wie eine normale App im Vollbild
 
+## Altes Spielbrett
+
+Unter [`docs/altes-spielbrett.pdf`](docs/altes-spielbrett.pdf) liegt das
+Original-Spielbrett von „Flunk des Lebens“. **Hinweis:** Das PDF besteht
+aus 4 DIN-A4-Seiten, die zusammengelegt eine große DIN-A2-Seite ergeben
+(2 × 2 Raster). Von dort stammt auch das FdL-Logo der App
+(`public/logo-fdl.png`, neben dem Ausbildungs-Start auf dem Brett).
+
 ## Entwicklung
 
 ```bash
