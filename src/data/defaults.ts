@@ -89,10 +89,10 @@ const aktionskarten = deck('aktionskarten', 'Aktionskarten', '🃏', 'action', '
   c('Fluch des Blinden', '1 Spieler ist blind.'),
 ])
 
-// --- Spielverändernde Aktionskarten (jeder Spieler muss einmal so werfen) ----
+// --- Game-Changer-Karten (jeder Spieler muss einmal so werfen) ---------------
 const spielveraendernd = deck(
   'spielveraendernd',
-  'Spielverändernde Karten',
+  'Game-Changer-Karten',
   '⚡',
   'special',
   'draw',
@@ -180,7 +180,7 @@ const defaultDecks: Deck[] = [
 
 // Bei jeder inhaltlichen Aktualisierung der mitgelieferten Decks erhöhen –
 // dann übernehmen bestehende Geräte die neuen Karten (Teams bleiben erhalten).
-export const DECKS_VERSION = 2
+export const DECKS_VERSION = 3
 
 export const initialState: AppState = {
   teams: [],
