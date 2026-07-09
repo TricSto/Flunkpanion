@@ -301,6 +301,12 @@ function FieldBody({
     }
     const amount = drawn?.amount ?? null
     const hasBooking = amount != null && amount !== 0
+    // Kronkorkenmonster: Würfel-Karte ohne festen Betrag – statt „Fertig"
+    // gibt es „Geschafft" oder die Strafe aus dem Kartentext (#44).
+    const monsterPenalty =
+      drawn?.title === 'Kronkorkenmonster'
+        ? Number(drawn.detail.match(/-\s*(\d+)\s*KK/i)?.[1] ?? 6)
+        : null
     return (
       <>
         {!drawn ? (
@@ -325,23 +331,40 @@ function FieldBody({
               {drawn.detail && <p className="drawn-detail">{drawn.detail}</p>}
             </div>
             {/* Zwei große Buttons: links ohne Buchung fertig, rechts buchen. */}
-            <div className="event-actions">
-              <button className="btn big ghost" onClick={onClose}>
-                {hasBooking ? 'Ohne Buchung fertig' : 'Fertig'}
-              </button>
-              {hasBooking && (
+            {monsterPenalty != null ? (
+              <div className="event-actions">
+                <button className="btn big plus" onClick={onClose}>
+                  ✅ Geschafft
+                </button>
                 <button
-                  className={amount > 0 ? 'btn big plus' : 'btn big minus'}
+                  className="btn big minus"
                   onClick={() => {
-                    adjustCash(team.id, amount, `Ereignis: ${drawn.title}`)
+                    adjustCash(team.id, -monsterPenalty, `Ereignis: ${drawn.title}`)
                     onClose()
                   }}
                 >
-                  {amount > 0 ? 'KK gutschreiben' : 'KK abziehen'} ({amount > 0 ? '+' : ''}
-                  {amount})
+                  −{monsterPenalty} KK
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="event-actions">
+                <button className="btn big ghost" onClick={onClose}>
+                  {hasBooking ? 'Ohne Buchung fertig' : 'Fertig'}
+                </button>
+                {hasBooking && (
+                  <button
+                    className={amount > 0 ? 'btn big plus' : 'btn big minus'}
+                    onClick={() => {
+                      adjustCash(team.id, amount, `Ereignis: ${drawn.title}`)
+                      onClose()
+                    }}
+                  >
+                    {amount > 0 ? 'KK gutschreiben' : 'KK abziehen'} ({amount > 0 ? '+' : ''}
+                    {amount})
+                  </button>
+                )}
+              </div>
+            )}
           </>
         )}
         {flashEl}
