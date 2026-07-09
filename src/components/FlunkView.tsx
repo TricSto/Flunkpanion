@@ -310,7 +310,7 @@ export function FlunkView() {
                 isReady ? (
                   <span className="flunk-ok">✓ bereit</span>
                 ) : (
-                  <span className="muted small">wartet noch …</span>
+                  <span className="muted small">… verspäten sich</span>
                 )}
               </span>
             </li>
