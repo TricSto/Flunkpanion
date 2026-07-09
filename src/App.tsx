@@ -66,7 +66,8 @@ export function App() {
     <div className={boardActive ? 'app app-fit' : 'app'}>
       <header className="app-header">
         <div className="brand">
-          <img src="./icon.svg" alt="" className="brand-icon" />
+          {/* FdL-Logo vom Spielbrett (siehe docs/altes-spielbrett.pdf). */}
+          <img src="./logo-fdl.png" alt="" className="brand-icon" />
           <div>
             <h1>Flunkpanion</h1>
             <p className="tagline">Companion für Flunk des Lebens</p>
