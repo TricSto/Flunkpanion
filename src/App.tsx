@@ -8,8 +8,10 @@ import { FlunkView } from './components/FlunkView'
 import { EndStats } from './components/EndStats'
 import { ConnectionBar } from './components/ConnectionBar'
 import { Announcements } from './components/Announcements'
+import { FeedbackView } from './components/FeedbackView'
 
-type Tab = 'board' | 'teams' | 'admin'
+// 'feedback' ist die temporäre Feedback-Seite (kann später wieder raus).
+type Tab = 'board' | 'teams' | 'admin' | 'feedback'
 type Overlay = null | 'challenge' | 'flunk' | 'stats'
 
 export function App() {
@@ -74,6 +76,7 @@ export function App() {
                 onThemeChange={changeTheme}
               />
             )}
+            {tab === 'feedback' && <FeedbackView />}
           </>
         )}
       </main>
@@ -97,6 +100,12 @@ export function App() {
             onClick={() => setTab('admin')}
             icon="⚙️"
             label="Setup"
+          />
+          <TabButton
+            active={tab === 'feedback'}
+            onClick={() => setTab('feedback')}
+            icon="💬"
+            label="Feedback"
           />
         </nav>
       )}

@@ -18,6 +18,8 @@ import type {
   ChallengeReward,
   Deck,
   Education,
+  FeedbackEntry,
+  FeedbackKind,
   FlunkMatch,
   FlunkRound,
   Job,
@@ -125,6 +127,7 @@ function sharedOf(state: AppState): SharedState {
     challenge: state.challenge,
     flunk: state.flunk,
     announcements: state.announcements,
+    feedback: state.feedback,
   }
 }
 
@@ -145,6 +148,7 @@ function loadState(): AppState {
       challenge: parsed.challenge ?? null,
       flunk: normalizeFlunk(parsed.flunk),
       announcements: parsed.announcements ?? [],
+      feedback: parsed.feedback ?? [],
     }
   } catch {
     return initialState
@@ -247,6 +251,11 @@ interface Store {
   flunkFinish: () => void
   /** Flunk-Runde abbrechen/zurücksetzen (nimmt gezählte Siege zurück). */
   flunkReset: () => void
+  // Feedback (temporäre Feedback-Seite)
+  /** Feedback-Eintrag speichern (synct live an alle Geräte). */
+  addFeedback: (kind: FeedbackKind, text: string, author: string) => void
+  /** Feedback-Eintrag löschen (nur Host). */
+  removeFeedback: (feedbackId: string) => void
   // Decks / Würfeltabellen
   updateDecks: (decks: Deck[]) => void
   resetAll: () => void
@@ -308,6 +317,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...shared,
         teams,
         flunk: normalizeFlunk(shared.flunk),
+        // Ältere Stände ohne Feedback-Feld dürfen lokales Feedback nicht löschen.
+        feedback: shared.feedback ?? s.feedback,
         currentTeamId: s.currentTeamId,
       }
     })
@@ -969,6 +980,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             ? { ...s, teams: revertFlunkWins(s.teams, s.flunk.matches), flunk: null }
             : s,
         ),
+
+      addFeedback: (kind, text, author) =>
+        setState((s) => {
+          const entry: FeedbackEntry = {
+            id: uid(),
+            kind,
+            text: text.trim(),
+            author: author.trim(),
+            at: Date.now(),
+          }
+          if (!entry.text) return s
+          // Deckel gegen unbegrenztes Wachstum des geteilten Zustands.
+          return { ...s, feedback: [entry, ...s.feedback].slice(0, 100) }
+        }),
+
+      removeFeedback: (feedbackId) =>
+        setState((s) => ({
+          ...s,
+          feedback: s.feedback.filter((f) => f.id !== feedbackId),
+        })),
 
       updateDecks: (decks) => setState((s) => ({ ...s, decks })),
 

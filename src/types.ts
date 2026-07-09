@@ -196,6 +196,22 @@ export interface Announcement {
   at: number
 }
 
+/** Kategorie eines Feedback-Eintrags. */
+export type FeedbackKind = 'fehler' | 'idee' | 'sonstiges'
+
+/**
+ * Ein Feedback-Eintrag von der (temporären) Feedback-Seite. Liegt im
+ * geteilten Zustand, damit Feedback aller Geräte live beim Host ankommt.
+ */
+export interface FeedbackEntry {
+  id: string
+  kind: FeedbackKind
+  text: string
+  /** Absender (frei eingegeben, z. B. Team- oder Spielername). */
+  author: string
+  at: number
+}
+
 export interface AppState {
   teams: Team[]
   decks: Deck[]
@@ -209,6 +225,8 @@ export interface AppState {
   flunk: FlunkRound | null
   /** Live-Nachrichten an die Teams (geteilt). */
   announcements: Announcement[]
+  /** Feedback-Einträge der temporären Feedback-Seite (geteilt). */
+  feedback: FeedbackEntry[]
 }
 
 /**
