@@ -11,12 +11,22 @@ name: App-Feedback zu Issues
 # zeigt ihn live an.
 on:
   schedule:
-    # Alle 30 Minuten (GitHub kann Schedules etwas verzögern).
-    - cron: '*/30 * * * *'
+    # Kürzester GitHub-Takt (Schedules können sich etwas verzögern).
+    - cron: '*/5 * * * *'
+  # Bei Issue-Close/-Reopen sofort laufen, damit der Status in der App
+  # direkt umspringt (z. B. „Umgesetzt" nach dem Merge eines Feedback-PRs).
+  issues:
+    types: [closed, reopened]
   workflow_dispatch:
 
 permissions:
   issues: write
+  pull-requests: read
+
+# Läufe nicht überlappen lassen (5-Min-Takt + Issue-Events).
+concurrency:
+  group: feedback-sync
+  cancel-in-progress: false
 
 env:
   # Reference ID des Supabase-Projekts (kein Geheimnis, steht in der URL).
@@ -100,6 +110,7 @@ jobs:
             }
 
             const kindLabel = { fehler: '🐞 Fehler', idee: '💡 Idee', sonstiges: '💬 Sonstiges' }
+            const created = []
             for (const f of entries) {
               if (!f.id || seen.has(f.id)) continue
               const oneline = String(f.text ?? '').replace(/\s+/g, ' ').trim()
@@ -120,17 +131,45 @@ jobs:
                 '',
                 `<!-- feedback-id: ${f.id} -->`,
               ].join('\n')
-              await github.rest.issues.create({
+              const { data: issue } = await github.rest.issues.create({
                 ...context.repo,
                 title,
                 labels: ['app-feedback'],
                 body,
               })
+              created.push(issue.number)
               statusById[f.id] = 'in-arbeit'
-              console.log(`Issue angelegt für Feedback ${f.id}`)
+              console.log(`Issue #${issue.number} angelegt für Feedback ${f.id}`)
             }
 
             fs.writeFileSync('status-map.json', JSON.stringify(statusById))
+
+            // Weckruf: Kommentar auf dem dauerhaft offenen Feedback-Inbox-PR.
+            // Die Claude-Session hat den PR abonniert und wird durch den
+            // Kommentar sofort geweckt (statt auf den Stunden-Takt zu warten).
+            if (created.length > 0) {
+              const { data: prs } = await github.rest.pulls.list({
+                ...context.repo,
+                state: 'open',
+                head: `${context.repo.owner}:claude/feedback-inbox`,
+                per_page: 1,
+              })
+              if (prs.length === 0) {
+                console.log('Kein offener Feedback-Inbox-PR – Weckruf übersprungen.')
+              } else {
+                await github.rest.issues.createComment({
+                  ...context.repo,
+                  issue_number: prs[0].number,
+                  body: [
+                    '🔔 Neues App-Feedback eingetroffen:',
+                    '',
+                    ...created.map((n) => `- #${n}`),
+                    '',
+                    'Bitte gemäß CLAUDE.md (Abschnitt „App-Feedback") direkt umsetzen.',
+                  ].join('\n'),
+                })
+              }
+            }
 
       - name: Status in die App zurückschreiben
         run: |
