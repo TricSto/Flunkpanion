@@ -1,12 +1,10 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import type { ActionCard, ActionCardKind, Team } from '../types'
 import { STOCK_NUMBERS, STOCK_PRICE } from '../types'
 import { useStore } from '../store'
 import { formatMoney, formatTime, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { BerufChooser } from './BerufChooser'
-
-const QUICK_AMOUNTS = [5, 10, 15, 20]
 
 /** Karten, die jünger sind, bekommen die „gerade gezogen"-Animation. */
 const JUST_ADDED_MS = 1500
@@ -69,53 +67,62 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
   }
 
   return (
-    <article className="team-card" style={{ borderTopColor: team.color }}>
+    <article
+      className="team-card"
+      style={{ '--team': team.color } as CSSProperties}
+    >
       <header className="team-card-head">
-        <button
-          className="team-name"
-          onClick={() => setOpen((o) => !o)}
-          style={{ color: team.color }}
-        >
+        <button className="team-name" onClick={() => setOpen((o) => !o)}>
           <span className="chevron">{open ? '▾' : '▸'}</span>
           {team.name}
         </button>
-        {!open && <span className="cash-value">{formatMoney(team.cash)}</span>}
+        <div className="head-cash">
+          <span className="cash-value">{formatMoney(team.cash)}</span>
+          <span className="cash-label">Kronkorken</span>
+        </div>
       </header>
 
       {flash && <div className="flash">{flash}</div>}
 
       {open && (
         <div className="team-body">
-          {/* Kopfzeile: links Beruf & Gehalt, rechts Kronkorken & Spieler */}
-          <div className="head-grid">
-            <div className="head-left">
-              <button
-                className="head-stat tappable"
-                onClick={() => setModal(team.job?.title ? 'jobinfo' : 'beruf')}
-              >
-                <span className="row-label">💼 Beruf</span>
-                <span className={team.job?.title ? 'row-value' : 'row-value choose'}>
+          {/* Das Wichtigste auf einen Blick: Beruf, Gehalt, Spieler, Aktie */}
+          <div className="stat-grid">
+            <button
+              className="stat-tile tap"
+              onClick={() => setModal(team.job?.title ? 'jobinfo' : 'beruf')}
+            >
+              <span className="stat-tile-icon">💼</span>
+              <span className="stat-tile-body">
+                <span className="stat-tile-label">Beruf</span>
+                <span className={team.job?.title ? 'stat-tile-value' : 'stat-tile-value choose'}>
                   {team.job?.title || 'wählen'}
                 </span>
-              </button>
-              <div className="head-stat">
-                <span className="row-label">💶 Gehalt</span>
+              </span>
+            </button>
+
+            <div className="stat-tile">
+              <span className="stat-tile-icon">💶</span>
+              <span className="stat-tile-body">
+                <span className="stat-tile-label">Gehalt</span>
                 {team.job && team.job.salary > 0 ? (
-                  <span className="row-value">
+                  <span className="stat-tile-value">
                     {formatMoney(team.job.salary)}
                     {team.job.beerTax > 0 && <span className="muted"> · BS {team.job.beerTax}</span>}
                   </span>
                 ) : (
-                  <span className="row-value muted">—</span>
+                  <span className="stat-tile-value muted">—</span>
                 )}
-              </div>
+              </span>
             </div>
-            <div className="head-right">
-              <div className="head-cash">
-                <span className="cash-value">{formatMoney(team.cash)}</span>
-                <span className="cash-label">Kronkorken</span>
-              </div>
-              <div className="head-players">
+
+            <div className="stat-tile">
+              <span className="stat-tile-icon">👥</span>
+              <span className="stat-tile-body">
+                <span className="stat-tile-label">Spieler</span>
+                <span className="stat-tile-value">{team.players}</span>
+              </span>
+              <span className="stat-tile-btns">
                 <button
                   className="btn tiny minus"
                   onClick={() => setPlayers(team.id, team.players - 1)}
@@ -123,7 +130,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
                 >
                   −
                 </button>
-                <span className="head-players-value">👤 {team.players}</span>
                 <button
                   className="btn tiny plus"
                   onClick={() => setPlayers(team.id, team.players + 1)}
@@ -131,76 +137,66 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
                 >
                   +
                 </button>
-              </div>
+              </span>
             </div>
-          </div>
 
-          {/* Zeile 2: links Aktie, rechts Gehalt (daumenfreundlich) */}
-          <div className="mid-grid">
-            <div className="mid-col">
-              <span className="row-label">📈 Aktie</span>
-              {team.stockNumber != null ? (
-                <>
-                  <span className="stock-owned">Nr. {team.stockNumber} ✓</span>
-                  <button className="btn small plus" onClick={() => setModal('stock')}>
-                    💸 Auszahlung
-                  </button>
-                  <button className="btn tiny ghost" onClick={() => removeStock(team.id)}>
-                    entfernen
-                  </button>
-                </>
-              ) : (
-                <button className="btn small" onClick={() => setModal('stockbuy')}>
-                  📈 kaufen (−{STOCK_PRICE} KK)
-                </button>
-              )}
-            </div>
-            <div className="mid-col">
-              <span className="row-label">💶 Gehalt</span>
-              <button className="btn small" onClick={rollGehalt}>
-                🎲 würfeln
-              </button>
-              {team.job && team.job.salary > 0 && (
-                <>
-                  <button
-                    className="btn small plus"
-                    onClick={() =>
-                      adjustCash(team.id, team.job!.salary, `Gehalt: ${team.job!.title || 'Job'}`)
-                    }
-                  >
-                    auszahlen +{team.job.salary}
-                  </button>
-                  {team.job.beerTax > 0 && (
-                    <button className="btn small minus" onClick={() => payBeerTax(team.id)}>
-                      Biersteuer −{team.job.beerTax}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Kronkorken-Buttons */}
-          <div className="cash-controls">
-            <button className="btn small" onClick={() => setModal('cash')}>
-              💰 Betrag buchen
+            <button
+              className="stat-tile tap"
+              onClick={() => setModal(team.stockNumber != null ? 'stock' : 'stockbuy')}
+            >
+              <span className="stat-tile-icon">📈</span>
+              <span className="stat-tile-body">
+                <span className="stat-tile-label">Aktie</span>
+                {team.stockNumber != null ? (
+                  <span className="stat-tile-value stock-owned">Nr. {team.stockNumber} ✓</span>
+                ) : (
+                  <span className="stat-tile-value choose">kaufen (−{STOCK_PRICE} KK)</span>
+                )}
+              </span>
             </button>
-            {QUICK_AMOUNTS.map((amt) => (
-              <span key={amt} className="quick-pair">
+          </div>
+
+          {/* Kompakte Gehalts-Aktionen */}
+          <div className="quick-actions">
+            <button className="btn small" onClick={rollGehalt}>
+              🎲 Gehalt würfeln
+            </button>
+            {team.job && team.job.salary > 0 && (
+              <>
                 <button
                   className="btn small plus"
-                  onClick={() => adjustCash(team.id, amt, 'Schnellbuchung')}
+                  onClick={() =>
+                    adjustCash(team.id, team.job!.salary, `Gehalt: ${team.job!.title || 'Job'}`)
+                  }
                 >
-                  +{amt}
+                  💰 auszahlen +{team.job.salary}
                 </button>
-                <button
-                  className="btn small minus"
-                  onClick={() => adjustCash(team.id, -amt, 'Schnellbuchung')}
-                >
-                  −{amt}
-                </button>
-              </span>
-            ))}
+                {team.job.beerTax > 0 && (
+                  <button className="btn small minus" onClick={() => payBeerTax(team.id)}>
+                    🍺 Biersteuer −{team.job.beerTax}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Kronkorken buchen: −1 · Betrag · +1 */}
+          <div className="cash-controls">
+            <button
+              className="btn small minus"
+              onClick={() => adjustCash(team.id, -1, 'Schnellbuchung')}
+            >
+              −1
+            </button>
+            <button className="btn small book" onClick={() => setModal('cash')}>
+              💰 Betrag buchen
+            </button>
+            <button
+              className="btn small plus"
+              onClick={() => adjustCash(team.id, 1, 'Schnellbuchung')}
+            >
+              +1
+            </button>
           </div>
 
           {/* Aktionskarten – getrennt nach normal & Game Changer */}
@@ -329,6 +325,11 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
       {modal === 'stock' && (
         <StockModal
           onClose={() => setModal(null)}
+          onRemove={() => {
+            removeStock(team.id)
+            setModal(null)
+            showFlash('Aktie abgegeben')
+          }}
           onSubmit={(amount) => {
             payoutStock(team.id, amount)
             setModal(null)
@@ -380,6 +381,9 @@ function CardSection({
                 .filter(Boolean)
                 .join(' ')}
             >
+              <span className="chip-icon" aria-hidden="true">
+                {kind === 'special' ? '⚡' : '🃏'}
+              </span>
               <span className="chip-text">
                 <strong>{c.title}</strong>
                 {c.note && <em> — {c.note}</em>}
@@ -519,9 +523,11 @@ function StockPickerModal({
 
 function StockModal({
   onClose,
+  onRemove,
   onSubmit,
 }: {
   onClose: () => void
+  onRemove: () => void
   onSubmit: (amount: number) => void
 }) {
   const [value, setValue] = useState('')
@@ -544,6 +550,9 @@ function StockModal({
         />
       </label>
       <div className="modal-actions">
+        <button className="btn danger ghost" onClick={onRemove}>
+          Aktie abgeben
+        </button>
         <button className="btn ghost" onClick={onClose}>
           Abbrechen
         </button>
