@@ -4,6 +4,7 @@ import { STOCK_NUMBERS, STOCK_PRICE } from '../types'
 import { useStore } from '../store'
 import { formatMoney, formatTime } from '../util'
 import { Modal } from './Modal'
+import { FlashPopover } from './FlashPopover'
 import { BerufChooser } from './BerufChooser'
 
 /** Karten, die jünger sind, bekommen die „gerade gezogen"-Animation. */
@@ -35,10 +36,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
   const normalCards = team.actionCards.filter((c) => c.kind !== 'special')
   const specialCards = team.actionCards.filter((c) => c.kind === 'special')
 
-  const showFlash = (msg: string) => {
-    setFlash(msg)
-    window.setTimeout(() => setFlash((f) => (f === msg ? null : f)), 2500)
-  }
 
   return (
     <article
@@ -56,7 +53,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
         </div>
       </header>
 
-      {flash && <div className="flash">{flash}</div>}
+      {flash && <FlashPopover message={flash} onClose={() => setFlash(null)} />}
 
       {open && (
         <div className="team-body">
@@ -269,7 +266,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
           onPick={(nr) => {
             if (buyStock(team.id, nr)) {
               setModal(null)
-              showFlash(`Aktie Nr. ${nr} gekauft (−${STOCK_PRICE} KK)`)
+              setFlash(`Aktie Nr. ${nr} gekauft (−${STOCK_PRICE} KK)`)
             }
           }}
         />
@@ -282,7 +279,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
           onRemove={() => {
             removeStock(team.id)
             setModal(null)
-            showFlash('Aktie abgegeben')
+            setFlash('Aktie abgegeben')
           }}
           onDraw={() => payoutStockCard(team.id)}
         />

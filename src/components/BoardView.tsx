@@ -3,6 +3,7 @@ import { useStore, type BerufswechselResult } from '../store'
 import type { Card, Team } from '../types'
 import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
+import { FlashPopover } from './FlashPopover'
 
 type FieldKey =
   | 'zahltag'
@@ -176,7 +177,7 @@ function FieldBody({
     return (
       <>
         <KingstabelleBody onDone={setFlash} />
-        {flash && <div className="flash sheet-flash">{flash}</div>}
+        {flash && <FlashPopover message={flash} onClose={() => setFlash(null)} />}
         {doneBtn}
       </>
     )
@@ -187,7 +188,7 @@ function FieldBody({
     return (
       <>
         <MinigameBody onDone={setFlash} />
-        {flash && <div className="flash sheet-flash">{flash}</div>}
+        {flash && <FlashPopover message={flash} onClose={() => setFlash(null)} />}
         {doneBtn}
       </>
     )
@@ -204,7 +205,9 @@ function FieldBody({
 
   const say = (m: string) => setFlash(m)
   const job = team.job
-  const flashEl = flash ? <div className="flash sheet-flash">{flash}</div> : null
+  const flashEl = flash ? (
+    <FlashPopover message={flash} onClose={() => setFlash(null)} />
+  ) : null
 
   // --- Zahltag -------------------------------------------------------------
   if (field.key === 'zahltag') {
