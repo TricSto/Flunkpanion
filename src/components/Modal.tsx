@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ModalProps {
   title: string
@@ -7,7 +8,9 @@ interface ModalProps {
 }
 
 export function Modal({ title, onClose, children }: ModalProps) {
-  return (
+  // Portal auf <body>: Eltern-Container (z. B. der sticky Header) bilden
+  // eigene Stacking-Kontexte, sonst überdeckt die Tabbar das Modal.
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal"
@@ -23,6 +26,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
         </div>
         <div className="modal-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

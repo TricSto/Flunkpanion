@@ -244,6 +244,22 @@ select {
   border-color: var(--border);
 }
 
+.btn.success {
+  background: var(--pos);
+  color: #fff;
+}
+
+.btn.success:active {
+  filter: brightness(0.9);
+}
+
+/* Beitreten-Button im Join-Modal: groß, grün, direkt unterm Code-Feld. */
+.join-submit {
+  margin-top: 12px;
+  margin-bottom: 8px;
+  font-size: 17px;
+}
+
 .btn.danger {
   background: var(--danger);
   color: #fff;
