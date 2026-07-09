@@ -1256,6 +1256,59 @@ select {
   border-color: var(--neg);
 }
 
+/* ---- Gehaltswechsel (alle Teams) ------------------------------------------ */
+
+.gw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gw-row {
+  background: var(--bg-elev-2);
+  border-left: 4px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gw-head {
+  display: flex;
+  flex-direction: column;
+}
+
+.gw-name {
+  font-weight: 700;
+}
+
+.gw-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gw-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.gw-toggle .btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.gw-result {
+  margin: 0;
+  color: var(--pos);
+}
+
 /* ---- Verbindungsleiste (Online) ------------------------------------------ */
 .conn-bar {
   display: flex;
