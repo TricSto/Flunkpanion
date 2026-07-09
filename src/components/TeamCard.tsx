@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import type { ActionCard, ActionCardKind, Team } from '../types'
 import { STOCK_NUMBERS, STOCK_PRICE } from '../types'
 import { useStore } from '../store'
-import { formatMoney, formatTime } from '../util'
+import { formatMoney, formatTime, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
 import { BerufChooser } from './BerufChooser'
@@ -22,6 +22,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
     buyStock,
     removeStock,
     payoutStockCard,
+    setSalary,
   } = useStore()
 
   const [open, setOpen] = useState(defaultOpen)
@@ -35,6 +36,15 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
 
   const normalCards = team.actionCards.filter((c) => c.kind !== 'special')
   const specialCards = team.actionCards.filter((c) => c.kind === 'special')
+
+  // Anfangsgehalt: einmalig direkt auf der Gehalt-Kachel würfeln (#57).
+  // Sobald ein Gehalt gesetzt ist, wird die Kachel zur reinen Anzeige.
+  const rollStartGehalt = () => {
+    const card = pickRandom(state.decks.find((d) => d.type === 'salary')?.cards ?? [])
+    if (!card) return
+    setSalary(team.id, card.salary ?? 0, card.beerTax ?? 0)
+    setFlash(`💶 Anfangsgehalt: ${formatMoney(card.salary ?? 0)} · BS ${card.beerTax ?? 0}`)
+  }
 
 
   return (
@@ -72,20 +82,28 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
               </span>
             </button>
 
-            <div className="stat-tile">
-              <span className="stat-tile-icon">💶</span>
-              <span className="stat-tile-body">
-                <span className="stat-tile-label">Gehalt</span>
-                {team.job && team.job.salary > 0 ? (
+            {team.job && team.job.salary > 0 ? (
+              <div className="stat-tile">
+                <span className="stat-tile-icon">💶</span>
+                <span className="stat-tile-body">
+                  <span className="stat-tile-label">Gehalt</span>
                   <span className="stat-tile-value">
                     {formatMoney(team.job.salary)}
                     {team.job.beerTax > 0 && <span className="muted"> · BS {team.job.beerTax}</span>}
                   </span>
-                ) : (
-                  <span className="stat-tile-value muted">—</span>
-                )}
-              </span>
-            </div>
+                </span>
+              </div>
+            ) : (
+              // Anfangsgehalt einmalig direkt auf der Kachel würfeln (#57);
+              // danach ist die Kachel wieder eine reine Anzeige.
+              <button className="stat-tile tap" onClick={rollStartGehalt}>
+                <span className="stat-tile-icon">💶</span>
+                <span className="stat-tile-body">
+                  <span className="stat-tile-label">Gehalt</span>
+                  <span className="stat-tile-value choose">würfeln</span>
+                </span>
+              </button>
+            )}
 
             <div className="stat-tile">
               <span className="stat-tile-icon">👥</span>
