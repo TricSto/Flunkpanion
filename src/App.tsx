@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import { applyTheme, loadTheme, type Theme } from './theme'
 import { TeamsView } from './components/TeamsView'
 import { AdminView } from './components/AdminView'
@@ -14,16 +14,49 @@ import { FeedbackView } from './components/FeedbackView'
 type Tab = 'board' | 'teams' | 'admin' | 'feedback'
 type Overlay = null | 'challenge' | 'flunk' | 'stats'
 
+/** Reihenfolge der Seiten – bestimmt, wohin ein Wisch nach links/rechts führt. */
+const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'feedback']
+
+/** Mindest-Wischstrecke in px; quer muss klar dominieren, damit
+    normales Scrollen nicht aus Versehen die Seite wechselt. */
+const SWIPE_MIN_X = 56
+
 export function App() {
   // Start auf der Setup-Seite – dort werden Teams angelegt und das
   // Online-Spiel erstellt/beigetreten.
   const [tab, setTab] = useState<Tab>('admin')
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [theme, setTheme] = useState<Theme>(loadTheme)
+  // Richtung des letzten Seitenwechsels für die Slide-Animation.
+  const [slideFrom, setSlideFrom] = useState<'left' | 'right' | null>(null)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const changeTheme = (next: Theme) => {
     applyTheme(next)
     setTheme(next)
+  }
+
+  const switchTab = (next: Tab) => {
+    if (next === tab) return
+    setSlideFrom(TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 'right' : 'left')
+    setTab(next)
+  }
+
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0]
+    touchStart.current = { x: t.clientX, y: t.clientY }
+  }
+
+  const onTouchEnd = (e: TouchEvent) => {
+    const start = touchStart.current
+    touchStart.current = null
+    if (!start || overlay !== null) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (Math.abs(dx) < SWIPE_MIN_X || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    const next = TAB_ORDER[TAB_ORDER.indexOf(tab) + (dx < 0 ? 1 : -1)]
+    if (next) switchTab(next)
   }
 
   // Das Spielfeld soll komplett ohne Scrollen auf den Bildschirm passen.
@@ -45,7 +78,7 @@ export function App() {
 
       <Announcements />
 
-      <main className="app-main">
+      <main className="app-main" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {overlay === 'challenge' ? (
           <OverlayShell title="⚔️ Challenge" onBack={() => setOverlay(null)}>
             <ChallengeView />
@@ -59,25 +92,28 @@ export function App() {
             <EndStats />
           </OverlayShell>
         ) : (
-          <>
+          <div
+            key={tab}
+            className={slideFrom ? `page page-from-${slideFrom}` : 'page'}
+          >
             {tab === 'board' && (
               <BoardView
                 onOpenChallenge={() => setOverlay('challenge')}
                 onOpenFlunk={() => setOverlay('flunk')}
-                onGoToTeams={() => setTab('teams')}
+                onGoToTeams={() => switchTab('teams')}
               />
             )}
             {tab === 'teams' && <TeamsView />}
             {tab === 'admin' && (
               <AdminView
                 onEndGame={() => setOverlay('stats')}
-                onGoToTeams={() => setTab('teams')}
+                onGoToTeams={() => switchTab('teams')}
                 theme={theme}
                 onThemeChange={changeTheme}
               />
             )}
             {tab === 'feedback' && <FeedbackView />}
-          </>
+          </div>
         )}
       </main>
 
@@ -85,25 +121,25 @@ export function App() {
         <nav className="tabbar">
           <TabButton
             active={tab === 'board'}
-            onClick={() => setTab('board')}
+            onClick={() => switchTab('board')}
             icon="🎲"
             label="Spiel"
           />
           <TabButton
             active={tab === 'teams'}
-            onClick={() => setTab('teams')}
+            onClick={() => switchTab('teams')}
             icon="👥"
             label="Teams"
           />
           <TabButton
             active={tab === 'admin'}
-            onClick={() => setTab('admin')}
+            onClick={() => switchTab('admin')}
             icon="⚙️"
             label="Setup"
           />
           <TabButton
             active={tab === 'feedback'}
-            onClick={() => setTab('feedback')}
+            onClick={() => switchTab('feedback')}
             icon="💬"
             label="Feedback"
           />
