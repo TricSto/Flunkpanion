@@ -223,8 +223,12 @@ interface Store {
   buyStock: (teamId: string, stockNumber: number) => boolean
   /** Aktie entfernen (Korrektur, ohne Rückerstattung). */
   removeStock: (teamId: string) => void
-  /** Aktien-Auszahlung: selbst angegebenen KK-Betrag gutschreiben. */
-  payoutStock: (teamId: string, amount: number) => void
+  /**
+   * Aktien-Auszahlung: Wurde die Aktien-Zahl geworfen, zieht das Team eine
+   * zufällige Aktionskarte (keine KK – Feedback #31). Gibt die gezogene
+   * Karte zurück (null ohne Aktie oder bei leerem Deck).
+   */
+  payoutStockCard: (teamId: string) => ActionCard | null
   /** Statistik-Zähler ändern (z. B. Flunk-/Minigame-Siege). */
   bumpStat: (teamId: string, key: keyof TeamStats, delta: number) => void
   adjustCash: (teamId: string, delta: number, reason?: string) => void
@@ -613,18 +617,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       removeStock: (teamId) => mutateTeam(teamId, (t) => ({ ...t, stockNumber: null })),
 
-      payoutStock: (teamId, amount) =>
-        mutateTeam(teamId, (t) => {
-          if (t.stockNumber == null || !amount) return t
-          return {
-            ...t,
-            cash: t.cash + amount,
-            transactions: [
-              { id: uid(), delta: amount, reason: 'Aktien-Auszahlung', at: Date.now() },
-              ...t.transactions,
-            ],
-          }
-        }),
+      payoutStockCard: (teamId) => {
+        const s = stateRef.current
+        const team = s.teams.find((t) => t.id === teamId)
+        if (!team || team.stockNumber == null) return null
+        const deck = s.decks.find((d) => d.type === 'action')
+        if (!deck || deck.cards.length === 0) return null
+        // Keine Doppelten; hat das Team schon alle, notfalls doppelt ziehen.
+        const held = new Set(team.actionCards.map((c) => c.title))
+        const drawn =
+          pickRandom(deck.cards.filter((c) => !held.has(c.title))) ??
+          pickRandom(deck.cards)
+        if (!drawn) return null
+        const card: ActionCard = {
+          id: uid(),
+          title: drawn.title,
+          note: drawn.detail,
+          kind: 'action',
+          createdAt: Date.now(),
+        }
+        mutateTeam(teamId, (t) => ({ ...t, actionCards: [card, ...t.actionCards] }))
+        return card
+      },
 
       bumpStat: (teamId, key, delta) =>
         mutateTeam(teamId, (t) => ({
