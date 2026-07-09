@@ -1,52 +1,14 @@
 import { useState, type CSSProperties } from 'react'
 import { useStore, type BerufswechselResult } from '../store'
 import type { Card, Team } from '../types'
+import {
+  ALL_GAME_FIELDS,
+  gameFieldColor,
+  type GameFieldDef as FieldDef,
+} from '../data/gameFields'
 import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
-
-type FieldKey =
-  | 'zahltag'
-  | 'biersteuer'
-  | 'aktionskarten'
-  | 'spielveraendernd'
-  | 'ereignis'
-  | 'challenge'
-  | 'gehaltswechsel'
-  | 'edward'
-  | 'kingstabelle'
-  | 'minigames'
-  | 'flunk'
-
-interface FieldDef {
-  key: FieldKey
-  label: string
-  icon: string
-  color: string
-  sub: string
-}
-
-// 5×2-Raster (10 Felder). Flunk bekommt darunter eine eigene große Reihe.
-const GRID_FIELDS: FieldDef[] = [
-  { key: 'zahltag', label: 'Zahltag', icon: '💰', color: '#22c55e', sub: 'Gehalt aufs Konto' },
-  { key: 'biersteuer', label: 'Biersteuer', icon: '🍺', color: '#f59e0b', sub: 'Steuer abziehen' },
-  { key: 'aktionskarten', label: 'Aktionskarten', icon: '🃏', color: '#6366f1', sub: 'Karte ziehen' },
-  { key: 'spielveraendernd', label: 'Game Changer', icon: '⚡', color: '#a855f7', sub: 'Karte ziehen' },
-  { key: 'ereignis', label: 'Ereignis', icon: '🎲', color: '#06b6d4', sub: 'Vorlesen & buchen' },
-  { key: 'challenge', label: 'Challenge', icon: '🎯', color: '#ec4899', sub: 'Gegner fordern' },
-  { key: 'gehaltswechsel', label: 'Berufswechsel', icon: '🔄', color: '#eab308', sub: 'Beruf & Gehalt neu' },
-  { key: 'edward', label: 'Edward 20 Hands', icon: '🖐️', color: '#14b8a6', sub: 'Dose antapen' },
-  { key: 'kingstabelle', label: 'Kingstabelle', icon: '👑', color: '#f97316', sub: 'Am Brett würfeln' },
-  { key: 'minigames', label: 'Minigames', icon: '🎮', color: '#8b5cf6', sub: 'Am Brett würfeln' },
-]
-
-const FLUNK_FIELD: FieldDef = {
-  key: 'flunk',
-  label: 'Flunk-Feld',
-  icon: '🚩',
-  color: '#ef4444',
-  sub: 'Warten · Match · gewinnen',
-}
 
 function tileStyle(color: string): CSSProperties {
   return { '--tile': color } as CSSProperties
@@ -64,6 +26,7 @@ export function BoardView({
   onOpenFlunk: () => void
   onGoToTeams: GoToTeams
 }) {
+  const { state } = useStore()
   const [active, setActive] = useState<FieldDef | null>(null)
 
   const tap = (f: FieldDef) => {
@@ -76,11 +39,11 @@ export function BoardView({
     <section className="board">
       {/* Nur die Feld-Buttons – das Raster füllt den Bildschirm ohne Scrollen. */}
       <div className="board-grid">
-        {[...GRID_FIELDS, FLUNK_FIELD].map((f) => (
+        {ALL_GAME_FIELDS.map((f) => (
           <button
             key={f.key}
             className={f.key === 'flunk' ? 'field-tile flunk-tile' : 'field-tile'}
-            style={tileStyle(f.color)}
+            style={tileStyle(gameFieldColor(f, state.fieldColors))}
             onClick={() => tap(f)}
           >
             <span className="field-icon">{f.icon}</span>

@@ -2976,3 +2976,168 @@ button.stat-tile:active {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent);
   font-weight: 700;
 }
+
+/* ---- Karten-Seite: Feldfarben & Karteninhalte bearbeiten ------------------- */
+
+.karten {
+  padding-bottom: 24px;
+}
+
+.karten-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.karten-section-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.karten-color-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.karten-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-elev-2);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+/* Mini-Vorschau der Spielfeld-Kachel in ihrer aktuellen Farbe. */
+.karten-color-tile {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  border-radius: 10px;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--tile) 85%, white) 0%,
+    var(--tile) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--tile) 60%, black);
+}
+
+.karten-color-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.karten-color-input {
+  flex: none;
+  width: 44px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.karten-deck {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.karten-deck-name {
+  font-weight: 600;
+  text-align: left;
+}
+
+.karten-deck-chevron {
+  color: var(--muted);
+}
+
+.karten-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.karten-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: var(--text);
+}
+
+.karten-card-row:active {
+  border-color: var(--primary);
+}
+
+.karten-card-num {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 50%;
+}
+
+.karten-card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.karten-card-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.karten-card-detail {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.karten-card-meta {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--plus, #22c55e);
+  white-space: nowrap;
+}
+
+.karten-card-meta.neg {
+  color: var(--minus, #ef4444);
+}
+
+/* Gehalt & Biersteuer nebeneinander im Karten-Editor. */
+.karten-number-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}

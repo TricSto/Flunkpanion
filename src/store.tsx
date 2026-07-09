@@ -24,6 +24,7 @@ import type {
   Education,
   FeedbackEntry,
   FeedbackKind,
+  FieldColors,
   FlunkMatch,
   FlunkRound,
   Job,
@@ -176,6 +177,17 @@ function normalizeBoard(board: BoardState | null | undefined): BoardState {
   }
 }
 
+/**
+ * Ergänzt fehlende/kaputte Feldfarben älterer Stände. Deterministisch –
+ * läuft wie normalizeTeams auch über empfangene Remote-Zustände.
+ */
+function normalizeFieldColors(colors: FieldColors | null | undefined): FieldColors {
+  if (!colors || typeof colors !== 'object' || Array.isArray(colors)) return {}
+  return Object.fromEntries(
+    Object.entries(colors).filter(([, v]) => typeof v === 'string' && v.length > 0),
+  )
+}
+
 /** Frische Flunk-Runde in der Ankommens-Phase. */
 function emptyFlunk(): FlunkRound {
   return { id: uid(), readyIds: [], matches: null, waitCardIds: {}, paidIds: [], at: Date.now() }
@@ -192,6 +204,7 @@ function sharedOf(state: AppState): SharedState {
     announcements: state.announcements,
     feedback: state.feedback,
     board: state.board,
+    fieldColors: state.fieldColors,
   }
 }
 
@@ -214,6 +227,7 @@ function loadState(): AppState {
       announcements: parsed.announcements ?? [],
       feedback: parsed.feedback ?? [],
       board: normalizeBoard(parsed.board),
+      fieldColors: normalizeFieldColors(parsed.fieldColors),
     }
   } catch {
     return initialState
@@ -366,6 +380,22 @@ interface Store {
   removeBoardField: (fieldId: string) => void
   /** Spielbrett auf das mitgelieferte Standard-Brett zurücksetzen. */
   resetBoard: () => void
+  // Karten-Seite (Feldfarben & Karteninhalte)
+  /**
+   * Farbe eines Spiel-Felds einstellen (synct live an alle Geräte).
+   * `null` setzt das Feld auf seine Standardfarbe zurück.
+   */
+  setFieldColor: (key: string, color: string | null) => void
+  /** Alle Feldfarben auf die Standardfarben zurücksetzen. */
+  resetFieldColors: () => void
+  /** Titel/Beschreibung/Werte einer Karte in einem Deck ändern. */
+  updateDeckCard: (deckId: string, cardId: string, patch: Partial<Omit<Card, 'id'>>) => void
+  /** Neue (leere) Karte an ein Deck anhängen; gibt ihre ID zurück. */
+  addDeckCard: (deckId: string) => string
+  /** Karte aus einem Deck löschen. */
+  removeDeckCard: (deckId: string, cardId: string) => void
+  /** Alle Decks auf die mitgelieferten Karten zurücksetzen. */
+  resetDecks: () => void
   // Decks / Würfeltabellen
   updateDecks: (decks: Deck[]) => void
   resetAll: () => void
@@ -441,6 +471,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         feedback: shared.feedback ?? s.feedback,
         // Dito: Stände älterer Clients ohne Spielbrett behalten das lokale Brett.
         board: normalizeBoard(shared.board ?? s.board),
+        // Dito: ältere Stände ohne Feldfarben behalten die lokalen Farben.
+        fieldColors: normalizeFieldColors(shared.fieldColors ?? s.fieldColors),
         currentTeamId: s.currentTeamId,
       }
     })
@@ -620,6 +652,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           teams: normalizeTeams(shared.teams, shared.decks ?? s.decks),
           flunk: normalizeFlunk(shared.flunk),
           board: normalizeBoard(shared.board ?? s.board),
+          fieldColors: normalizeFieldColors(shared.fieldColors ?? s.fieldColors),
           currentTeamId: null,
         }))
         setSession({ code, isHost: false })
@@ -1364,6 +1397,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })),
 
       resetBoard: () => setState((s) => ({ ...s, board: defaultBoard() })),
+
+      setFieldColor: (key, color) =>
+        setState((s) => {
+          const fieldColors = { ...s.fieldColors }
+          if (color) fieldColors[key] = color
+          else delete fieldColors[key]
+          return { ...s, fieldColors }
+        }),
+
+      resetFieldColors: () => setState((s) => ({ ...s, fieldColors: {} })),
+
+      updateDeckCard: (deckId, cardId, patch) =>
+        setState((s) => ({
+          ...s,
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? {
+                  ...d,
+                  cards: d.cards.map((c) => (c.id === cardId ? { ...c, ...patch } : c)),
+                }
+              : d,
+          ),
+        })),
+
+      addDeckCard: (deckId) => {
+        const id = uid()
+        setState((s) => ({
+          ...s,
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? {
+                  ...d,
+                  cards: [
+                    ...d.cards,
+                    // Gehalts-Karten brauchen ihre Zahlenwerte von Anfang an.
+                    d.type === 'salary'
+                      ? { id, title: 'Gehalt', detail: '', amount: null, salary: 10, beerTax: 5 }
+                      : { id, title: 'Neue Karte', detail: '', amount: null },
+                  ],
+                }
+              : d,
+          ),
+        }))
+        return id
+      },
+
+      removeDeckCard: (deckId, cardId) =>
+        setState((s) => ({
+          ...s,
+          decks: s.decks.map((d) =>
+            d.id === deckId ? { ...d, cards: d.cards.filter((c) => c.id !== cardId) } : d,
+          ),
+        })),
+
+      resetDecks: () =>
+        setState((s) => ({ ...s, decks: initialState.decks, decksVersion: DECKS_VERSION })),
 
       updateDecks: (decks) => setState((s) => ({ ...s, decks })),
 
