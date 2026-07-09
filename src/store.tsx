@@ -32,7 +32,7 @@ import type {
   TeamStats,
   Transaction,
 } from './types'
-import { STOCK_NUMBERS, STOCK_PRICE } from './types'
+import { FLUNK_BEER_BONUS, STOCK_NUMBERS, STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { BOARD_COLS, BOARD_VERSION, defaultBoard, isBoardFieldType } from './data/board'
 import { GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
@@ -329,6 +329,14 @@ interface Store {
   flunkDrawMatches: () => void
   /** Sieger eines Matches setzen bzw. mit null zurücknehmen (pflegt flunkWins). */
   flunkSetWinner: (matchIndex: number, teamId: string | null) => void
+  /**
+   * Bier-Zahlen eines Matches für die Abrechnung setzen (#62): nicht
+   * ausgetrunkene bzw. leer getrunkene Biere des Verlierers. Geteilt/live.
+   */
+  flunkSetMatchBeers: (
+    matchIndex: number,
+    patch: { unfinished?: number; finished?: number },
+  ) => void
   /** Zurück zur Ankommens-Phase (nimmt gezählte Siege zurück). */
   flunkBackToSetup: () => void
   /**
@@ -1175,6 +1183,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         }),
 
+      flunkSetMatchBeers: (matchIndex, patch) =>
+        setState((s) => {
+          const matches = s.flunk?.matches
+          if (!matches || !matches[matchIndex]) return s
+          return {
+            ...s,
+            flunk: {
+              ...s.flunk!,
+              matches: matches.map((m, i) =>
+                i === matchIndex
+                  ? {
+                      ...m,
+                      loserUnfinished:
+                        patch.unfinished != null
+                          ? Math.max(0, patch.unfinished)
+                          : m.loserUnfinished,
+                      loserFinished:
+                        patch.finished != null
+                          ? Math.max(0, patch.finished)
+                          : m.loserFinished,
+                    }
+                  : m,
+              ),
+            },
+          }
+        }),
+
       flunkBackToSetup: () =>
         setState((s) =>
           s.flunk
@@ -1190,24 +1225,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setState((s) => {
           if (!s.flunk) return s
           const matches = s.flunk.matches ?? []
-          // Siege pro Team zählen – Grundlage für die KK-Gutschrift.
-          const wins = new Map<string, number>()
+          // Abrechnung pro Match (#62): Sieger bekommt die Basis-Gutschrift
+          // plus Bonus je nicht ausgetrunkenem Bier des Verlierers; der
+          // Verlierer bekommt Bonus je leer getrunkenem Bier (ohne Strafbiere).
+          const credits = new Map<string, { amount: number; reasons: string[] }>()
+          const credit = (teamId: string, amount: number, reason: string) => {
+            if (amount <= 0) return
+            const cur = credits.get(teamId) ?? { amount: 0, reasons: [] }
+            cur.amount += amount
+            cur.reasons.push(reason)
+            credits.set(teamId, cur)
+          }
           for (const m of matches) {
-            if (m.winnerId) wins.set(m.winnerId, (wins.get(m.winnerId) ?? 0) + 1)
+            if (!m.winnerId) continue
+            const unfinished = m.loserUnfinished ?? 0
+            const winAmount = rewardPerWin + unfinished * FLUNK_BEER_BONUS
+            credit(
+              m.winnerId,
+              winAmount,
+              unfinished > 0
+                ? `Flunk-Sieg (+${unfinished}× Bier-Bonus)`
+                : 'Flunk-Sieg',
+            )
+            const loserId = m.b ? (m.winnerId === m.a ? m.b : m.a) : null
+            const finished = m.loserFinished ?? 0
+            if (loserId && finished > 0) {
+              credit(loserId, finished * FLUNK_BEER_BONUS, `Flunk: ${finished}× Bier leer`)
+            }
           }
           let teams = s.teams
-          if (rewardPerWin > 0 && wins.size > 0) {
+          if (credits.size > 0) {
             teams = teams.map((t) => {
-              const n = wins.get(t.id)
-              if (!n) return t
-              const amount = n * rewardPerWin
+              const c = credits.get(t.id)
+              if (!c || c.amount <= 0) return t
               const tx: Transaction = {
                 id: uid(),
-                delta: amount,
-                reason: n > 1 ? `Flunk-Sieg ×${n}` : 'Flunk-Sieg',
+                delta: c.amount,
+                reason: c.reasons.join(' · '),
                 at: Date.now(),
               }
-              return { ...t, cash: t.cash + amount, transactions: [tx, ...t.transactions] }
+              return { ...t, cash: t.cash + c.amount, transactions: [tx, ...t.transactions] }
             })
           }
           const winnerNames = matches
