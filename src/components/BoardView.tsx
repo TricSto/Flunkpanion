@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
-import { useStore } from '../store'
+import { useStore, type BerufswechselResult } from '../store'
 import type { Card, Team } from '../types'
-import { formatMoney, isDiplomJob, pickRandom, takenJobTitles } from '../util'
+import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
 
 type FieldKey =
@@ -186,9 +186,9 @@ function FieldBody({
     )
   }
 
-  // Gehaltswechsel: betrifft immer ALLE Teams gleichzeitig (#32).
+  // Berufswechsel: betrifft immer ALLE Teams gleichzeitig (#32, #40).
   if (field.key === 'gehaltswechsel') {
-    return <GehaltswechselBody />
+    return <GehaltswechselBody onClose={onClose} />
   }
 
   if (!team) {
@@ -361,88 +361,94 @@ function FieldBody({
   return null
 }
 
-// --- Gehaltswechsel: Beruf & Gehalt für ALLE Teams neu würfeln (#32) ---------
+// --- Berufswechsel: erst „erstes Team?"-Frage, dann alle neu würfeln (#40) ---
 
-function GehaltswechselBody() {
-  const { state, chooseJob, setSalary } = useStore()
-  const berufe = state.decks.find((d) => d.type === 'job')
-  const gehalt = state.decks.find((d) => d.type === 'salary')
-  // Bildungsweg pro Team – vorbelegt mit der bisherigen Wahl des Teams.
-  const [pfade, setPfade] = useState<Record<string, 'ausbildung' | 'studium'>>({})
-  const [results, setResults] = useState<Record<string, string>>({})
+function GehaltswechselBody({ onClose }: { onClose: () => void }) {
+  const { state, rerollAllJobs } = useStore()
+  const [step, setStep] = useState<'frage' | 'nein' | 'fertig'>('frage')
+  const [results, setResults] = useState<BerufswechselResult[]>([])
 
   if (state.teams.length === 0) {
     return <p className="muted small">Noch keine Teams. Lege sie im Tab „Setup“ an.</p>
   }
 
-  const pfadOf = (t: Team): 'ausbildung' | 'studium' =>
-    pfade[t.id] ?? (t.education === 'studium' ? 'studium' : 'ausbildung')
+  // Ja → Beruf & Gehalt aller Teams zurücksetzen und neu würfeln; der
+  // Bildungsweg bleibt (Studium → Diplom-Beruf, sonst Ausbildungsberuf).
+  const rollAll = () => {
+    setResults(rerollAllJobs())
+    setStep('fertig')
+  }
 
-  const roll = (t: Team) => {
-    const pfad = pfadOf(t)
-    // Beruf passend zum Bildungsweg: Studium → Diplom, Ausbildung → normal.
-    const taken = takenJobTitles(state.teams, t.id)
-    const pool = (berufe?.cards ?? []).filter(
-      (c) => !taken.has(c.title) && isDiplomJob(c.title) === (pfad === 'studium'),
+  if (step === 'nein') {
+    return (
+      <>
+        <p className="sheet-info">
+          <strong>Nur das erste Team löst den Berufswechsel aus.</strong>
+        </p>
+        <button className="btn ghost block" onClick={() => setStep('frage')}>
+          ‹ Zurück
+        </button>
+      </>
     )
-    const berufCard = pickRandom(pool)
-    if (!berufCard) {
-      setResults((r) => ({ ...r, [t.id]: 'Kein passender Beruf mehr frei.' }))
-      return
-    }
-    const gehaltCard = pickRandom(gehalt?.cards ?? [])
-    chooseJob(t.id, pfad, berufCard.title)
-    if (gehaltCard) setSalary(t.id, gehaltCard.salary ?? 0, gehaltCard.beerTax ?? 0)
-    setResults((r) => ({
-      ...r,
-      [t.id]: `💼 ${berufCard.title} · 💶 ${formatMoney(gehaltCard?.salary ?? 0)} · BS ${
-        gehaltCard?.beerTax ?? 0
-      }`,
-    }))
+  }
+
+  if (step === 'fertig') {
+    return (
+      <>
+        <p className="sheet-info">
+          Alle Teams haben einen neuen Beruf und ein neues Gehalt:
+        </p>
+        <ul className="gw-list">
+          {results.map((r) => {
+            const team = state.teams.find((t) => t.id === r.teamId)
+            return (
+              <li
+                key={r.teamId}
+                className="gw-row"
+                style={{ borderLeftColor: team?.color ?? 'var(--border)' }}
+              >
+                <div className="gw-head">
+                  <span className="gw-name">
+                    {r.studium ? '🎓' : '🔧'} {r.teamName}
+                  </span>
+                  {r.title ? (
+                    <span className="gw-result small">
+                      💼 {r.title} · 💶 {formatMoney(r.salary)} · BS {r.beerTax}
+                    </span>
+                  ) : (
+                    <span className="muted small">Kein passender Beruf mehr frei.</span>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <button className="btn primary block" onClick={onClose}>
+          ✓ Fertig
+        </button>
+      </>
+    )
   }
 
   return (
     <>
       <p className="sheet-info">
-        Beruf <strong>und</strong> Gehalt werden für <strong>alle Teams</strong>{' '}
-        neu erwürfelt. Jedes Team gibt vorher an, ob es Studium oder Ausbildung
-        gemacht hat.
+        Seid ihr das <strong>erste Team</strong>, das über das
+        Berufswechsel-Feld gekommen ist?
       </p>
-      <ul className="gw-list">
-        {state.teams.map((t) => (
-          <li key={t.id} className="gw-row" style={{ borderLeftColor: t.color }}>
-            <div className="gw-head">
-              <span className="gw-name">{t.name}</span>
-              <span className="muted small">
-                {t.job?.title || 'kein Beruf'}
-                {t.job && t.job.salary > 0
-                  ? ` · ${formatMoney(t.job.salary)} · BS ${t.job.beerTax}`
-                  : ''}
-              </span>
-            </div>
-            <div className="gw-actions">
-              <div className="gw-toggle">
-                <button
-                  className={pfadOf(t) === 'ausbildung' ? 'btn tiny active' : 'btn tiny ghost'}
-                  onClick={() => setPfade((p) => ({ ...p, [t.id]: 'ausbildung' }))}
-                >
-                  🔧 Ausbildung
-                </button>
-                <button
-                  className={pfadOf(t) === 'studium' ? 'btn tiny active' : 'btn tiny ghost'}
-                  onClick={() => setPfade((p) => ({ ...p, [t.id]: 'studium' }))}
-                >
-                  🎓 Studium
-                </button>
-              </div>
-              <button className="btn small primary" onClick={() => roll(t)}>
-                🎲 {results[t.id] ? 'nochmal' : 'würfeln'}
-              </button>
-            </div>
-            {results[t.id] && <p className="gw-result small">{results[t.id]}</p>}
-          </li>
-        ))}
-      </ul>
+      <div className="event-actions">
+        <button className="btn big ghost" onClick={() => setStep('nein')}>
+          ❌ Nein
+        </button>
+        <button className="btn big primary" onClick={rollAll}>
+          ✅ Ja – alle neu würfeln
+        </button>
+      </div>
+      <p className="muted small sheet-current">
+        Bei „Ja" werden Beruf &amp; Gehalt <strong>aller Teams</strong>{' '}
+        zurückgesetzt und neu erwürfelt – Studium bekommt wieder einen
+        Diplom-Beruf, Ausbildung einen Ausbildungsberuf.
+      </p>
     </>
   )
 }

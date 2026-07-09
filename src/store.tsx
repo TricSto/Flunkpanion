@@ -31,13 +31,23 @@ import type {
 import { STOCK_NUMBERS, STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
-import { pickRandom } from './util'
+import { isDiplomJob, pickRandom, sampleDistinct } from './util'
 
 const STORAGE_KEY = 'flunk-des-lebens/state/v1'
 const SESSION_KEY = 'flunk-des-lebens/session/v1'
 
 /** Verbindungszustand zum Server. */
 export type ConnectionStatus = 'local' | 'connecting' | 'live' | 'error'
+
+/** Ergebnis des Berufswechsels für ein Team (title null = kein Beruf frei). */
+export interface BerufswechselResult {
+  teamId: string
+  teamName: string
+  studium: boolean
+  title: string | null
+  salary: number
+  beerTax: number
+}
 
 /** Aktuelle Online-Sitzung (welchem Spiel-Code dieses Gerät beigetreten ist). */
 export interface Session {
@@ -245,6 +255,13 @@ interface Store {
    * atomar in einem Update (bleibt so auch im Live-Modus konsistent).
    */
   chooseJob: (teamId: string, education: Education, title: string) => void
+  /**
+   * Berufswechsel-Feld (Feedback #40): setzt Beruf & Gehalt ALLER Teams
+   * zurück und würfelt beides neu – der Bildungsweg bleibt wie zuvor
+   * (Studium → Diplom-Beruf, sonst Ausbildungsberuf, keine Doppelten).
+   * Läuft atomar in einem Update; gibt die Ergebnisse pro Team zurück.
+   */
+  rerollAllJobs: () => BerufswechselResult[]
   setSalary: (teamId: string, salary: number, beerTax: number) => void
   payBeerTax: (teamId: string) => void
   // Team-Auswahl („Beitreten“)
@@ -741,6 +758,50 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             ),
           }
         }),
+
+      rerollAllJobs: () => {
+        const s = stateRef.current
+        const jobDeck = s.decks.find((d) => d.type === 'job')
+        const salaryDeck = s.decks.find((d) => d.type === 'salary')
+        if (!jobDeck || s.teams.length === 0) return []
+        // Gemischte Stapel je Bildungsweg – pop() vergibt jeden Beruf nur 1×.
+        const diplom = sampleDistinct(
+          jobDeck.cards.filter((c) => isDiplomJob(c.title)),
+          jobDeck.cards.length,
+        )
+        const normal = sampleDistinct(
+          jobDeck.cards.filter((c) => !isDiplomJob(c.title)),
+          jobDeck.cards.length,
+        )
+        const results: BerufswechselResult[] = []
+        const updates = new Map<string, { job: Job | null; education: Education }>()
+        for (const t of s.teams) {
+          const studium = t.education === 'studium'
+          const card = (studium ? diplom : normal).pop() ?? null
+          const g = pickRandom(salaryDeck?.cards ?? [])
+          const salary = g?.salary ?? 0
+          const beerTax = g?.beerTax ?? 0
+          updates.set(t.id, {
+            job: card ? { title: card.title, salary, beerTax } : null,
+            education: studium ? 'studium' : 'ausbildung',
+          })
+          results.push({
+            teamId: t.id,
+            teamName: t.name,
+            studium,
+            title: card?.title ?? null,
+            salary,
+            beerTax,
+          })
+        }
+        setState((prev) => ({
+          ...prev,
+          teams: prev.teams.map((t) =>
+            updates.has(t.id) ? { ...t, ...updates.get(t.id)! } : t,
+          ),
+        }))
+        return results
+      },
 
       setSalary: (teamId, salary, beerTax) =>
         mutateTeam(teamId, (t) => ({
