@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ActionCard, Team } from '../types'
+import type { ActionCard } from '../types'
 import { useStore } from '../store'
 import { Modal } from './Modal'
 
@@ -12,9 +12,10 @@ const DEFAULT_WIN_REWARD = 5
  * eine Aktionskarte (bei „zurück" werden sie wieder eingezogen). Sind
  * mindestens zwei Teams bereit, werden die Matches ausgelost. Danach je Match:
  * Gewinner wählen (zählt als Flunk-Sieg) + Biere für den Verlierer zählen.
- * Während der ganzen Runde sind die Aktionskarten der Teams (inkl. Game
- * Changer) einsehbar und spielbar. „Flunk-Runde beenden" schreibt den Siegern
- * ihre KK gut und schickt allen Geräten eine Nachricht.
+ * Während der ganzen Runde sieht jedes Gerät nur die Kartenhand des eigenen
+ * (beigetretenen) Teams; „Benutzen" spielt eine Karte aus und meldet dem
+ * Gegner-Team live „Aktionskarte aktiviert" samt Effekt. „Flunk-Runde beenden"
+ * schreibt den Siegern ihre KK gut und schickt allen Geräten eine Nachricht.
  */
 export function FlunkView() {
   const {
@@ -68,13 +69,14 @@ export function FlunkView() {
           </div>
         </div>
 
+        {/* Eigene Kartenhand – nur das Team dieses Geräts. */}
+        <MyActionCards />
+
         <div className="flunk-matches">
           {matches.map((m, i) => {
             const winnerId = m.winnerId
             const loserId = winnerId && m.b ? (winnerId === m.a ? m.b : m.a) : null
             const loser = teams.find((t) => t.id === loserId) ?? null
-            const teamA = teams.find((t) => t.id === m.a) ?? null
-            const teamB = m.b ? teams.find((t) => t.id === m.b) ?? null : null
             return (
               <div key={i} className="flunk-match">
                 <div className="flunk-vs">
@@ -82,10 +84,6 @@ export function FlunkView() {
                   <span className="vs-badge">VS</span>
                   <span className="flunk-team">{name(m.b)}</span>
                 </div>
-
-                {/* Aktionskarten beider Teams – während des Matchs spielbar. */}
-                {teamA && <TeamActionCards team={teamA} />}
-                {teamB && <TeamActionCards team={teamB} />}
 
                 {m.b == null ? (
                   <p className="muted small center">Freilos – kein Gegner.</p>
@@ -216,11 +214,13 @@ export function FlunkView() {
                   </button>
                 )}
               </span>
-              <TeamActionCards team={t} />
             </li>
           )
         })}
       </ul>
+
+      {/* Eigene Kartenhand – nur das Team dieses Geräts. */}
+      <MyActionCards />
 
       <button
         className="btn primary block flunk-draw"
@@ -258,43 +258,79 @@ export function FlunkView() {
 }
 
 /**
- * Aufklappbare Kartenhand eines Teams fürs Flunk-Spiel: normale Aktionskarten
- * und Game Changer (⚡). ✕ spielt die Karte aus (zählt für die Statistik).
+ * Kartenhand des eigenen (beigetretenen) Teams fürs Flunk-Spiel: normale
+ * Aktionskarten und Game Changer (⚡) stehen direkt untereinander – ohne
+ * Ausklappen. „Benutzen" spielt die Karte nach kurzer Bestätigung aus und
+ * meldet dem Gegner-Team live „Aktionskarte aktiviert" samt Effekt.
+ * Geräte ohne beigetretenes Team sehen keine Kartenhand.
  */
-function TeamActionCards({ team }: { team: Team }) {
-  const { removeActionCard } = useStore()
-  if (team.actionCards.length === 0) return null
+function MyActionCards() {
+  const { state, playActionCard } = useStore()
+  const [confirm, setConfirm] = useState<ActionCard | null>(null)
+  const team = state.teams.find((t) => t.id === state.currentTeamId) ?? null
+  if (!team) return null
+
   const specials = team.actionCards.filter((c) => c.kind === 'special').length
+
+  const play = () => {
+    if (!confirm) return
+    playActionCard(team.id, confirm.id)
+    setConfirm(null)
+  }
+
   return (
-    <details className="flunk-cards">
-      <summary>
-        🃏 Karten von {team.name} ({team.actionCards.length}
+    <section className="flunk-hand" style={{ borderLeftColor: team.color }}>
+      <h3 className="flunk-hand-title">
+        🃏 Deine Aktionskarten ({team.actionCards.length}
         {specials > 0 ? `, davon ${specials} ⚡ Game Changer` : ''})
-      </summary>
-      <ul className="chip-list">
-        {team.actionCards.map((c) => (
-          <li
-            key={c.id}
-            className={c.kind === 'special' ? 'chip chip-special' : 'chip chip-action'}
-          >
-            <span className="chip-text">
-              <strong>
-                {c.kind === 'special' ? '⚡ ' : ''}
-                {c.title}
-              </strong>
-              {c.note && <em> — {c.note}</em>}
-            </span>
-            <button
-              className="chip-x"
-              onClick={() => removeActionCard(team.id, c.id)}
-              title="Karte benutzen / ablegen (zählt als ausgespielt)"
-              aria-label="Karte benutzen"
+      </h3>
+      {team.actionCards.length === 0 ? (
+        <p className="muted small flunk-hand-empty">Keine Karten auf der Hand.</p>
+      ) : (
+        <ul className="hand-list">
+          {team.actionCards.map((c) => (
+            <li
+              key={c.id}
+              className={c.kind === 'special' ? 'hand-card hand-special' : 'hand-card'}
             >
-              ✕
+              <div className="hand-card-text">
+                <strong className="hand-card-title">
+                  {c.kind === 'special' ? '⚡ ' : ''}
+                  {c.title}
+                </strong>
+                {c.note && <p className="hand-card-note">{c.note}</p>}
+              </div>
+              <button className="btn small primary" onClick={() => setConfirm(c)}>
+                Benutzen
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {confirm && (
+        <Modal title="🃏 Karte benutzen?" onClose={() => setConfirm(null)}>
+          <div className="drawn-card reward-card">
+            <strong className="drawn-title">
+              {confirm.kind === 'special' ? '⚡ ' : ''}
+              {confirm.title}
+            </strong>
+            {confirm.note && <p className="drawn-detail">{confirm.note}</p>}
+          </div>
+          <p className="muted small">
+            Die Karte wird ausgespielt und dem Gegner-Team live als
+            „Aktionskarte aktiviert" mit dem Effekt angezeigt.
+          </p>
+          <div className="modal-actions">
+            <button className="btn ghost" onClick={() => setConfirm(null)}>
+              Abbrechen
             </button>
-          </li>
-        ))}
-      </ul>
-    </details>
+            <button className="btn primary" onClick={play}>
+              ✅ Jetzt benutzen
+            </button>
+          </div>
+        </Modal>
+      )}
+    </section>
   )
 }

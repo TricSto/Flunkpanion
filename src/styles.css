@@ -1819,7 +1819,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  /* Kartenhand des Teams rutscht als volle Breite in die nächste Zeile. */
+  /* Auf schmalen Bildschirmen dürfen die Buttons umbrechen. */
   flex-wrap: wrap;
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -1902,28 +1902,70 @@ select {
   gap: 10px;
 }
 
-/* ---- Flunk: aufklappbare Kartenhand der Teams ------------------------------ */
-.flunk-cards {
-  flex-basis: 100%;
+/* ---- Flunk: eigene Kartenhand (nur das beigetretene Team) ------------------ */
+.flunk-hand {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.flunk-hand-title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.flunk-hand-empty {
+  margin: 0;
+}
+
+.hand-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hand-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--acc-blue);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.hand-card.hand-special {
+  border-left-color: var(--acc-orange);
+}
+
+.hand-card-text {
   min-width: 0;
 }
 
-.flunk-cards summary {
-  cursor: pointer;
+.hand-card-title {
+  display: block;
   font-size: 14px;
+}
+
+.hand-card-note {
+  margin: 2px 0 0;
+  font-size: 13px;
   color: var(--muted);
-  user-select: none;
-  -webkit-user-select: none;
-  padding: 4px 0;
 }
 
-.flunk-cards[open] summary {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.flunk-cards .chip-list {
-  margin-top: 8px;
+.hand-card .btn {
+  flex-shrink: 0;
 }
 
 /* KK-Gutschrift pro Sieg – kompakte Eingabe vor dem Beenden-Button. */

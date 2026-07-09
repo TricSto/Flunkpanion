@@ -51,6 +51,30 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
 }
 
+/**
+ * JSON-Stringify mit sortierten Schlüsseln. Nötig für den Echo-Vergleich beim
+ * Sync: Postgres (jsonb) sortiert Objekt-Schlüssel um, wodurch der vom Server
+ * zurückkommende Zustand bei normalem JSON.stringify nie dem lokal
+ * geschriebenen glich. Folge: eigene Writes wurden als "fremde" Änderung
+ * erneut angewendet und überschrieben dabei frisch gemachte lokale Änderungen
+ * (Buttons "blinkten", aber nichts passierte).
+ */
+function stableStringify(value: unknown): string {
+  return JSON.stringify(sortKeysDeep(value))
+}
+
+function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeysDeep)
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .sort()
+        .map((k) => [k, sortKeysDeep((value as Record<string, unknown>)[k])]),
+    )
+  }
+  return value
+}
+
 // Kurzer, gut lesbarer Spiel-Code (ohne leicht verwechselbare Zeichen).
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function generateCode(len = 4): string {
@@ -219,6 +243,13 @@ interface Store {
   // Aktionskarten
   addActionCard: (teamId: string, title: string, note: string, kind: ActionCardKind) => void
   removeActionCard: (teamId: string, cardId: string) => void
+  /**
+   * Aktionskarte in der Flunk-Runde benutzen: entfernt die Karte, zählt sie
+   * als ausgespielt und schickt eine Live-Nachricht „Aktionskarte aktiviert"
+   * mit dem Effekt – gerichtet an das Gegner-Team im selben Flunk-Match
+   * (bzw. an alle, solange noch keine Matches ausgelost sind).
+   */
+  playActionCard: (teamId: string, cardId: string) => void
   // Challenges
   startChallenge: (challengerId: string, opponentId: string, card: Card) => void
   resolveChallenge: (winnerId: string, reward: ChallengeReward, message: string) => void
@@ -298,8 +329,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Eingehenden Server-Zustand übernehmen (currentTeamId bleibt gerätelokal).
   const applyRemote = (shared: SharedState) => {
-    const json = JSON.stringify(shared)
+    const json = stableStringify(shared)
     if (json === lastSyncedRef.current) return
+    // Gibt es lokale, noch nicht geschriebene Änderungen (Debounce läuft),
+    // den Remote-Stand nicht anwenden: Der eigene anstehende Write gewinnt
+    // ohnehin (Last-Write-Wins) – sonst würde ein gerade gedrückter Button
+    // von einem älteren Server-Stand sofort wieder zurückgesetzt.
+    if (
+      lastSyncedRef.current !== null &&
+      stableStringify(sharedOf(stateRef.current)) !== lastSyncedRef.current
+    ) {
+      return
+    }
     lastSyncedRef.current = json
     setState((s) => {
       let teams = normalizeTeams(shared.teams, shared.decks ?? s.decks)
@@ -352,7 +393,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } else {
         // Spielzeile existiert noch nicht → mit lokalem Stand anlegen.
         const shared = sharedOf(stateRef.current)
-        lastSyncedRef.current = JSON.stringify(shared)
+        lastSyncedRef.current = stableStringify(shared)
         const { error: writeErr } = await client
           .from(GAMES_TABLE)
           .upsert({ code, state: shared, updated_at: new Date().toISOString() })
@@ -394,7 +435,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const client = supabase
     if (!client || !session) return
     const shared = sharedOf(state)
-    const json = JSON.stringify(shared)
+    const json = stableStringify(shared)
     if (json === lastSyncedRef.current) return
     const code = session.code
     const timer = setTimeout(() => {
@@ -466,7 +507,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             .from(GAMES_TABLE)
             .insert({ code, state: shared, updated_at: new Date().toISOString() })
           if (!error) {
-            lastSyncedRef.current = JSON.stringify(shared)
+            lastSyncedRef.current = stableStringify(shared)
             setSession({ code, isHost: true })
             return code
           }
@@ -491,7 +532,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           .maybeSingle()
         if (error) return { ok: false, error: 'Verbindungsfehler. Bitte erneut versuchen.' }
         if (!data) return { ok: false, error: 'Spiel nicht gefunden. Code prüfen.' }
-        lastSyncedRef.current = JSON.stringify(data.state)
+        lastSyncedRef.current = stableStringify(data.state)
         const shared = data.state as SharedState
         setState((s) => ({
           ...s,
@@ -720,6 +761,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             ...t,
             actionCards: t.actionCards.filter((c) => c.id !== cardId),
             stats: { ...t.stats, actionCardsUsed: t.stats.actionCardsUsed + 1 },
+          }
+        }),
+
+      playActionCard: (teamId, cardId) =>
+        setState((s) => {
+          const team = s.teams.find((t) => t.id === teamId)
+          const card = team?.actionCards.find((c) => c.id === cardId)
+          if (!team || !card) return s
+          // Gegner = das andere Team im selben Flunk-Match (falls ausgelost).
+          const match = s.flunk?.matches?.find((m) => m.a === teamId || m.b === teamId)
+          const opponentId = match ? (match.a === teamId ? match.b : match.a) : null
+          const opponent = s.teams.find((t) => t.id === opponentId) ?? null
+          const announcement: Announcement = {
+            id: uid(),
+            teamId: opponentId,
+            title: '🃏 Aktionskarte aktiviert!',
+            message: `${team.name} spielt „${card.title}"${
+              opponent ? ` gegen ${opponent.name}` : ''
+            }.${card.note ? ` Effekt: ${card.note}` : ''}`,
+            at: Date.now(),
+          }
+          return {
+            ...s,
+            teams: s.teams.map((t) =>
+              t.id === teamId
+                ? {
+                    ...t,
+                    actionCards: t.actionCards.filter((c) => c.id !== cardId),
+                    stats: { ...t.stats, actionCardsUsed: t.stats.actionCardsUsed + 1 },
+                  }
+                : t,
+            ),
+            announcements: [announcement, ...s.announcements].slice(0, 20),
           }
         }),
 
