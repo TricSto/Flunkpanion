@@ -1,7 +1,7 @@
 // Zentrale Datentypen für die Flunk-des-Lebens-App.
 // Währung im Spiel: KK = Kronkorken.
 
-/** Kategorie einer Aktionskarte: normal ('action') oder spielverändernd ('special'). */
+/** Kategorie einer Aktionskarte: normal ('action') oder Game Changer ('special'). */
 export type ActionCardKind = 'action' | 'special'
 
 export interface ActionCard {

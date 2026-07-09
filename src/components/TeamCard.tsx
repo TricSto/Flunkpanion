@@ -203,7 +203,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
             ))}
           </div>
 
-          {/* Aktionskarten – getrennt nach normal & spielverändernd */}
+          {/* Aktionskarten – getrennt nach normal & Game Changer */}
           <CardSection
             title="🃏 Aktionskarten"
             kind="action"
@@ -212,7 +212,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
             onRemove={(id) => removeActionCard(team.id, id)}
           />
           <CardSection
-            title="⚡ Spielverändernd"
+            title="⚡ Game Changer"
             kind="special"
             cards={specialCards}
             onDraw={() => drawAction('special')}

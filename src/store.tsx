@@ -73,7 +73,7 @@ function emptyStats(): TeamStats {
  * schaukeln sich die Geräte gegenseitig hoch (Sync-Ping-Pong).
  */
 function normalizeTeams(teams: Team[] | undefined, decks: Deck[]): Team[] {
-  // Titel der spielverändernden Karten, um Alt-Karten ohne `kind` einzuordnen.
+  // Titel der Game-Changer-Karten, um Alt-Karten ohne `kind` einzuordnen.
   const specialTitles = new Set(
     decks.filter((d) => d.type === 'special').flatMap((d) => d.cards.map((c) => c.title)),
   )
@@ -241,10 +241,11 @@ interface Store {
   /** Zurück zur Ankommens-Phase (nimmt gezählte Siege zurück). */
   flunkBackToSetup: () => void
   /**
-   * Flunk-Runde regulär beenden: Sieger bleiben gezählt, alle Geräte bekommen
-   * eine Broadcast-Nachricht, danach ist die Runde geschlossen.
+   * Flunk-Runde regulär beenden: Sieger bleiben gezählt, jeder Match-Sieger
+   * bekommt `rewardPerWin` KK gutgeschrieben, alle Geräte bekommen eine
+   * Broadcast-Nachricht, danach ist die Runde geschlossen.
    */
-  flunkFinish: () => void
+  flunkFinish: (rewardPerWin?: number) => void
   /** Flunk-Runde abbrechen/zurücksetzen (nimmt gezählte Siege zurück). */
   flunkReset: () => void
   // Decks / Würfeltabellen
@@ -939,12 +940,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             : s,
         ),
 
-      flunkFinish: () =>
+      flunkFinish: (rewardPerWin = 0) =>
         setState((s) => {
           if (!s.flunk) return s
-          const winnerNames = (s.flunk.matches ?? [])
+          const matches = s.flunk.matches ?? []
+          // Siege pro Team zählen – Grundlage für die KK-Gutschrift.
+          const wins = new Map<string, number>()
+          for (const m of matches) {
+            if (m.winnerId) wins.set(m.winnerId, (wins.get(m.winnerId) ?? 0) + 1)
+          }
+          let teams = s.teams
+          if (rewardPerWin > 0 && wins.size > 0) {
+            teams = teams.map((t) => {
+              const n = wins.get(t.id)
+              if (!n) return t
+              const amount = n * rewardPerWin
+              const tx: Transaction = {
+                id: uid(),
+                delta: amount,
+                reason: n > 1 ? `Flunk-Sieg ×${n}` : 'Flunk-Sieg',
+                at: Date.now(),
+              }
+              return { ...t, cash: t.cash + amount, transactions: [tx, ...t.transactions] }
+            })
+          }
+          const winnerNames = matches
             .map((m) => s.teams.find((t) => t.id === m.winnerId)?.name)
             .filter((n): n is string => Boolean(n))
+          const rewardText =
+            rewardPerWin > 0 && winnerNames.length > 0 ? ` (+${rewardPerWin} KK pro Sieg)` : ''
           const announcement: Announcement = {
             id: uid(),
             // Broadcast: auch Teams, die nicht mitgespielt haben, sollen es sehen.
@@ -952,12 +976,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             title: '🚩 Flunk-Runde beendet',
             message:
               winnerNames.length > 0
-                ? `Sieger: ${winnerNames.join(', ')} 🏆`
+                ? `Sieger: ${winnerNames.join(', ')} 🏆${rewardText}`
                 : 'Die Flunk-Runde ist vorbei.',
             at: Date.now(),
           }
           return {
             ...s,
+            teams,
             flunk: null,
             announcements: [announcement, ...s.announcements].slice(0, 20),
           }

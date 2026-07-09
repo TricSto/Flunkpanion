@@ -30,7 +30,7 @@ const GRID_FIELDS: FieldDef[] = [
   { key: 'zahltag', label: 'Zahltag', icon: '💰', color: '#22c55e', sub: 'Gehalt aufs Konto' },
   { key: 'biersteuer', label: 'Biersteuer', icon: '🍺', color: '#f59e0b', sub: 'Steuer abziehen' },
   { key: 'aktionskarten', label: 'Aktionskarten', icon: '🃏', color: '#6366f1', sub: 'Karte ziehen' },
-  { key: 'spielveraendernd', label: 'Spielverändernd', icon: '⚡', color: '#a855f7', sub: 'Karte ziehen' },
+  { key: 'spielveraendernd', label: 'Game Changer', icon: '⚡', color: '#a855f7', sub: 'Karte ziehen' },
   { key: 'ereignis', label: 'Ereignis', icon: '🎲', color: '#06b6d4', sub: 'Vorlesen & buchen' },
   { key: 'challenge', label: 'Challenge', icon: '🎯', color: '#ec4899', sub: 'Gegner fordern' },
   { key: 'gehaltswechsel', label: 'Gehaltswechsel', icon: '🔄', color: '#eab308', sub: 'Beruf & Gehalt neu' },
@@ -230,7 +230,7 @@ function FieldBody({
     )
   }
 
-  // --- Karten ziehen (Aktionskarten / Spielverändernd) ---------------------
+  // --- Karten ziehen (Aktionskarten / Game Changer) ------------------------
   if (field.key === 'aktionskarten' || field.key === 'spielveraendernd') {
     const kind = field.key === 'spielveraendernd' ? 'special' : 'action'
     const deck = state.decks.find((d) => d.type === kind)

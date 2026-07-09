@@ -65,6 +65,16 @@ body {
 button {
   font-family: inherit;
   cursor: pointer;
+  /* Sonst warten Mobile-Browser ~300 ms auf einen möglichen Doppel-Tap
+     (iOS ignoriert user-scalable=no) – das war der Klick-Delay. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+summary {
+  touch-action: manipulation;
 }
 
 input,
@@ -1732,6 +1742,8 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  /* Kartenhand des Teams rutscht als volle Breite in die nächste Zeile. */
+  flex-wrap: wrap;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-left: 4px solid var(--primary);
@@ -1811,6 +1823,35 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* ---- Flunk: aufklappbare Kartenhand der Teams ------------------------------ */
+.flunk-cards {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+.flunk-cards summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 4px 0;
+}
+
+.flunk-cards[open] summary {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.flunk-cards .chip-list {
+  margin-top: 8px;
+}
+
+/* KK-Gutschrift pro Sieg – kompakte Eingabe vor dem Beenden-Button. */
+.flunk-reward input {
+  max-width: 140px;
 }
 
 /* ---- Ausbildung / Berufswahl --------------------------------------------- */
