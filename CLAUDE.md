@@ -1,7 +1,8 @@
 # Hinweise für Claude
 
 ## Workflow
-- PRs nach grünem CI/Deploy **direkt mergen** – nicht auf Freigabe warten.
+- **Immer alles mergen!** PRs nach grünem CI/Deploy **direkt mergen** –
+  nicht auf Freigabe warten und nie nachfragen, ob gemergt werden soll.
   Wichtig ist nur, dass ein Rollback möglich bleibt: immer per
   **Merge-Commit** mergen (kein Squash/Rebase), dann reicht
   `git revert -m 1 <merge-commit>` zum Zurückrollen.
