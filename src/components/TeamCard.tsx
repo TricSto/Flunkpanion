@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import type { ActionCard, ActionCardKind, Team } from '../types'
 import { STOCK_NUMBERS, STOCK_PRICE } from '../types'
 import { useStore } from '../store'
-import { formatMoney, formatTime, pickRandom } from '../util'
+import { formatMoney, formatTime } from '../util'
 import { Modal } from './Modal'
 import { BerufChooser } from './BerufChooser'
 
@@ -14,7 +14,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
     state,
     adjustCash,
     undoTransaction,
-    addActionCard,
     removeActionCard,
     renameTeam,
     setPlayers,
@@ -33,27 +32,12 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
   const berufeDeck = state.decks.find((d) => d.type === 'job')
   const jobCard = team.job ? berufeDeck?.cards.find((c) => c.title === team.job!.title) : null
 
-  const heldTitles = new Set(team.actionCards.map((c) => c.title))
   const normalCards = team.actionCards.filter((c) => c.kind !== 'special')
   const specialCards = team.actionCards.filter((c) => c.kind === 'special')
 
   const showFlash = (msg: string) => {
     setFlash(msg)
     window.setTimeout(() => setFlash((f) => (f === msg ? null : f)), 2500)
-  }
-
-  const drawAction = (kind: ActionCardKind) => {
-    const deck = state.decks.find((d) => d.type === kind)
-    if (!deck) return
-    // Keine Doppelten: nur Karten ziehen, die das Team noch nicht hat.
-    const available = deck.cards.filter((c) => !heldTitles.has(c.title))
-    if (available.length === 0) {
-      showFlash(`Alle Karten aus „${deck.name}“ bereits im Team`)
-      return
-    }
-    const card = pickRandom(available)!
-    addActionCard(team.id, card.title, card.detail, kind)
-    showFlash(`Gezogen: ${card.title}`)
   }
 
   return (
@@ -168,19 +152,19 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
             </button>
           </div>
 
-          {/* Aktionskarten – getrennt nach normal & Game Changer */}
+          {/* Aktionskarten – getrennt nach normal & Game Changer. Gezogen
+              wird nur über die Spiel-Seite (Feedback #24), hier werden die
+              Karten nur angezeigt und ausgespielt. */}
           <CardSection
             title="🃏 Aktionskarten"
             kind="action"
             cards={normalCards}
-            onDraw={() => drawAction('action')}
             onRemove={(id) => removeActionCard(team.id, id)}
           />
           <CardSection
             title="⚡ Game Changer"
             kind="special"
             cards={specialCards}
-            onDraw={() => drawAction('special')}
             onRemove={(id) => removeActionCard(team.id, id)}
           />
 
@@ -316,13 +300,11 @@ function CardSection({
   title,
   kind,
   cards,
-  onDraw,
   onRemove,
 }: {
   title: string
   kind: ActionCardKind
   cards: ActionCard[]
-  onDraw: () => void
   onRemove: (cardId: string) => void
 }) {
   return (
@@ -331,9 +313,6 @@ function CardSection({
         <h4>
           {title} ({cards.length})
         </h4>
-        <button className="btn small" onClick={onDraw}>
-          🎲 ziehen
-        </button>
       </div>
       {cards.length === 0 ? (
         <p className="muted small">Noch keine Karten gezogen.</p>
