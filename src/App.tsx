@@ -26,6 +26,9 @@ export function App() {
   // Online-Spiel erstellt/beigetreten.
   const [tab, setTab] = useState<Tab>('admin')
   const [overlay, setOverlay] = useState<Overlay>(null)
+  // Nach „Getränk zählen" (Edward 20 Hands) soll die Teamseite direkt den
+  // Bierzähler zeigen – sonst geht die Weiterleitung visuell unter.
+  const [teamsFocus, setTeamsFocus] = useState<'beers' | null>(null)
   const [theme, setTheme] = useState<Theme>(loadTheme)
   // Richtung des letzten Seitenwechsels für die Slide-Animation.
   const [slideFrom, setSlideFrom] = useState<'left' | 'right' | null>(null)
@@ -82,7 +85,7 @@ export function App() {
       <main className="app-main" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {overlay === 'challenge' ? (
           <OverlayShell title="⚔️ Challenge" onBack={() => setOverlay(null)}>
-            <ChallengeView />
+            <ChallengeView onClose={() => setOverlay(null)} />
           </OverlayShell>
         ) : overlay === 'flunk' ? (
           <OverlayShell title="🚩 Flunk-Feld" onBack={() => setOverlay(null)}>
@@ -101,10 +104,18 @@ export function App() {
               <BoardView
                 onOpenChallenge={() => setOverlay('challenge')}
                 onOpenFlunk={() => setOverlay('flunk')}
-                onGoToTeams={() => switchTab('teams')}
+                onGoToTeams={(focus) => {
+                  setTeamsFocus(focus ?? null)
+                  switchTab('teams')
+                }}
               />
             )}
-            {tab === 'teams' && <TeamsView />}
+            {tab === 'teams' && (
+              <TeamsView
+                focusBeers={teamsFocus === 'beers'}
+                onFocusDone={() => setTeamsFocus(null)}
+              />
+            )}
             {tab === 'admin' && (
               <AdminView
                 onEndGame={() => setOverlay('stats')}

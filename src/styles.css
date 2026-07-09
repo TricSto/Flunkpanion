@@ -1931,6 +1931,16 @@ select {
   padding: 4px 12px;
 }
 
+/* Nach der Weiterleitung (Edward 20 Hands) pulsiert der Bierzähler kurz. */
+.beer-counters.beer-focus .beer-counter {
+  animation: beerFocus 1.2s ease-in-out 2;
+}
+
+@keyframes beerFocus {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc-orange) 65%, transparent); }
+}
+
 /* ---- Setup: Spieleranzahl ------------------------------------------------- */
 .players-input {
   width: 66px;
@@ -2070,6 +2080,18 @@ select {
 .flunk-hand-title {
   margin: 0;
   font-size: 15px;
+}
+
+/* Kartenhand in zwei Blöcken: normale Aktionskarten und Game Changer. */
+.hand-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hand-group-special {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
 }
 
 .flunk-hand-empty {
@@ -2518,6 +2540,60 @@ button.stat-tile:active {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* ---- Team-Picker (Kingstabelle/Minigames): Kacheln statt Dropdown ---------- */
+.team-picker {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.team-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 48px;
+  font-weight: 600;
+  transition: transform 0.08s, border-color 0.15s, background 0.15s;
+}
+
+.team-pick:active {
+  transform: scale(0.96);
+}
+
+.team-pick-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--team);
+  flex-shrink: 0;
+}
+
+.team-pick-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.team-pick.selected {
+  border-color: var(--team);
+  background: color-mix(in srgb, var(--team) 16%, var(--bg-elev-2));
+  box-shadow: 0 0 0 1px var(--team);
+}
+
+.team-pick-check {
+  color: var(--team);
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
 /* ---- Aktien: Nummern-Picker (1–8) ------------------------------------------ */

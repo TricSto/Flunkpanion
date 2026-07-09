@@ -51,6 +51,9 @@ function tileStyle(color: string): CSSProperties {
   return { '--tile': color } as CSSProperties
 }
 
+/** Wechselt zur Teamseite; mit 'beers' wird dort der Bierzähler fokussiert. */
+type GoToTeams = (focus?: 'beers') => void
+
 export function BoardView({
   onOpenChallenge,
   onOpenFlunk,
@@ -58,7 +61,7 @@ export function BoardView({
 }: {
   onOpenChallenge: () => void
   onOpenFlunk: () => void
-  onGoToTeams: () => void
+  onGoToTeams: GoToTeams
 }) {
   const [active, setActive] = useState<FieldDef | null>(null)
 
@@ -102,7 +105,7 @@ function FieldSheet({
 }: {
   field: FieldDef
   onClose: () => void
-  onGoToTeams: () => void
+  onGoToTeams: GoToTeams
 }) {
   const { state } = useStore()
   // Minigames spielen alle (Sieger wird im Feld gewählt, #29) und der
@@ -155,7 +158,7 @@ function FieldBody({
   field: FieldDef
   team: Team | null
   onClose: () => void
-  onGoToTeams: () => void
+  onGoToTeams: GoToTeams
 }) {
   const { state, adjustCash, payBeerTax, addActionCard, addBeer } = useStore()
   const [flash, setFlash] = useState<string | null>(null)
@@ -179,7 +182,7 @@ function FieldBody({
     )
   }
 
-  // Minigames: Sieger wird im Feld per Dropdown gewählt – kein Team nötig.
+  // Minigames: Sieger wird im Feld per Team-Kachel gewählt – kein Team nötig.
   if (field.key === 'minigames') {
     return (
       <>
@@ -379,10 +382,11 @@ function FieldBody({
         <button
           className="btn primary block"
           onClick={() => {
-            // Direkt zählen, Fenster schließen und zur Teamseite wechseln.
+            // Direkt zählen, Fenster schließen und zur Teamseite wechseln –
+            // dort wird der Bierzähler angescrollt und kurz hervorgehoben.
             addBeer(team.id, 'normal', 1)
             onClose()
-            onGoToTeams()
+            onGoToTeams('beers')
           }}
         >
           🍺 Getränk zählen (+1 Bier)
@@ -491,6 +495,42 @@ function GehaltswechselBody({ onClose }: { onClose: () => void }) {
   )
 }
 
+/**
+ * Team-Auswahl als bunte Buttons statt Dropdown – jedes Team als Kachel in
+ * seiner Farbe, das gewählte bekommt Rahmen + Häkchen.
+ */
+function TeamPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (teamId: string) => void
+}) {
+  const { state } = useStore()
+  return (
+    <div className="field">
+      <span>{label}</span>
+      <div className="team-picker">
+        {state.teams.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={t.id === value ? 'team-pick selected' : 'team-pick'}
+            style={{ '--team': t.color } as CSSProperties}
+            onClick={() => onChange(t.id)}
+          >
+            <span className="team-pick-dot" aria-hidden="true" />
+            <span className="team-pick-name">{t.name}</span>
+            {t.id === value && <span className="team-pick-check">✓</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** KK-Strafe für das Verlierer-Team der Kingstabelle (#46). */
 const KINGSTABELLE_PENALTY = 2
 
@@ -512,16 +552,7 @@ function KingstabelleBody({ onDone }: { onDone: (msg: string) => void }) {
         hier das <strong>Verlierer-Team</strong> – ihm werden automatisch{' '}
         {KINGSTABELLE_PENALTY} KK abgezogen.
       </p>
-      <label className="field">
-        <span>Verlierer-Team</span>
-        <select value={loserId} onChange={(e) => setLoserId(e.target.value)}>
-          {state.teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <TeamPicker label="Verlierer-Team" value={loserId} onChange={setLoserId} />
       <button
         className="btn primary block"
         disabled={!loserId}
@@ -538,7 +569,7 @@ function KingstabelleBody({ onDone }: { onDone: (msg: string) => void }) {
   )
 }
 
-// --- Minigames (alle spielen mit – Sieger per Dropdown wählen, #29) ---------
+// --- Minigames (alle spielen mit – Sieger per Team-Kachel wählen, #29) ------
 
 function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
   const { state, bumpStat, addActionCard } = useStore()
@@ -556,16 +587,7 @@ function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
         mit. Wähle hier, wer gewonnen hat: Das Team bekommt eine zufällige
         Aktionskarte (und der Sieg zählt für die Endstatistik).
       </p>
-      <label className="field">
-        <span>Gewinner-Team</span>
-        <select value={winnerId} onChange={(e) => setWinnerId(e.target.value)}>
-          {state.teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <TeamPicker label="Gewinner-Team" value={winnerId} onChange={setWinnerId} />
       <button
         className="btn primary block"
         disabled={!winnerId}
