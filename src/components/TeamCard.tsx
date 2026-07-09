@@ -20,7 +20,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
     addBeer,
     buyStock,
     removeStock,
-    payoutStock,
+    payoutStockCard,
   } = useStore()
 
   const [open, setOpen] = useState(defaultOpen)
@@ -277,17 +277,14 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
 
       {modal === 'stock' && (
         <StockModal
+          stockNumber={team.stockNumber!}
           onClose={() => setModal(null)}
           onRemove={() => {
             removeStock(team.id)
             setModal(null)
             showFlash('Aktie abgegeben')
           }}
-          onSubmit={(amount) => {
-            payoutStock(team.id, amount)
-            setModal(null)
-            showFlash(`Aktien-Auszahlung +${amount} KK`)
-          }}
+          onDraw={() => payoutStockCard(team.id)}
         />
       )}
     </article>
@@ -470,44 +467,52 @@ function StockPickerModal({
 }
 
 function StockModal({
+  stockNumber,
   onClose,
   onRemove,
-  onSubmit,
+  onDraw,
 }: {
+  stockNumber: number
   onClose: () => void
   onRemove: () => void
-  onSubmit: (amount: number) => void
+  /** Zieht die Aktionskarten-Belohnung und gibt sie zurück (Feedback #30/#31). */
+  onDraw: () => ActionCard | null
 }) {
-  const [value, setValue] = useState('')
-  const num = Number(value)
-  const valid = value !== '' && !Number.isNaN(num) && num > 0
+  const [drawn, setDrawn] = useState<ActionCard | null>(null)
   return (
-    <Modal title="📈 Aktien-Auszahlung" onClose={onClose}>
-      <p className="muted small">
-        Wenn die Aktien-Zahl gewürfelt wurde: gib die Auszahlung in KK ein.
-      </p>
-      <label className="field">
-        <span>Betrag in KK</span>
-        <input
-          type="number"
-          inputMode="numeric"
-          autoFocus
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="z. B. 30"
-        />
-      </label>
-      <div className="modal-actions">
-        <button className="btn danger ghost" onClick={onRemove}>
-          Aktie abgeben
-        </button>
-        <button className="btn ghost" onClick={onClose}>
-          Abbrechen
-        </button>
-        <button className="btn primary" disabled={!valid} onClick={() => onSubmit(num)}>
-          Gutschreiben
-        </button>
-      </div>
+    <Modal title={`📈 Aktie Nr. ${stockNumber}`} onClose={onClose}>
+      {drawn === null ? (
+        <>
+          <p className="muted small">
+            Wurde eure Zahl <strong>{stockNumber}</strong> geworfen? Dann gibt es
+            dafür eine zufällige Aktionskarte.
+          </p>
+          <button className="btn primary block" onClick={() => setDrawn(onDraw())}>
+            🎲 Zahl {stockNumber} geworfen – Aktionskarte ziehen
+          </button>
+          <div className="modal-actions">
+            <button className="btn danger ghost" onClick={onRemove}>
+              Aktie abgeben
+            </button>
+            <button className="btn ghost" onClick={onClose}>
+              Abbrechen
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="drawn-card reward-card">
+            <strong className="drawn-title">{drawn.title}</strong>
+            {drawn.note && <p className="drawn-detail">{drawn.note}</p>}
+          </div>
+          <p className="muted small">Die Karte liegt im Team-Inventar.</p>
+          <div className="modal-actions">
+            <button className="btn primary" onClick={onClose}>
+              Alles klar
+            </button>
+          </div>
+        </>
+      )}
     </Modal>
   )
 }
