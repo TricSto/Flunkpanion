@@ -416,6 +416,56 @@ export interface BoardTheme {
 
 export const BOARD_THEMES: BoardTheme[] = [
   {
+    id: 'comic',
+    name: 'Comic Pop',
+    desc: 'Das Standard-Design: fette schwarze Outlines, knallige Farben, Sticker-Optik.',
+    bg: ['#fff8e0', '#ffedc2'],
+    decor: 'halftone',
+    titleFamily: '"Comic Sans MS", "Trebuchet MS", sans-serif',
+    titleColor: '#17130d',
+    titleUpper: true,
+    subColor: '#6b5c3f',
+    tileShape: 'rounded',
+    tileMode: 'fill',
+    tileBase: '#ffffff',
+    colors: {
+      ereignis: '#29abe2',
+      aktion: '#ffb703',
+      gamechanger: '#9b5de5',
+      challenge: '#06d6a0',
+      minigame: '#ff70a6',
+      flunk: '#ef476f',
+      zahltag: '#4ad66d',
+      biersteuer: '#ff8c42',
+      berufswechsel: '#5c7cfa',
+      start: '#f4f4f4',
+      rente: '#ffd23f',
+    },
+    iconColor: '#17130d',
+    tileStroke: '#17130d',
+    tileStrokeFactor: 0.05,
+    doubleRing: false,
+    shadow: 'hard',
+    gloss: false,
+    rotation: 5,
+    textColor: '#17130d',
+    numBg: '#ffffff',
+    numText: '#17130d',
+    path: { fill: '#fffdf4', edge: '#17130d', center: '#c9c2b2', dash: [24, 28] },
+    lanes: { studium: '#e6e0ff', ausbildung: '#ffe3b8' },
+    table: {
+      bg: '#fffdf4',
+      border: '#17130d',
+      borderW: 8,
+      headBg: '#ffd23f',
+      headText: '#17130d',
+      text: '#241d12',
+      chipBg: '#17130d',
+      chipText: '#ffd23f',
+      zebra: '#f6efdb',
+    },
+  },
+  {
     id: 'sommerfest',
     name: 'Sommerfest',
     desc: 'Bunt & verspielt wie Mario Party – Konfetti, Candy-Farben, Straßen-Look.',
@@ -615,56 +665,6 @@ export const BOARD_THEMES: BoardTheme[] = [
       zebra: '#f7f7f3',
     },
   },
-  {
-    id: 'comic',
-    name: 'Comic Pop',
-    desc: 'Fette schwarze Outlines, knallige Farben, Sticker-Optik wie im Comicheft.',
-    bg: ['#fff8e0', '#ffedc2'],
-    decor: 'halftone',
-    titleFamily: '"Comic Sans MS", "Trebuchet MS", sans-serif',
-    titleColor: '#17130d',
-    titleUpper: true,
-    subColor: '#6b5c3f',
-    tileShape: 'rounded',
-    tileMode: 'fill',
-    tileBase: '#ffffff',
-    colors: {
-      ereignis: '#29abe2',
-      aktion: '#ffb703',
-      gamechanger: '#9b5de5',
-      challenge: '#06d6a0',
-      minigame: '#ff70a6',
-      flunk: '#ef476f',
-      zahltag: '#4ad66d',
-      biersteuer: '#ff8c42',
-      berufswechsel: '#5c7cfa',
-      start: '#f4f4f4',
-      rente: '#ffd23f',
-    },
-    iconColor: '#17130d',
-    tileStroke: '#17130d',
-    tileStrokeFactor: 0.05,
-    doubleRing: false,
-    shadow: 'hard',
-    gloss: false,
-    rotation: 5,
-    textColor: '#17130d',
-    numBg: '#ffffff',
-    numText: '#17130d',
-    path: { fill: '#fffdf4', edge: '#17130d', center: '#c9c2b2', dash: [24, 28] },
-    lanes: { studium: '#e6e0ff', ausbildung: '#ffe3b8' },
-    table: {
-      bg: '#fffdf4',
-      border: '#17130d',
-      borderW: 8,
-      headBg: '#ffd23f',
-      headText: '#17130d',
-      text: '#241d12',
-      chipBg: '#17130d',
-      chipText: '#ffd23f',
-      zebra: '#f6efdb',
-    },
-  },
 ]
 
 export function boardTheme(id: string): BoardTheme {
@@ -750,25 +750,8 @@ export async function renderBoardCanvas(
   ctx.fillRect(0, 0, W, H)
   drawDecor(ctx, theme)
 
-  // ---- Kopfzeile -------------------------------------------------------------
   const margin = 130
   const logo = await loadImage('./logo-fdl.png')
-  if (logo) {
-    ctx.save()
-    ctx.shadowColor = 'rgba(0,0,0,0.2)'
-    ctx.shadowBlur = 12
-    ctx.drawImage(logo, margin, 46, 138, 138)
-    ctx.restore()
-  }
-  const textX = margin + (logo ? 172 : 0)
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = theme.titleColor
-  ctx.font = `900 92px ${theme.titleFamily}`
-  ctx.fillText(theme.titleUpper ? 'FLUNK DES LEBENS' : 'Flunk des Lebens', textX, 104)
-  ctx.font = `600 42px ${theme.titleFamily}`
-  ctx.fillStyle = theme.subColor
-  ctx.fillText('Das Spielbrett · von Chris & Marlon', textX, 178)
 
   // ---- Geometrie --------------------------------------------------------------
   const laneRanks: Array<'studium' | 'ausbildung'> = []
@@ -788,7 +771,9 @@ export async function renderBoardCanvas(
   }
   const mainRows = Math.max(rows.length, 1)
 
-  const top = 240
+  // Kein eigener Kopfbereich mehr: der Studiums-Weg beginnt ganz oben am
+  // Rand, Logo + Titel wohnen links neben dem (eingerückten) Ausbildungs-Weg.
+  const top = 56
   const bottom = H - 84
   const ranks = laneCount + Math.max(mainRows, 5)
   const rowPitch = (bottom - top) / ranks
@@ -796,7 +781,7 @@ export async function renderBoardCanvas(
   const colPitch = (W - 2 * (margin + turnR)) / (cols - 1)
   const cx = (c: number) => margin + turnR + c * colPitch
   const cy = (rank: number) => top + rank * rowPitch + rowPitch / 2
-  const tile = Math.min(rowPitch * 0.76, colPitch * 0.66)
+  const tile = Math.min(rowPitch * 0.78, colPitch * 0.68)
 
   // Positionen des Hauptwegs: Reihe 0 läuft rechts→links (Start oben rechts,
   // dort münden die Startwege), danach Serpentinen mit runden Wenden.
@@ -827,6 +812,45 @@ export async function renderBoardCanvas(
   laneRanks.forEach((branch, rank) => {
     lanePos[branch] = lanePositions(branch === 'studium' ? studium.length : ausbildung.length, rank)
   })
+
+  // ---- Logo + Titel ------------------------------------------------------------
+  // Sitzt im freien Bereich links neben dem eingerückten Ausbildungs-Weg
+  // (bzw. oben links, wenn es keine Startwege gibt).
+  {
+    const titleCY = laneCount > 0 ? cy(laneCount - 1) : 150
+    const laneLeft = ausbildung.length
+      ? lanePos.ausbildung[0].x - tile * 0.78
+      : laneCount > 0
+        ? cx(0) - tile * 0.6
+        : W - margin
+    const availW = laneLeft - margin - 30
+    const logoSize = Math.min(190, rowPitch * 0.68)
+    if (logo && availW > 400) {
+      ctx.save()
+      ctx.shadowColor = 'rgba(0,0,0,0.25)'
+      ctx.shadowBlur = 14
+      ctx.shadowOffsetY = 6
+      ctx.drawImage(logo, margin, titleCY - logoSize / 2, logoSize, logoSize)
+      ctx.restore()
+    }
+    const tx = margin + (logo && availW > 400 ? logoSize + 30 : 0)
+    const title = theme.titleUpper ? 'FLUNK DES LEBENS' : 'Flunk des Lebens'
+    let titlePx = 108
+    ctx.font = `900 ${titlePx}px ${theme.titleFamily}`
+    const wMax = Math.max(300, availW - (tx - margin))
+    const measured = ctx.measureText(title).width
+    if (measured > wMax) {
+      titlePx = Math.max(44, (titlePx * wMax) / measured)
+    }
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = theme.titleColor
+    ctx.font = `900 ${titlePx}px ${theme.titleFamily}`
+    ctx.fillText(title, tx, titleCY - titlePx * 0.28)
+    ctx.fillStyle = theme.subColor
+    ctx.font = `700 ${titlePx * 0.42}px ${theme.titleFamily}`
+    ctx.fillText('von Chris & Marlon', tx + 4, titleCY + titlePx * 0.42)
+  }
 
   // ---- Wege -------------------------------------------------------------------
   const ribbonWidth = tile * 0.6
@@ -1019,10 +1043,10 @@ export async function renderBoardCanvas(
   main.forEach(({ field, index }, m) => drawTile(mainPos[m], field, `${m + 1}`, index))
 
   // ---- Tabellen (Kingstabelle + Minigames) ------------------------------------
-  const zoneX = cx(SHORT_ROW_CAP - 1) + turnR + tile * 0.62
-  const zoneW = W - margin - zoneX
-  const zoneY = cy(laneCount + 1) - rowPitch * 0.44
-  const zoneH = cy(laneCount + 4) + rowPitch * 0.44 - zoneY
+  const zoneX = cx(SHORT_ROW_CAP - 1) + turnR + tile * 0.58
+  const zoneW = W - margin + 24 - zoneX
+  const zoneY = cy(laneCount + 1) - rowPitch * 0.48
+  const zoneH = cy(laneCount + 4) + rowPitch * 0.48 - zoneY
   if (zoneW > 400) {
     const gap = 30
     const kingsH = (zoneH - gap) * 0.42
@@ -1147,7 +1171,7 @@ function drawTable(
   ctx.stroke()
 
   // Kopfzeile
-  const headH = Math.min(84, h * 0.16)
+  const headH = Math.min(100, h * 0.17)
   ctx.save()
   rr(ctx, x, y, w, h, r)
   ctx.clip()
@@ -1169,9 +1193,9 @@ function drawTable(
   ctx.fillText(title, x + 26 + iconPx + 18, y + headH / 2 + 2)
 
   // Zeilen
-  const pad = 14
+  const pad = 16
   const rowH = (h - headH - pad * 2) / rows.length
-  const chipR = Math.min(rowH * 0.36, 26)
+  const chipR = Math.min(rowH * 0.38, 31)
   ctx.textBaseline = 'middle'
   rows.forEach((row, i) => {
     const ry = y + headH + pad + i * rowH
@@ -1190,7 +1214,7 @@ function drawTable(
     ctx.fillText(`${row.n}`, x + 26 + chipR, cyy + 1)
     ctx.fillStyle = theme.table.text
     ctx.textAlign = 'left'
-    const fontPx = Math.min(rowH * 0.5, 32)
+    const fontPx = Math.min(rowH * 0.52, 40)
     ctx.font = `600 ${fontPx}px ${theme.titleFamily}`
     const textX = x + 26 + chipR * 2 + 20
     const lines = wrapText(ctx, row.text, w - (textX - x) - 24, 2)
