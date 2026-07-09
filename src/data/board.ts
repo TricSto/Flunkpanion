@@ -50,7 +50,7 @@ export function boardFieldIcon(field: BoardField): string {
 
 // Bei inhaltlichen Änderungen am Standard-Brett erhöhen – gespeicherte
 // Bretter älterer Versionen werden dann durch das neue Layout ersetzt.
-export const BOARD_VERSION = 2
+export const BOARD_VERSION = 3
 
 /** Felder pro Reihe im Serpentinen-Layout des Hauptwegs. */
 export const BOARD_COLS = 8
@@ -77,61 +77,51 @@ const STUDIUM_SPEC: Spec = [
   ['zahltag', '1. Gehalt'],
 ]
 
-// Hauptweg: 6 Reihen à 8 Felder, Reihenfolge = Laufweg, endet in der Rente.
+// Hauptweg, Reihenfolge = Laufweg. Feld 1 (dort münden beide Startwege)
+// ist IMMER ein Flunk-Feld. Auf dem gedruckten Brett sind die Reihen 2–5
+// kürzer – rechts daneben stehen Kingstabelle und Minigames-Tabelle.
 const MAIN_SPEC: Spec = [
-  // Reihe 1
-  ['ereignis'],
-  ['aktion'],
-  ['challenge'],
-  ['gamechanger'],
-  ['minigame'],
+  // Reihe 1 (8 Felder) – beginnt mit der ersten gemeinsamen Flunk-Runde
   ['flunk'],
   ['ereignis'],
-  ['biersteuer'],
-  // Reihe 2
   ['aktion'],
   ['gamechanger'],
+  ['challenge'],
+  ['minigame'],
+  ['biersteuer'],
+  ['ereignis'],
+  // Reihe 2 (5 Felder, daneben die Tabellen)
+  ['aktion'],
   ['zahltag'],
+  ['gamechanger'],
   ['ereignis'],
   ['challenge'],
+  // Reihe 3 (5 Felder)
+  ['minigame'],
+  ['flunk'],
+  ['aktion'],
   ['berufswechsel'],
-  ['minigame'],
-  ['flunk'],
-  // Reihe 3
   ['ereignis'],
-  ['aktion'],
+  // Reihe 4 (5 Felder)
   ['gamechanger'],
   ['biersteuer'],
   ['challenge'],
   ['zahltag'],
   ['ereignis'],
-  ['minigame'],
-  // Reihe 4
-  ['flunk'],
+  // Reihe 5 (5 Felder)
   ['aktion'],
-  ['gamechanger'],
+  ['minigame'],
+  ['flunk'],
   ['ereignis'],
   ['berufswechsel', 'Pflicht'],
-  ['challenge'],
-  ['biersteuer'],
-  ['minigame'],
-  // Reihe 5
-  ['zahltag'],
-  ['ereignis'],
-  ['flunk'],
-  ['aktion'],
+  // Reihe 6 (8 Felder) – endet in der Rente
   ['gamechanger'],
   ['challenge'],
-  ['ereignis'],
-  ['berufswechsel'],
-  // Reihe 6
-  ['minigame'],
   ['biersteuer'],
   ['zahltag'],
+  ['aktion'],
   ['ereignis'],
   ['flunk'],
-  ['aktion'],
-  ['gamechanger'],
   ['rente', 'Rente'],
 ]
 
