@@ -161,6 +161,13 @@ function FieldBody({
   const [flash, setFlash] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Card | null>(null)
 
+  // Einheitlicher Fertig-Button wie beim Kingstabelle-Feld (#43).
+  const doneBtn = (
+    <button className="btn ghost block sheet-done" onClick={onClose}>
+      ✓ Fertig
+    </button>
+  )
+
   // Kingstabelle: reines Info-Feld, kein Team nötig.
   if (field.key === 'kingstabelle') {
     return (
@@ -182,6 +189,7 @@ function FieldBody({
       <>
         <MinigameBody onDone={setFlash} />
         {flash && <div className="flash sheet-flash">{flash}</div>}
+        {doneBtn}
       </>
     )
   }
@@ -220,6 +228,7 @@ function FieldBody({
           </p>
         )}
         {flashEl}
+        {doneBtn}
       </>
     )
   }
@@ -245,6 +254,7 @@ function FieldBody({
           </p>
         )}
         {flashEl}
+        {doneBtn}
       </>
     )
   }
@@ -277,6 +287,7 @@ function FieldBody({
           </div>
         )}
         {flashEl}
+        {doneBtn}
       </>
     )
   }
@@ -293,9 +304,12 @@ function FieldBody({
     return (
       <>
         {!drawn ? (
-          <button className="btn primary block" onClick={draw}>
-            🎲 Ereignis ziehen
-          </button>
+          <>
+            <button className="btn primary block" onClick={draw}>
+              🎲 Ereignis ziehen
+            </button>
+            {doneBtn}
+          </>
         ) : (
           <>
             <div className="drawn-card sheet-drawn">
@@ -354,6 +368,7 @@ function FieldBody({
         >
           🍺 Getränk zählen (+1 Bier)
         </button>
+        {doneBtn}
       </>
     )
   }
@@ -450,6 +465,9 @@ function GehaltswechselBody({ onClose }: { onClose: () => void }) {
         zurückgesetzt und neu erwürfelt – Studium bekommt wieder einen
         Diplom-Beruf, Ausbildung einen Ausbildungsberuf.
       </p>
+      <button className="btn ghost block sheet-done" onClick={onClose}>
+        ✓ Fertig
+      </button>
     </>
   )
 }
