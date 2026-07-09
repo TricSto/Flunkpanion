@@ -1,0 +1,107 @@
+name: App-Feedback zu Issues
+
+# Temporäre Feedback-Pipeline: liest die Einträge der Feedback-Seite aus
+# Supabase (games.state -> feedback) und legt für jeden neuen Eintrag ein
+# GitHub-Issue mit dem Label "app-feedback" an (Dedup über die Feedback-ID
+# im Issue-Text). Die Issues werden von Claude aufgegriffen, als PR
+# umgesetzt und vom Maintainer freigegeben – NICHT automatisch gemergt.
+on:
+  schedule:
+    # Alle 30 Minuten (GitHub kann Schedules etwas verzögern).
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+env:
+  # Reference ID des Supabase-Projekts (kein Geheimnis, steht in der URL).
+  SUPABASE_PROJECT_ID: jkqkcuuogymfbdirdmde
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Feedback aus Supabase laden
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          # Der anon-Key liegt nicht als Secret vor – über die Management-API
+          # holen (?reveal=true für neue Key-Formate, legacy ignoriert es).
+          anon=$(curl -sf -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/api-keys?reveal=true" \
+            | jq -r '[.[] | select(.name == "anon")][0].api_key // empty')
+          if [ -z "$anon" ]; then
+            echo "::error::anon-Key konnte nicht ermittelt werden"; exit 1
+          fi
+          # Alle Spielstände lesen und die Feedback-Einträge herausziehen.
+          # unique_by(.id): derselbe Eintrag kann in mehreren Spielen liegen
+          # (z. B. wenn der Host mit bestehendem Zustand ein neues Spiel erstellt).
+          curl -sf "https://$SUPABASE_PROJECT_ID.supabase.co/rest/v1/games?select=code,state" \
+            -H "apikey: $anon" -H "Authorization: Bearer $anon" \
+            | jq '[.[] | .code as $code | (.state.feedback // [])[]
+                   | {id, kind, text, author, at, game: $code}]
+                  | unique_by(.id) | sort_by(.at)' \
+            > feedback.json
+          echo "Gefundene Feedback-Einträge: $(jq length feedback.json)"
+
+      - name: Neue Einträge als Issues anlegen
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const entries = JSON.parse(fs.readFileSync('feedback.json', 'utf8'))
+            if (entries.length === 0) return
+
+            // Label sicherstellen (422 = existiert schon).
+            try {
+              await github.rest.issues.createLabel({
+                ...context.repo,
+                name: 'app-feedback',
+                color: '1d76db',
+                description: 'Feedback aus der App (temporäre Feedback-Seite)',
+              })
+            } catch (e) { if (e.status !== 422) throw e }
+
+            // Bereits angelegte Feedback-IDs einsammeln – auch geschlossene
+            // Issues, damit erledigtes Feedback nicht erneut aufpoppt.
+            const seen = new Set()
+            for await (const { data } of github.paginate.iterator(
+              github.rest.issues.listForRepo,
+              { ...context.repo, labels: 'app-feedback', state: 'all', per_page: 100 },
+            )) {
+              for (const issue of data) {
+                const m = (issue.body ?? '').match(/feedback-id:\s*([a-z0-9]+)/)
+                if (m) seen.add(m[1])
+              }
+            }
+
+            const kindLabel = { fehler: '🐞 Fehler', idee: '💡 Idee', sonstiges: '💬 Sonstiges' }
+            for (const f of entries) {
+              if (!f.id || seen.has(f.id)) continue
+              const oneline = String(f.text ?? '').replace(/\s+/g, ' ').trim()
+              const title = `[App-Feedback] ${oneline.slice(0, 80)}${oneline.length > 80 ? '…' : ''}`
+              const body = [
+                `**Art:** ${kindLabel[f.kind] ?? f.kind}`,
+                `**Von:** ${f.author || '–'}`,
+                `**Spiel:** ${f.game}`,
+                `**Zeit:** ${new Date(f.at).toISOString()}`,
+                '',
+                '> [!NOTE]',
+                '> Automatisch aus der Feedback-Seite der App übernommen.',
+                '> Der folgende Text stammt unverändert von Spieler:innen.',
+                '',
+                '```text',
+                String(f.text ?? ''),
+                '```',
+                '',
+                `<!-- feedback-id: ${f.id} -->`,
+              ].join('\n')
+              await github.rest.issues.create({
+                ...context.repo,
+                title,
+                labels: ['app-feedback'],
+                body,
+              })
+              console.log(`Issue angelegt für Feedback ${f.id}`)
+            }
