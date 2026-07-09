@@ -498,7 +498,7 @@ function GehaltswechselBody({ onClose }: { onClose: () => void }) {
 // --- Minigames (alle spielen mit – Sieger per Dropdown wählen, #29) ---------
 
 function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
-  const { state, bumpStat } = useStore()
+  const { state, bumpStat, addActionCard } = useStore()
   // Vorauswahl: eigenes Team, sonst das erste.
   const [winnerId, setWinnerId] = useState<string>(
     state.currentTeamId ?? state.teams[0]?.id ?? '',
@@ -510,7 +510,8 @@ function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
     <>
       <p className="sheet-info">
         Minigame wird <strong>am Spielbrett</strong> gespielt – alle Teams machen
-        mit. Wähle hier, wer gewonnen hat (zählt für die Endstatistik).
+        mit. Wähle hier, wer gewonnen hat: Das Team bekommt eine zufällige
+        Aktionskarte (und der Sieg zählt für die Endstatistik).
       </p>
       <label className="field">
         <span>Gewinner-Team</span>
@@ -529,7 +530,16 @@ function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
           const winner = state.teams.find((t) => t.id === winnerId)
           if (!winner) return
           bumpStat(winner.id, 'minigameWins', 1)
-          onDone(`🏆 Minigame-Sieg für ${winner.name}`)
+          // Belohnung: zufällige Aktionskarte für den Gewinner (#45).
+          const deck = state.decks.find((d) => d.type === 'action')
+          const held = new Set(winner.actionCards.map((c) => c.title))
+          const card =
+            pickRandom((deck?.cards ?? []).filter((c) => !held.has(c.title))) ??
+            pickRandom(deck?.cards ?? [])
+          if (card) addActionCard(winner.id, card.title, card.detail, 'action')
+          onDone(
+            `🏆 Minigame-Sieg für ${winner.name}${card ? ` – 🃏 „${card.title}" gezogen` : ''}`,
+          )
         }}
       >
         🏆 Minigame gewonnen
