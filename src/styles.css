@@ -2886,9 +2886,11 @@ button.stat-tile:active {
   pointer-events: none;
 }
 
+/* Feld-Icon: gerendertes Vektor-Icon (kein Emoji). */
 .sb-icon {
-  font-size: clamp(15px, 4vw, 24px);
-  line-height: 1;
+  width: clamp(16px, 5vw, 26px);
+  height: clamp(16px, 5vw, 26px);
+  object-fit: contain;
   pointer-events: none;
 }
 
@@ -2913,10 +2915,15 @@ button.stat-tile:active {
 /* Ghost-Icon, das beim Verschieben am Finger klebt. */
 .sb-ghost {
   position: fixed;
+  inset: 0;
   z-index: 120;
   pointer-events: none;
+}
+
+.sb-ghost-img {
+  width: 40px;
+  height: 40px;
   transform: translate(-50%, -70%);
-  font-size: 36px;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
 }
 
@@ -2949,8 +2956,74 @@ button.stat-tile:active {
 }
 
 .sb-type-icon {
-  font-size: 18px;
-  line-height: 1;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+/* Icon in den Palette-Chips. */
+.sb-chip-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+/* Design-Auswahl fürs PDF: Karten mit Live-Vorschau. */
+.sb-theme-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sb-theme {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+}
+
+.sb-theme:active {
+  transform: scale(0.99);
+}
+
+.sb-theme-thumb {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.sb-theme-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.sb-theme-desc {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Regel-Tabellen (Kingstabelle/Minigames) in den Feld-Dialogen. */
+.rule-table {
+  margin: 0 0 10px;
+  padding: 8px 10px 8px 30px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.rule-table li::marker {
+  font-weight: 700;
+  color: var(--muted);
 }
 
 /* Weg-Auswahl (Hauptweg / Ausbildung / Studium) im Bearbeiten-Sheet. */
