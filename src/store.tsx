@@ -139,7 +139,12 @@ function normalizeTeams(teams: Team[] | undefined, decks: Deck[]): Team[] {
 /** Ergänzt fehlende Felder älterer Flunk-Runden (z. B. `waitCardIds`). */
 function normalizeFlunk(flunk: FlunkRound | null | undefined): FlunkRound | null {
   if (!flunk) return null
-  return { ...flunk, waitCardIds: flunk.waitCardIds ?? {} }
+  return { ...flunk, waitCardIds: flunk.waitCardIds ?? {}, paidIds: flunk.paidIds ?? [] }
+}
+
+/** Frische Flunk-Runde in der Ankommens-Phase. */
+function emptyFlunk(): FlunkRound {
+  return { id: uid(), readyIds: [], matches: null, waitCardIds: {}, paidIds: [], at: Date.now() }
 }
 
 /** Nur die Felder, die zwischen allen Geräten geteilt werden. */
@@ -259,8 +264,12 @@ interface Store {
   resolveChallenge: (winnerId: string, reward: ChallengeReward, message: string) => void
   clearChallenge: () => void
   // Flunk-Runde (geteilt, live)
-  /** Team ist auf dem Flunk-Feld angekommen und bereit. */
-  flunkArrive: (teamId: string) => void
+  /**
+   * Team ist auf dem Flunk-Feld angekommen und bereit. Schreibt dabei einmal
+   * pro Flunk-Runde das aktuelle Gehalt gut und gibt den Betrag zurück
+   * (null, wenn schon gezahlt, kein Gehalt oder bereits bereit).
+   */
+  flunkArrive: (teamId: string) => number | null
   /**
    * Team hat (eine weitere) Runde gewartet: zieht eine zufällige normale
    * Aktionskarte als Belohnung und merkt sie sich in der Flunk-Runde, damit
@@ -908,13 +917,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       clearChallenge: () => setState((s) => ({ ...s, challenge: null })),
 
-      flunkArrive: (teamId) =>
+      flunkArrive: (teamId) => {
+        // Beim Ankommen gibt es einmal pro Flunk-Runde das Gehalt (Feedback
+        // #33) – ob schon gezahlt wurde, steht in flunk.paidIds.
+        const s0 = stateRef.current
+        const team = s0.teams.find((t) => t.id === teamId)
+        const salary = team?.job?.salary ?? 0
+        const alreadyPaid = s0.flunk?.paidIds?.includes(teamId) ?? false
+        const alreadyReady = s0.flunk?.readyIds.includes(teamId) ?? false
+        if (alreadyReady) return null
+        const pay = !alreadyPaid && salary > 0
         setState((s) => {
-          const flunk =
-            s.flunk ?? { id: uid(), readyIds: [], matches: null, waitCardIds: {}, at: Date.now() }
+          const flunk = s.flunk ?? emptyFlunk()
           if (flunk.readyIds.includes(teamId)) return s
-          return { ...s, flunk: { ...flunk, readyIds: [...flunk.readyIds, teamId] } }
-        }),
+          return {
+            ...s,
+            teams: pay
+              ? s.teams.map((t) =>
+                  t.id === teamId
+                    ? {
+                        ...t,
+                        cash: t.cash + salary,
+                        transactions: [
+                          {
+                            id: uid(),
+                            delta: salary,
+                            reason: 'Flunk-Feld: Gehalt',
+                            at: Date.now(),
+                          },
+                          ...t.transactions,
+                        ],
+                      }
+                    : t,
+                )
+              : s.teams,
+            flunk: {
+              ...flunk,
+              readyIds: [...flunk.readyIds, teamId],
+              paidIds: pay ? [...flunk.paidIds, teamId] : flunk.paidIds,
+            },
+          }
+        })
+        return pay ? salary : null
+      },
 
       flunkWaitRound: (teamId) => {
         const s = stateRef.current
@@ -936,9 +981,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           createdAt: Date.now(),
         }
         setState((prev) => {
-          const flunk =
-            prev.flunk ??
-            { id: uid(), readyIds: [], matches: null, waitCardIds: {}, at: Date.now() }
+          const flunk = prev.flunk ?? emptyFlunk()
           if (flunk.matches) return prev
           return {
             ...prev,

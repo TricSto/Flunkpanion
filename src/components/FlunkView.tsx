@@ -37,6 +37,8 @@ export function FlunkView() {
   const waitCardIds = state.flunk?.waitCardIds ?? {}
 
   const [waitDrawn, setWaitDrawn] = useState<{ teamName: string; card: ActionCard } | null>(null)
+  // Meldung zur einmaligen Gehalts-Gutschrift beim „Bereit" (Feedback #33).
+  const [paidMsg, setPaidMsg] = useState<string | null>(null)
   // KK-Gutschrift pro Flunk-Sieg – wird beim „Runde beenden" gebucht.
   const [reward, setReward] = useState(String(DEFAULT_WIN_REWARD))
 
@@ -46,6 +48,14 @@ export function FlunkView() {
     const team = teams.find((t) => t.id === id)
     const card = flunkWaitRound(id)
     if (team && card) setWaitDrawn({ teamName: team.name, card })
+  }
+
+  const arrive = (id: string) => {
+    const team = teams.find((t) => t.id === id)
+    const paid = flunkArrive(id)
+    if (team && paid) {
+      setPaidMsg(`💰 ${team.name}: Gehalt +${paid} KK gutgeschrieben (1× pro Flunk-Runde)`)
+    }
   }
 
   const readyCount = ready.size
@@ -178,10 +188,13 @@ export function FlunkView() {
   return (
     <section className="flunk">
       <p className="muted small settings-intro">
-        Auf dem Flunk-Feld angekommen? „Bereit zum Spielen" drücken. Muss ein
+        Auf dem Flunk-Feld angekommen? „Bereit zum Spielen" drücken – dabei
+        gibt es einmal pro Flunk-Runde das aktuelle Gehalt aufs Konto. Muss ein
         Team auf die anderen warten, gibt es pro gewarteter Runde eine
         Aktionskarte. Sind alle da, werden die Matches ausgelost.
       </p>
+
+      {paidMsg && <div className="flash">{paidMsg}</div>}
 
       <ul className="flunk-teams">
         {teams.map((t) => {
@@ -209,7 +222,7 @@ export function FlunkView() {
                     </button>
                   </>
                 ) : (
-                  <button className="btn small primary" onClick={() => flunkArrive(t.id)}>
+                  <button className="btn small primary" onClick={() => arrive(t.id)}>
                     ✅ Bereit zum Spielen
                   </button>
                 )}
