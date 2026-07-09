@@ -4,7 +4,7 @@ name: App-Feedback zu Issues
 # Supabase (games.state -> feedback) und legt für jeden neuen Eintrag ein
 # GitHub-Issue mit dem Label "app-feedback" an (Dedup über die Feedback-ID
 # im Issue-Text). Die Issues werden von Claude aufgegriffen, als PR
-# umgesetzt und vom Maintainer freigegeben – NICHT automatisch gemergt.
+# umgesetzt und nach grünem CI direkt gemergt (siehe CLAUDE.md).
 on:
   schedule:
     # Alle 30 Minuten (GitHub kann Schedules etwas verzögern).
