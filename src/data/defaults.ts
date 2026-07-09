@@ -1,4 +1,5 @@
 import type { AppState, Card, Deck, DeckType } from '../types'
+import { defaultBoard } from './board'
 
 export const TEAM_COLORS = [
   '#ef4444', // rot
@@ -191,4 +192,5 @@ export const initialState: AppState = {
   flunk: null,
   announcements: [],
   feedback: [],
+  board: defaultBoard(),
 }

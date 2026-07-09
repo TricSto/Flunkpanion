@@ -154,7 +154,8 @@ select {
   align-items: center;
   gap: 3px;
   font-size: 11px;
-  padding: 4px 18px;
+  /* 5 Tabs: schmaler, damit alles auf kleine Screens passt. */
+  padding: 4px 10px;
   border-radius: 10px;
   transition: color 0.15s;
 }
@@ -2659,4 +2660,216 @@ button.stat-tile:active {
   gap: 8px;
   flex-wrap: wrap;
   margin: 8px 0 4px;
+}
+
+/* ---- Spielbrett-Editor (temporäre Seite) ---------------------------------- */
+
+.spielbrett {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sb-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Palette zum Hinzufügen neuer Felder – horizontal scrollbar. */
+.sb-palette {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  scrollbar-width: none;
+}
+
+.sb-palette::-webkit-scrollbar {
+  display: none;
+}
+
+.sb-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--f) 55%, var(--border));
+  background: color-mix(in srgb, var(--f) 22%, var(--bg-elev));
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.sb-chip:active {
+  transform: scale(0.96);
+}
+
+/* Das Brett selbst: helles „Papier" mit Holzrahmen – wie ein echtes Spielbrett. */
+.sb-board {
+  background: radial-gradient(circle at 30% 15%, #fbf7ec, #efe6cf);
+  border: 6px solid #8a5a33;
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 24px rgba(120, 80, 30, 0.18),
+    0 6px 18px rgba(0, 0, 0, 0.25);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.sb-board-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1c1917;
+}
+
+.sb-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+
+.sb-title {
+  display: block;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+}
+
+.sb-subtitle {
+  display: block;
+  font-size: 11px;
+  color: #78716c;
+}
+
+/* Serpentinen-Reihe: direction (ltr/rtl) kommt inline vom Editor. */
+.sb-row {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(46px, 1fr));
+  gap: 3px;
+  min-width: 0;
+}
+
+/* Chevron-Feld in Laufrichtung; Inhalt bleibt immer ltr. */
+.sb-tile {
+  direction: ltr;
+  position: relative;
+  border: none;
+  background: var(--f);
+  color: #1c1917;
+  aspect-ratio: 0.92;
+  clip-path: polygon(0 0, 76% 0, 100% 50%, 76% 100%, 0 100%, 24% 50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px 4px;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.12s, filter 0.12s;
+}
+
+.sb-tile.rtl {
+  clip-path: polygon(100% 0, 24% 0, 0 50%, 24% 100%, 100% 100%, 76% 50%);
+}
+
+/* Im Verschieben-Modus übernimmt der Drag die Touch-Gesten. */
+.sb-board.moving .sb-tile {
+  touch-action: none;
+  cursor: grab;
+}
+
+.sb-tile.dragging {
+  opacity: 0.35;
+}
+
+.sb-tile.drop-target {
+  transform: scale(1.14);
+  filter: brightness(1.12);
+  z-index: 2;
+}
+
+.sb-num {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-weight: 700;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.sb-icon {
+  font-size: clamp(15px, 4vw, 24px);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.sb-text {
+  font-size: 8px;
+  line-height: 1.15;
+  font-weight: 600;
+  text-align: center;
+  max-width: 78%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  pointer-events: none;
+}
+
+.sb-text.only {
+  font-size: 9px;
+  -webkit-line-clamp: 4;
+}
+
+/* Ghost-Icon, das beim Verschieben am Finger klebt. */
+.sb-ghost {
+  position: fixed;
+  z-index: 120;
+  pointer-events: none;
+  transform: translate(-50%, -70%);
+  font-size: 36px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+}
+
+/* Feldtyp-Auswahl im Bearbeiten-Sheet. */
+.sb-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.sb-type {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--f) 45%, var(--border));
+  background: color-mix(in srgb, var(--f) 18%, var(--bg-elev));
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.sb-type.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent);
+  font-weight: 700;
+}
+
+.sb-type-icon {
+  font-size: 18px;
+  line-height: 1;
 }
