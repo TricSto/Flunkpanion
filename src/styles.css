@@ -1309,6 +1309,11 @@ select {
   color: var(--pos);
 }
 
+/* Fertig-Button unter den Feld-Aktionen (#43). */
+.sheet-done {
+  margin-top: 10px;
+}
+
 /* ---- Verbindungsleiste (Online) ------------------------------------------ */
 .conn-bar {
   display: flex;
