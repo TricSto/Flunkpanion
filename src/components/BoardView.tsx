@@ -7,7 +7,7 @@ import {
   type GameFieldDef as FieldDef,
 } from '../data/gameFields'
 import { KINGSTABELLE, MINIGAMES } from '../data/tables'
-import { formatMoney, pickRandom } from '../util'
+import { effectiveSalary, formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
 import { FieldIcon } from './FieldIcon'
@@ -135,7 +135,7 @@ function FieldBody({
   onClose: () => void
   onGoToTeams: GoToTeams
 }) {
-  const { state, adjustCash, payBeerTax, addActionCard, addBeer } = useStore()
+  const { state, adjustCash, payBeerTax, addActionCard, addBeer, addSalaryBonus } = useStore()
   const [flash, setFlash] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Card | null>(null)
 
@@ -185,7 +185,8 @@ function FieldBody({
 
   // --- Zahltag -------------------------------------------------------------
   if (field.key === 'zahltag') {
-    const salary = job?.salary ?? 0
+    // Inkl. dauerhaftem Bonus aus „Gehaltserhöhung".
+    const salary = effectiveSalary(team)
     return (
       <>
         {salary > 0 ? (
@@ -284,6 +285,13 @@ function FieldBody({
       drawn?.title === 'Kronkorkenmonster'
         ? Number(drawn.detail.match(/-\s*(\d+)\s*KK/i)?.[1] ?? 6)
         : null
+    // Gehaltserhöhung: keine einmalige Buchung, sondern dauerhafter Bonus
+    // aufs Gehalt – bleibt auch beim Neuwürfeln erhalten. Betrag aus dem
+    // Kartentext (Fallback +1).
+    const salaryRaise =
+      drawn?.title === 'Gehaltserhöhung'
+        ? Number(drawn.detail.match(/\+\s*(\d+)\s*KK/i)?.[1] ?? 1)
+        : null
     return (
       <>
         {!drawn ? (
@@ -321,6 +329,21 @@ function FieldBody({
                   }}
                 >
                   −{monsterPenalty} KK
+                </button>
+              </div>
+            ) : salaryRaise != null ? (
+              <div className="event-actions">
+                <button className="btn big ghost" onClick={onClose}>
+                  Ohne Erhöhung fertig
+                </button>
+                <button
+                  className="btn big plus"
+                  onClick={() => {
+                    addSalaryBonus(team.id, salaryRaise)
+                    onClose()
+                  }}
+                >
+                  💶 Gehalt dauerhaft +{salaryRaise} KK
                 </button>
               </div>
             ) : (
@@ -430,7 +453,11 @@ function GehaltswechselBody({ onClose }: { onClose: () => void }) {
                   </span>
                   {r.title ? (
                     <span className="gw-result small">
-                      💼 {r.title} · 💶 {formatMoney(r.salary)} · BS {r.beerTax}
+                      💼 {r.title} · 💶 {formatMoney(r.salary)}
+                      {(team?.salaryBonus ?? 0) > 0 && (
+                        <span className="salary-bonus">+{team!.salaryBonus}</span>
+                      )}{' '}
+                      · BS {r.beerTax}
                     </span>
                   ) : (
                     <span className="muted small">Kein passender Beruf mehr frei.</span>
