@@ -58,6 +58,18 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
           <span className="chevron">{open ? '▾' : '▸'}</span>
           {team.name}
         </button>
+        {/* Mini-Button zum Umbenennen direkt am Namen (#75). */}
+        <button
+          className="icon-btn rename-btn"
+          title="Team umbenennen"
+          aria-label="Team umbenennen"
+          onClick={() => {
+            const next = prompt('Neuer Teamname', team.name)
+            if (next != null) renameTeam(team.id, next)
+          }}
+        >
+          ✏️
+        </button>
         <div className="head-cash">
           <span className="cash-value">{formatMoney(team.cash)}</span>
           <span className="cash-label">Kronkorken</span>
@@ -234,20 +246,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
             )}
           </div>
 
-          {/* Fußzeile */}
-          <div className="team-footer">
-            <div className="team-footer-actions">
-              <button
-                className="btn tiny ghost"
-                onClick={() => {
-                  const next = prompt('Neuer Teamname', team.name)
-                  if (next != null) renameTeam(team.id, next)
-                }}
-              >
-                Umbenennen
-              </button>
-            </div>
-          </div>
+          {/* Umbenennen läuft über den ✏️-Mini-Button oben am Namen (#75). */}
         </div>
       )}
 

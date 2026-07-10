@@ -1403,6 +1403,13 @@ select {
   margin-top: 10px;
 }
 
+/* Mini-Umbenennen-Button neben dem Teamnamen (#75). */
+.rename-btn {
+  font-size: 14px;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+
 /* ---- Verbindungsleiste (Online) ------------------------------------------ */
 .conn-bar {
   display: flex;
