@@ -18,7 +18,8 @@ export function AdminView({
   theme: Theme
   onThemeChange: (theme: Theme) => void
 }) {
-  const { state, isHost, addTeam, removeTeam, setCurrentTeam, resetAll } = useStore()
+  const { state, isHost, addTeam, removeTeam, setTeamColor, setCurrentTeam, resetAll } =
+    useStore()
   const [name, setName] = useState('')
 
   const join = (teamId: string) => {
@@ -42,6 +43,7 @@ export function AdminView({
       <p className="muted small settings-intro">
         Erstellt euer Team oder tretet einem bestehenden bei – ihr landet direkt
         auf eurer Teamseite. Spieleranzahl &amp; Co. stellt ihr dort ein.
+        {isHost && ' Als Spielleiter kannst du über den Farbpunkt die Teamfarbe ändern.'}
       </p>
 
       <form className="add-team" onSubmit={submit}>
@@ -65,7 +67,19 @@ export function AdminView({
             const isMine = state.currentTeamId === t.id
             return (
               <li key={t.id} className="admin-team-row">
-                <span className="other-dot" style={{ background: t.color }} />
+                {isHost ? (
+                  // Nur der Spielleiter (Spiel-Ersteller) darf die Teamfarbe setzen.
+                  <input
+                    type="color"
+                    className="admin-team-color"
+                    value={t.color}
+                    title={`Teamfarbe von „${t.name}“ ändern`}
+                    aria-label={`Teamfarbe von ${t.name}`}
+                    onChange={(e) => setTeamColor(t.id, e.target.value)}
+                  />
+                ) : (
+                  <span className="other-dot" style={{ background: t.color }} />
+                )}
                 <span className="admin-team-name">
                   {t.name}
                   <span className="muted small"> · {t.players}👤</span>

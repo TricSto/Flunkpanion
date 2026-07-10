@@ -294,6 +294,8 @@ interface Store {
   addTeam: (name: string, players?: number) => string
   removeTeam: (teamId: string) => void
   renameTeam: (teamId: string, name: string) => void
+  /** Teamfarbe einstellen (UI nur für den Host; synct live an alle Geräte). */
+  setTeamColor: (teamId: string, color: string) => void
   setPlayers: (teamId: string, players: number) => void
   addBeer: (teamId: string, kind: keyof BeerCounts, delta: number) => void
   /**
@@ -934,6 +936,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       renameTeam: (teamId, name) =>
         mutateTeam(teamId, (t) => ({ ...t, name: name.trim() || t.name })),
+
+      setTeamColor: (teamId, color) =>
+        mutateTeam(teamId, (t) => ({ ...t, color: color.trim() || t.color })),
 
       adjustCash: (teamId, delta, reason = 'Buchung') =>
         mutateTeam(teamId, (t) => {
