@@ -1,6 +1,10 @@
 // Die beiden Tabellen, die mit auf das Spielbrett gedruckt werden.
 // Kingstabelle: am Brett würfeln, Ergebnis = Zeile. Minigames: direkt am
 // Brett auswählen/erwürfeln, welches Minigame gespielt wird.
+// Die Inhalte sind auf der Karten-Seite bearbeitbar (state.tables) –
+// hier liegen nur die mitgelieferten Standard-Inhalte.
+
+import type { BoardTables } from '../types'
 
 export interface TableRow {
   /** Nummer in der Tabelle (Würfelergebnis bzw. laufende Nummer). */
@@ -33,3 +37,16 @@ export const MINIGAMES: TableRow[] = [
   { n: 11, text: '1 Minute: höchster Turm aus Dosen/Flaschen' },
   { n: 12, text: 'Erstes Team, bei dem einer unter allen Beinen durch ist' },
 ]
+
+/** Die mitgelieferten Tabellen-Inhalte als bearbeitbarer Zustand. */
+export function defaultTables(): BoardTables {
+  return {
+    kingstabelle: KINGSTABELLE.map((r) => r.text),
+    minigames: MINIGAMES.map((r) => r.text),
+  }
+}
+
+/** Zeilentexte in nummerierte Tabellenzeilen umwandeln (fürs Rendern). */
+export function tableRows(texts: string[]): TableRow[] {
+  return texts.map((text, i) => ({ n: i + 1, text }))
+}

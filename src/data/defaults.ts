@@ -1,5 +1,6 @@
 import type { AppState, Card, Deck, DeckType } from '../types'
 import { defaultBoard } from './board'
+import { defaultTables } from './tables'
 
 export const TEAM_COLORS = [
   '#ef4444', // rot
@@ -194,4 +195,5 @@ export const initialState: AppState = {
   feedback: [],
   board: defaultBoard(),
   fieldColors: {},
+  tables: defaultTables(),
 }
