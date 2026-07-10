@@ -246,7 +246,9 @@ export interface FeedbackEntry {
 /**
  * Individuell eingestellte Farben der Felder auf der Spiel-Seite:
  * Feld-Key (z. B. 'zahltag') → Hex-Farbe. Felder ohne Eintrag behalten
- * ihre Standardfarbe. Liegt im geteilten Zustand (alle Geräte gleich).
+ * ihre Standardfarbe. Wird wie die Karteninhalte global auf dem Server
+ * gespeichert (Tabelle app_content) – gilt für alle Geräte und alle
+ * zukünftigen Spiele.
  */
 export type FieldColors = Record<string, string>
 
@@ -324,5 +326,8 @@ export interface AppState {
 /**
  * Der Teil des Zustands, der zwischen allen Geräten geteilt wird.
  * `currentTeamId` ist bewusst NICHT dabei – jedes Gerät wählt sein eigenes Team.
+ * `decks`/`decksVersion`/`fieldColors` werden zusätzlich global gespeichert
+ * (Tabelle app_content) und beim Empfangen des Spielzustands ignoriert – sie
+ * bleiben hier nur für ältere App-Versionen enthalten.
  */
 export type SharedState = Omit<AppState, 'currentTeamId'>
