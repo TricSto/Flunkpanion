@@ -1398,6 +1398,45 @@ select {
   color: var(--pos);
 }
 
+/* Wahl des Berufswechsel-Brettfelds – jedes löst nur einmal aus. */
+.gw-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.gw-field-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--bg-elev-2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gw-field-btn.selected {
+  border-color: var(--primary);
+}
+
+.gw-field-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.gw-field-used {
+  color: var(--pos);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* Fertig-Button unter den Feld-Aktionen (#43). */
 .sheet-done {
   margin-top: 10px;

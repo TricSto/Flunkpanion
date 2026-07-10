@@ -399,34 +399,75 @@ function FieldBody({
   return null
 }
 
-// --- Berufswechsel: erst „erstes Team?"-Frage, dann alle neu würfeln (#40) ---
+// --- Berufswechsel: Brett-Feld wählen, doppelt bestätigen, alle neu würfeln --
+// Jedes Berufswechsel-Feld auf dem Brett löst den Wechsel nur EINMAL aus –
+// nur das erste Team zählt (vorbeiziehen reicht, drauf landen ist nicht nötig).
 
 function GehaltswechselBody({ onClose }: { onClose: () => void }) {
-  const { state, rerollAllJobs } = useStore()
-  const [step, setStep] = useState<'frage' | 'nein' | 'fertig'>('frage')
+  const { state, triggerBerufswechsel } = useStore()
+  const [step, setStep] = useState<'wahl' | 'bestaetigen' | 'verbraucht' | 'fertig'>('wahl')
+  const [fieldId, setFieldId] = useState<string | null>(null)
   const [results, setResults] = useState<BerufswechselResult[]>([])
+
+  // Die Berufswechsel-Felder des Spielbretts in Laufweg-Reihenfolge.
+  const boardFields = state.board.fields.filter((f) => f.type === 'berufswechsel')
+  const used = new Set(state.usedBerufswechsel)
 
   if (state.teams.length === 0) {
     return <p className="muted small">Noch keine Teams. Lege sie im Tab „Setup“ an.</p>
   }
+  if (boardFields.length === 0) {
+    return (
+      <p className="muted small">
+        Auf dem Spielbrett gibt es keine Berufswechsel-Felder (Tab „Spielbrett“).
+      </p>
+    )
+  }
 
-  // Ja → Beruf & Gehalt aller Teams zurücksetzen und neu würfeln; der
-  // Bildungsweg bleibt (Studium → Diplom-Beruf, sonst Ausbildungsberuf).
+  // Zweite Bestätigung → Beruf & Gehalt aller Teams zurücksetzen und neu
+  // würfeln; der Bildungsweg bleibt. Null = ein anderes Gerät war schneller.
   const rollAll = () => {
-    setResults(rerollAllJobs())
+    if (!fieldId) return
+    const res = triggerBerufswechsel(fieldId)
+    if (!res) {
+      setStep('verbraucht')
+      return
+    }
+    setResults(res)
     setStep('fertig')
   }
 
-  if (step === 'nein') {
+  if (step === 'verbraucht') {
     return (
       <>
         <p className="sheet-info">
-          <strong>Nur das erste Team löst den Berufswechsel aus.</strong>
+          <strong>Dieses Feld wurde schon ausgelöst.</strong> Es zählt nur das
+          erste Team – einfach weiterspielen.
         </p>
-        {/* Schließt das Fenster direkt – wie beim Kingstabelle-Feld (#42). */}
         <button className="btn primary block" onClick={onClose}>
           ✓ Fertig
         </button>
+      </>
+    )
+  }
+
+  if (step === 'bestaetigen') {
+    return (
+      <>
+        <p className="sheet-info">
+          <strong>Wirklich neu würfeln?</strong> Beruf &amp; Gehalt{' '}
+          <strong>aller Teams</strong> werden zurückgesetzt und neu erwürfelt –
+          Studium bekommt wieder einen Diplom-Beruf, Ausbildung einen
+          Ausbildungsberuf. Alle Teams bekommen eine Nachricht.
+        </p>
+        <div className="event-actions">
+          <button className="btn big ghost" onClick={() => setStep('wahl')}>
+            ❌ Abbrechen
+          </button>
+          <button className="btn big primary" onClick={rollAll}>
+            ✅ Ja, alle neu würfeln
+          </button>
+        </div>
       </>
     )
   }
@@ -473,24 +514,49 @@ function GehaltswechselBody({ onClose }: { onClose: () => void }) {
     )
   }
 
+  // Schritt „wahl": An welchem Berufswechsel-Feld seid ihr vorbeigekommen?
+  const selectedUsable = fieldId != null && !used.has(fieldId)
   return (
     <>
       <p className="sheet-info">
-        Seid ihr das <strong>erste Team</strong>, das über das
-        Berufswechsel-Feld gekommen ist?
+        An welchem <strong>Berufswechsel-Feld</strong> seid ihr vorbeigekommen?
+        Vorbeiziehen reicht – ihr müsst nicht genau drauf landen.
       </p>
-      <div className="event-actions">
-        <button className="btn big ghost" onClick={() => setStep('nein')}>
-          ❌ Nein
-        </button>
-        <button className="btn big primary" onClick={rollAll}>
-          ✅ Ja – alle neu würfeln
-        </button>
+      <div className="gw-fields">
+        {boardFields.map((f, i) => {
+          const isUsed = used.has(f.id)
+          return (
+            <button
+              key={f.id}
+              type="button"
+              className={f.id === fieldId ? 'gw-field-btn selected' : 'gw-field-btn'}
+              disabled={isUsed}
+              onClick={() => setFieldId(f.id)}
+            >
+              <span>
+                🔄 {i + 1}. Berufswechsel-Feld
+                {f.text ? ` · ${f.text}` : ''}
+              </span>
+              {isUsed ? (
+                <span className="gw-field-used">✓ schon ausgelöst</span>
+              ) : (
+                f.id === fieldId && <span className="gw-field-used">✓</span>
+              )}
+            </button>
+          )
+        })}
       </div>
+      <button
+        className="btn primary block"
+        disabled={!selectedUsable}
+        onClick={() => setStep('bestaetigen')}
+      >
+        🔄 Beruf &amp; Gehalt für alle neu würfeln
+      </button>
       <p className="muted small sheet-current">
-        Bei „Ja" werden Beruf &amp; Gehalt <strong>aller Teams</strong>{' '}
-        zurückgesetzt und neu erwürfelt – Studium bekommt wieder einen
-        Diplom-Beruf, Ausbildung einen Ausbildungsberuf.
+        Jedes Feld löst den Berufswechsel nur <strong>einmal</strong> aus – es
+        zählt nur das erste Team. Beruf &amp; Gehalt <strong>aller Teams</strong>{' '}
+        werden dabei zurückgesetzt und neu erwürfelt.
       </p>
       <button className="btn ghost block sheet-done" onClick={onClose}>
         ✓ Fertig

@@ -193,6 +193,15 @@ function normalizeFieldColors(colors: FieldColors | null | undefined): FieldColo
 }
 
 /**
+ * Ergänzt das Feld `usedBerufswechsel` älterer Stände. Deterministisch –
+ * läuft wie normalizeTeams auch über empfangene Remote-Zustände.
+ */
+function normalizeUsedBerufswechsel(ids: string[] | null | undefined): string[] {
+  if (!Array.isArray(ids)) return []
+  return ids.filter((id): id is string => typeof id === 'string')
+}
+
+/**
  * Ergänzt fehlende/kaputte Tabellen-Inhalte älterer Stände. Deterministisch –
  * läuft wie normalizeTeams auch über empfangene Remote-Zustände.
  */
@@ -228,6 +237,7 @@ function sharedOf(state: AppState): SharedState {
     announcements: state.announcements,
     feedback: state.feedback,
     board: state.board,
+    usedBerufswechsel: state.usedBerufswechsel,
     fieldColors: state.fieldColors,
     tables: state.tables,
   }
@@ -274,6 +284,7 @@ function loadState(): AppState {
       announcements: parsed.announcements ?? [],
       feedback: parsed.feedback ?? [],
       board: normalizeBoard(parsed.board),
+      usedBerufswechsel: normalizeUsedBerufswechsel(parsed.usedBerufswechsel),
       fieldColors: normalizeFieldColors(parsed.fieldColors),
       tables: normalizeTables(parsed.tables),
     }
@@ -346,12 +357,15 @@ interface Store {
    */
   chooseJob: (teamId: string, education: Education, title: string) => void
   /**
-   * Berufswechsel-Feld (Feedback #40): setzt Beruf & Gehalt ALLER Teams
-   * zurück und würfelt beides neu – der Bildungsweg bleibt wie zuvor
-   * (Studium → Diplom-Beruf, sonst Ausbildungsberuf, keine Doppelten).
-   * Läuft atomar in einem Update; gibt die Ergebnisse pro Team zurück.
+   * Berufswechsel-Feld auslösen: setzt Beruf & Gehalt ALLER Teams zurück
+   * und würfelt beides neu – der Bildungsweg bleibt wie zuvor (Studium →
+   * Diplom-Beruf, sonst Ausbildungsberuf, keine Doppelten). Alle Geräte
+   * bekommen eine Live-Nachricht mit den neuen Berufen. Jedes Brett-Feld
+   * (`fieldId`) löst nur EINMAL aus – nur das erste vorbeikommende Team
+   * zählt. Gibt null zurück, wenn das Feld schon verbraucht ist; sonst
+   * die Ergebnisse pro Team. Läuft atomar in einem Update.
    */
-  rerollAllJobs: () => BerufswechselResult[]
+  triggerBerufswechsel: (fieldId: string) => BerufswechselResult[] | null
   setSalary: (teamId: string, salary: number, beerTax: number) => void
   /**
    * Dauerhaften Gehalts-Bonus erhöhen (Ereigniskarte „Gehaltserhöhung").
@@ -462,6 +476,13 @@ interface Store {
   resetTable: (table: BoardTableKey) => void
   // Decks / Würfeltabellen
   updateDecks: (decks: Deck[]) => void
+  /**
+   * Neues Spiel mit denselben Teams starten (Siegesauswertung): KK, Berufe,
+   * Karten, Biere, Zähler, Challenge/Flunk-Runde und die verbrauchten
+   * Berufswechsel-Felder werden zurückgesetzt – Teams (Name, Farbe,
+   * Spieleranzahl) bleiben bestehen. Alle Geräte bekommen eine Nachricht.
+   */
+  newGame: () => void
   resetAll: () => void
 }
 
@@ -539,6 +560,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         feedback: shared.feedback ?? s.feedback,
         // Dito: Stände älterer Clients ohne Spielbrett behalten das lokale Brett.
         board: normalizeBoard(shared.board ?? s.board),
+        // Dito: ältere Clients ohne das Feld dürfen es nicht zurücksetzen.
+        usedBerufswechsel: normalizeUsedBerufswechsel(
+          shared.usedBerufswechsel ?? s.usedBerufswechsel,
+        ),
         // Karteninhalte, Feldfarben & Brett-Tabellen sind global gespeichert
         // (app_content) und kommen NICHT aus dem Spielzustand – sonst würde
         // ein altes Spiel die dauerhaft bearbeiteten Inhalte überschreiben.
@@ -840,6 +865,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           teams: normalizeTeams(shared.teams, s.decks),
           flunk: normalizeFlunk(shared.flunk),
           board: normalizeBoard(shared.board ?? s.board),
+          usedBerufswechsel: normalizeUsedBerufswechsel(
+            shared.usedBerufswechsel ?? s.usedBerufswechsel,
+          ),
           // Karteninhalte, Feldfarben & Brett-Tabellen sind global gespeichert
           // (app_content) – nicht aus dem (evtl. alten) Spielzustand übernehmen.
           decks: s.decks,
@@ -1040,11 +1068,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         }),
 
-      rerollAllJobs: () => {
+      triggerBerufswechsel: (fieldId) => {
         const s = stateRef.current
+        // Jedes Brett-Feld nur einmal – nur das erste Team zählt.
+        if (s.usedBerufswechsel.includes(fieldId)) return null
         const jobDeck = s.decks.find((d) => d.type === 'job')
         const salaryDeck = s.decks.find((d) => d.type === 'salary')
-        if (!jobDeck || s.teams.length === 0) return []
+        if (!jobDeck || s.teams.length === 0) return null
         // Gemischte Stapel je Bildungsweg – pop() vergibt jeden Beruf nur 1×.
         const diplom = sampleDistinct(
           jobDeck.cards.filter((c) => isDiplomJob(c.title)),
@@ -1075,11 +1105,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             beerTax,
           })
         }
+        // Live-Nachricht an alle Geräte mit den neuen Berufen & Gehältern.
+        const announcement: Announcement = {
+          id: uid(),
+          teamId: null,
+          title: '🔄 Berufswechsel!',
+          message: `Beruf & Gehalt aller Teams wurden neu gewürfelt – ${results
+            .map((r) => `${r.teamName}: ${r.title ?? 'kein Beruf frei'} (💶 ${r.salary})`)
+            .join(' · ')}`,
+          at: Date.now(),
+        }
         setState((prev) => ({
           ...prev,
           teams: prev.teams.map((t) =>
             updates.has(t.id) ? { ...t, ...updates.get(t.id)! } : t,
           ),
+          usedBerufswechsel: prev.usedBerufswechsel.includes(fieldId)
+            ? prev.usedBerufswechsel
+            : [...prev.usedBerufswechsel, fieldId],
+          announcements: [announcement, ...prev.announcements].slice(0, 20),
         }))
         return results
       },
@@ -1686,6 +1730,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })),
 
       updateDecks: (decks) => setState((s) => ({ ...s, decks })),
+
+      newGame: () =>
+        setState((s) => {
+          const announcement: Announcement = {
+            id: uid(),
+            teamId: null,
+            title: '🔄 Neues Spiel!',
+            message:
+              'Kronkorken, Berufe, Karten und Zähler wurden zurückgesetzt – die Teams bleiben. Viel Spaß!',
+            at: Date.now(),
+          }
+          return {
+            ...s,
+            teams: s.teams.map((t) => ({
+              ...t,
+              cash: 0,
+              job: null,
+              education: 'none' as Education,
+              stockNumber: null,
+              salaryBonus: 0,
+              actionCards: [],
+              transactions: [],
+              beers: { normal: 0, fun: 0, penalty: 0 },
+              stats: emptyStats(),
+            })),
+            challenge: null,
+            flunk: null,
+            usedBerufswechsel: [],
+            // Alte Nachrichten gehören zum alten Spiel – nur der Neustart bleibt.
+            announcements: [announcement],
+          }
+        }),
 
       resetAll: () => setState({ ...initialState }),
     }
