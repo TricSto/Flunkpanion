@@ -165,7 +165,7 @@ const ereignisse = deck('ereignisse', 'Ereigniskarten', '🎲', 'event', 'draw',
   c('League of Legends', 'Ein Jahr verschwendet. Aussetzen.', -1),
   c('E-Roller', 'Betrunken erwischt. Aussetzen.', -2),
   c('Bierdurstige Zombies', 'Verstecke dein Kaltgetränk bei „Flunk, wo ist die Flasche?“.', null),
-  c('Gehaltserhöhung', '+1 KK auf das Gehalt (im Gehalt anpassen).', null),
+  c('Gehaltserhöhung', '+1 KK dauerhaft auf das Gehalt – bleibt auch beim Neuwürfeln.', null),
   c('Hund verloren', 'Streichle einen Mitspieler, den du vor heute nicht kanntest.', null),
   c('Du stinkst', '', null),
   c('Pipikakiland', 'Lasse Pipi und Kaki im Pipikakiland anmachen.', null),
@@ -182,7 +182,7 @@ const defaultDecks: Deck[] = [
 
 // Bei jeder inhaltlichen Aktualisierung der mitgelieferten Decks erhöhen –
 // dann übernehmen bestehende Geräte die neuen Karten (Teams bleiben erhalten).
-export const DECKS_VERSION = 3
+export const DECKS_VERSION = 4
 
 export const initialState: AppState = {
   teams: [],

@@ -476,6 +476,33 @@ select {
   min-width: 0;
 }
 
+/* Teamfarbe: für den Host ein anklickbarer Farbwähler statt statischem Punkt. */
+.admin-team-color {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.admin-team-color::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.admin-team-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.admin-team-color::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
 /* ---- Teams ---------------------------------------------------------------- */
 
 .add-team {
@@ -2433,6 +2460,15 @@ button.stat-tile:active {
 
 .stat-tile-value.choose {
   color: var(--primary);
+}
+
+/* Kleines „+1" neben dem Gehalt: dauerhafter Bonus aus „Gehaltserhöhung". */
+.salary-bonus {
+  color: var(--pos);
+  font-size: 0.75em;
+  font-weight: 700;
+  margin-left: 2px;
+  vertical-align: super;
 }
 
 .stat-tile-btns {

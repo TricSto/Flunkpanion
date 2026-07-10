@@ -43,6 +43,15 @@ export function takenJobTitles(teams: Team[], exceptId?: string): Set<string> {
   )
 }
 
+/**
+ * Effektives Gehalt eines Teams: gewürfeltes Gehalt plus dauerhafter Bonus
+ * („Gehaltserhöhung"). Ohne gewürfeltes Gehalt zahlt auch der Bonus nichts.
+ */
+export function effectiveSalary(team: Team): number {
+  const base = team.job?.salary ?? 0
+  return base > 0 ? base + (team.salaryBonus ?? 0) : 0
+}
+
 /** Formatiert einen KK-Betrag (Kronkorken), z. B. "12 KK" oder "-5 KK". */
 export function formatMoney(value: number): string {
   return `${kk.format(value)} KK`

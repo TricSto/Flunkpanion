@@ -95,9 +95,16 @@ export function TeamsView({
                   </span>
                   <span className="overview-job muted small">
                     {t.job?.title ? t.job.title : 'Kein Beruf'}
-                    {t.job && t.job.salary > 0
-                      ? ` · ${formatMoney(t.job.salary)}${t.job.beerTax ? ` · BS ${t.job.beerTax}` : ''}`
-                      : ''}
+                    {t.job && t.job.salary > 0 && (
+                      <>
+                        {' · '}
+                        {formatMoney(t.job.salary)}
+                        {t.salaryBonus > 0 && (
+                          <span className="salary-bonus">+{t.salaryBonus}</span>
+                        )}
+                        {t.job.beerTax ? ` · BS ${t.job.beerTax}` : ''}
+                      </>
+                    )}
                   </span>
                 </div>
                 <div className="overview-side">

@@ -39,8 +39,8 @@ import { FLUNK_BEER_BONUS, STOCK_NUMBERS, STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { BOARD_COLS, BOARD_VERSION, defaultBoard, isBoardFieldType } from './data/board'
 import { defaultTables } from './data/tables'
-import { GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
-import { isDiplomJob, pickRandom, sampleDistinct } from './util'
+import { CONTENT_ID, CONTENT_TABLE, GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
+import { effectiveSalary, isDiplomJob, pickRandom, sampleDistinct } from './util'
 
 const STORAGE_KEY = 'flunk-des-lebens/state/v1'
 const SESSION_KEY = 'flunk-des-lebens/session/v1'
@@ -145,6 +145,7 @@ function normalizeTeams(teams: Team[] | undefined, decks: Deck[]): Team[] {
       players: t.players ?? 1,
       education: t.education ?? 'none',
       stockNumber,
+      salaryBonus: t.salaryBonus ?? 0,
       actionCards: (t.actionCards ?? []).map((c) => ({
         ...c,
         kind: c.kind ?? (specialTitles.has(c.title) ? 'special' : 'action'),
@@ -211,7 +212,12 @@ function emptyFlunk(): FlunkRound {
   return { id: uid(), readyIds: [], matches: null, waitCardIds: {}, paidIds: [], at: Date.now() }
 }
 
-/** Nur die Felder, die zwischen allen Geräten geteilt werden. */
+/**
+ * Nur die Felder, die zwischen allen Geräten geteilt werden.
+ * decks/decksVersion/fieldColors/tables werden zusätzlich global gespeichert
+ * (app_content) und beim Empfangen NICHT mehr aus dem Spielzustand gelesen –
+ * sie stehen hier nur noch drin, damit ältere App-Versionen weiter laufen.
+ */
 function sharedOf(state: AppState): SharedState {
   return {
     teams: state.teams,
@@ -222,6 +228,28 @@ function sharedOf(state: AppState): SharedState {
     announcements: state.announcements,
     feedback: state.feedback,
     board: state.board,
+    fieldColors: state.fieldColors,
+    tables: state.tables,
+  }
+}
+
+/**
+ * Die global auf dem Server hinterlegten Inhalte der Karten-Seite. Liegen in
+ * einer einzigen Zeile (Tabelle app_content) und gelten – anders als der
+ * Spielzustand pro Spiel-Code – dauerhaft für alle zukünftigen Spiele.
+ */
+interface GlobalContent {
+  decks: Deck[]
+  decksVersion: number
+  fieldColors: FieldColors
+  /** Bearbeitbare Kingstabelle & Minigames-Tabelle (fehlt in Alt-Zeilen). */
+  tables?: BoardTables
+}
+
+function contentOf(state: AppState): GlobalContent {
+  return {
+    decks: state.decks,
+    decksVersion: state.decksVersion,
     fieldColors: state.fieldColors,
     tables: state.tables,
   }
@@ -289,6 +317,8 @@ interface Store {
   addTeam: (name: string, players?: number) => string
   removeTeam: (teamId: string) => void
   renameTeam: (teamId: string, name: string) => void
+  /** Teamfarbe einstellen (UI nur für den Host; synct live an alle Geräte). */
+  setTeamColor: (teamId: string, color: string) => void
   setPlayers: (teamId: string, players: number) => void
   addBeer: (teamId: string, kind: keyof BeerCounts, delta: number) => void
   /**
@@ -323,6 +353,12 @@ interface Store {
    */
   rerollAllJobs: () => BerufswechselResult[]
   setSalary: (teamId: string, salary: number, beerTax: number) => void
+  /**
+   * Dauerhaften Gehalts-Bonus erhöhen (Ereigniskarte „Gehaltserhöhung").
+   * Der Bonus bleibt beim Neuwürfeln des Gehalts erhalten und wird bei
+   * jeder Gehaltsauszahlung mitgezahlt.
+   */
+  addSalaryBonus: (teamId: string, delta: number) => void
   payBeerTax: (teamId: string) => void
   // Team-Auswahl („Beitreten“)
   setCurrentTeam: (teamId: string | null) => void
@@ -444,6 +480,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // JSON des geteilten Zustands, der zuletzt mit dem Server abgeglichen wurde.
   // Verhindert Echo-Schleifen (eigene Writes lösen kein erneutes Setzen aus).
   const lastSyncedRef = useRef<string | null>(null)
+  // Dito für die globalen Inhalte (app_content). null = Startabgleich steht
+  // noch aus – solange wird bewusst nichts geschrieben, damit der lokale
+  // Stand die Server-Inhalte beim Start nicht überschreibt.
+  const lastContentSyncedRef = useRef<string | null>(null)
 
   // Zustand & Sitzung lokal spiegeln (Offline-Fallback + Cache).
   useEffect(() => {
@@ -479,7 +519,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     lastSyncedRef.current = json
     setState((s) => {
-      let teams = normalizeTeams(shared.teams, shared.decks ?? s.decks)
+      let teams = normalizeTeams(shared.teams, s.decks)
       // Merge-Schutz: Der Sync schreibt immer den ganzen Zustand (Last-Write-
       // Wins). Ein gerade lokal angelegtes Team könnte ein zeitgleicher Write
       // eines anderen Geräts sonst verschlucken – junge lokale Teams, die im
@@ -499,11 +539,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         feedback: shared.feedback ?? s.feedback,
         // Dito: Stände älterer Clients ohne Spielbrett behalten das lokale Brett.
         board: normalizeBoard(shared.board ?? s.board),
-        // Dito: ältere Stände ohne Feldfarben behalten die lokalen Farben.
-        fieldColors: normalizeFieldColors(shared.fieldColors ?? s.fieldColors),
-        // Dito: Stände ohne Tabellen behalten die lokalen Tabellen-Inhalte.
-        tables: normalizeTables(shared.tables ?? s.tables),
+        // Karteninhalte, Feldfarben & Brett-Tabellen sind global gespeichert
+        // (app_content) und kommen NICHT aus dem Spielzustand – sonst würde
+        // ein altes Spiel die dauerhaft bearbeiteten Inhalte überschreiben.
+        decks: s.decks,
+        decksVersion: s.decksVersion,
+        fieldColors: s.fieldColors,
+        tables: s.tables,
         currentTeamId: s.currentTeamId,
+      }
+    })
+  }
+
+  // Eingehende globale Inhalte (Karten-Seite) übernehmen.
+  const applyRemoteContent = (content: GlobalContent) => {
+    const json = stableStringify(content)
+    if (json === lastContentSyncedRef.current) return
+    // Lokale, noch nicht geschriebene Änderungen gewinnen (wie beim
+    // Spielzustand): den Remote-Stand dann nicht anwenden, der eigene
+    // anstehende Write überschreibt ihn ohnehin (Last-Write-Wins).
+    if (
+      lastContentSyncedRef.current !== null &&
+      stableStringify(contentOf(stateRef.current)) !== lastContentSyncedRef.current
+    ) {
+      return
+    }
+    lastContentSyncedRef.current = json
+    setState((s) => {
+      // Bei einer neuen mitgelieferten Deck-Version die aktuellen (lokalen)
+      // Decks behalten – der Debounce-Writer hebt die Server-Zeile danach
+      // automatisch auf den neuen Stand.
+      const decksCurrent =
+        content.decksVersion === DECKS_VERSION && Array.isArray(content.decks)
+      return {
+        ...s,
+        decks: decksCurrent ? content.decks : s.decks,
+        decksVersion: DECKS_VERSION,
+        fieldColors: normalizeFieldColors(content.fieldColors),
+        // Alt-Zeilen ohne Tabellen behalten die lokalen Tabellen-Inhalte.
+        tables: normalizeTables(content.tables ?? s.tables),
       }
     })
   }
@@ -571,6 +645,90 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.code])
+
+  // --- Globale Inhalte (Karten-Seite): laden & live abonnieren ------------
+  // Läuft unabhängig von einer Spiel-Sitzung: Karteninhalte und Feldfarben
+  // liegen dauerhaft auf dem Server und gelten für alle zukünftigen Spiele.
+  useEffect(() => {
+    const client = supabase
+    if (!client) return
+    let cancelled = false
+
+    void (async () => {
+      const { data, error } = await client
+        .from(CONTENT_TABLE)
+        .select('content')
+        .eq('id', CONTENT_ID)
+        .maybeSingle()
+      if (cancelled) return
+      if (error) {
+        // Ohne Startabgleich bleibt lastContentSyncedRef null → es wird
+        // nichts geschrieben (Schutz vor Überschreiben der Server-Inhalte).
+        console.error('[flunk sync] Inhalte laden fehlgeschlagen –', error.message, error)
+        return
+      }
+      if (data?.content) {
+        applyRemoteContent(data.content as GlobalContent)
+      } else {
+        // Inhalte-Zeile existiert noch nicht → mit lokalem Stand anlegen.
+        const content = contentOf(stateRef.current)
+        lastContentSyncedRef.current = stableStringify(content)
+        const { error: writeErr } = await client
+          .from(CONTENT_TABLE)
+          .upsert({ id: CONTENT_ID, content, updated_at: new Date().toISOString() })
+        if (writeErr) {
+          console.error('[flunk sync] Inhalte anlegen fehlgeschlagen –', writeErr.message, writeErr)
+          lastContentSyncedRef.current = null
+        }
+      }
+    })()
+
+    const channel = client
+      .channel('app-content')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: CONTENT_TABLE, filter: `id=eq.${CONTENT_ID}` },
+        (payload) => {
+          const next = (payload.new as { content?: GlobalContent } | null)?.content
+          if (next) applyRemoteContent(next)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      void client.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // --- Geänderte globale Inhalte an den Server schreiben (entprellt) ------
+  useEffect(() => {
+    const client = supabase
+    if (!client) return
+    // Vor dem ersten erfolgreichen Abgleich nichts schreiben – sonst würde
+    // der lokale Start-Zustand die gespeicherten Server-Inhalte platt machen.
+    if (lastContentSyncedRef.current === null) return
+    const content = contentOf(state)
+    const json = stableStringify(content)
+    if (json === lastContentSyncedRef.current) return
+    const timer = setTimeout(() => {
+      // Optimistisch merken, um Echo-Schleifen zu vermeiden.
+      lastContentSyncedRef.current = json
+      void client
+        .from(CONTENT_TABLE)
+        .upsert({ id: CONTENT_ID, content, updated_at: new Date().toISOString() })
+        .then(({ error }) => {
+          if (error) {
+            console.error('[flunk sync] Inhalte schreiben fehlgeschlagen –', error.message, error)
+            // Marker statt null (null würde alle weiteren Writes sperren):
+            // die nächste Änderung versucht das Schreiben dann erneut.
+            lastContentSyncedRef.current = 'retry'
+          }
+        })
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [state])
 
   // --- Änderungen an den Server schreiben (leicht entprellt) --------------
   useEffect(() => {
@@ -679,11 +837,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setState((s) => ({
           ...s,
           ...shared,
-          teams: normalizeTeams(shared.teams, shared.decks ?? s.decks),
+          teams: normalizeTeams(shared.teams, s.decks),
           flunk: normalizeFlunk(shared.flunk),
           board: normalizeBoard(shared.board ?? s.board),
-          fieldColors: normalizeFieldColors(shared.fieldColors ?? s.fieldColors),
-          tables: normalizeTables(shared.tables ?? s.tables),
+          // Karteninhalte, Feldfarben & Brett-Tabellen sind global gespeichert
+          // (app_content) – nicht aus dem (evtl. alten) Spielzustand übernehmen.
+          decks: s.decks,
+          decksVersion: s.decksVersion,
+          fieldColors: s.fieldColors,
+          tables: s.tables,
           currentTeamId: null,
         }))
         setSession({ code, isHost: false })
@@ -709,6 +871,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             job: null,
             education: 'none',
             stockNumber: null,
+            salaryBonus: 0,
             actionCards: [],
             transactions: [],
             beers: { normal: 0, fun: 0, penalty: 0 },
@@ -808,6 +971,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       renameTeam: (teamId, name) =>
         mutateTeam(teamId, (t) => ({ ...t, name: name.trim() || t.name })),
+
+      setTeamColor: (teamId, color) =>
+        mutateTeam(teamId, (t) => ({ ...t, color: color.trim() || t.color })),
 
       adjustCash: (teamId, delta, reason = 'Buchung') =>
         mutateTeam(teamId, (t) => {
@@ -922,6 +1088,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         mutateTeam(teamId, (t) => ({
           ...t,
           job: { title: t.job?.title ?? '', salary, beerTax },
+        })),
+
+      addSalaryBonus: (teamId, delta) =>
+        mutateTeam(teamId, (t) => ({
+          ...t,
+          salaryBonus: Math.max(0, (t.salaryBonus ?? 0) + delta),
         })),
 
       payBeerTax: (teamId) =>
@@ -1098,7 +1270,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // #33) – ob schon gezahlt wurde, steht in flunk.paidIds.
         const s0 = stateRef.current
         const team = s0.teams.find((t) => t.id === teamId)
-        const salary = team?.job?.salary ?? 0
+        // Inkl. dauerhaftem Bonus aus „Gehaltserhöhung".
+        const salary = team ? effectiveSalary(team) : 0
         const alreadyPaid = s0.flunk?.paidIds?.includes(teamId) ?? false
         const alreadyReady = s0.flunk?.readyIds.includes(teamId) ?? false
         if (alreadyReady) return null

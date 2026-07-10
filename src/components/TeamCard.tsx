@@ -90,6 +90,10 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
                   <span className="stat-tile-label">Gehalt</span>
                   <span className="stat-tile-value">
                     {formatMoney(team.job.salary)}
+                    {/* Dauerhafter Bonus („Gehaltserhöhung") – zählt bei jeder Auszahlung. */}
+                    {team.salaryBonus > 0 && (
+                      <span className="salary-bonus">+{team.salaryBonus}</span>
+                    )}
                     {team.job.beerTax > 0 && <span className="muted"> · BS {team.job.beerTax}</span>}
                   </span>
                 </span>
