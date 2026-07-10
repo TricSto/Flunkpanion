@@ -17,6 +17,8 @@ import type {
   BoardField,
   BoardFieldType,
   BoardState,
+  BoardTableKey,
+  BoardTables,
   Card,
   Challenge,
   ChallengeReward,
@@ -36,6 +38,7 @@ import type {
 import { FLUNK_BEER_BONUS, STOCK_NUMBERS, STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { BOARD_COLS, BOARD_VERSION, defaultBoard, isBoardFieldType } from './data/board'
+import { defaultTables } from './data/tables'
 import { GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
 import { isDiplomJob, pickRandom, sampleDistinct } from './util'
 
@@ -188,6 +191,21 @@ function normalizeFieldColors(colors: FieldColors | null | undefined): FieldColo
   )
 }
 
+/**
+ * Ergänzt fehlende/kaputte Tabellen-Inhalte älterer Stände. Deterministisch –
+ * läuft wie normalizeTeams auch über empfangene Remote-Zustände.
+ */
+function normalizeTables(tables: BoardTables | null | undefined): BoardTables {
+  const defaults = defaultTables()
+  const rows = (value: unknown, fallback: string[]): string[] =>
+    Array.isArray(value) ? value.filter((t): t is string => typeof t === 'string') : fallback
+  if (!tables || typeof tables !== 'object') return defaults
+  return {
+    kingstabelle: rows(tables.kingstabelle, defaults.kingstabelle),
+    minigames: rows(tables.minigames, defaults.minigames),
+  }
+}
+
 /** Frische Flunk-Runde in der Ankommens-Phase. */
 function emptyFlunk(): FlunkRound {
   return { id: uid(), readyIds: [], matches: null, waitCardIds: {}, paidIds: [], at: Date.now() }
@@ -205,6 +223,7 @@ function sharedOf(state: AppState): SharedState {
     feedback: state.feedback,
     board: state.board,
     fieldColors: state.fieldColors,
+    tables: state.tables,
   }
 }
 
@@ -228,6 +247,7 @@ function loadState(): AppState {
       feedback: parsed.feedback ?? [],
       board: normalizeBoard(parsed.board),
       fieldColors: normalizeFieldColors(parsed.fieldColors),
+      tables: normalizeTables(parsed.tables),
     }
   } catch {
     return initialState
@@ -396,6 +416,14 @@ interface Store {
   removeDeckCard: (deckId: string, cardId: string) => void
   /** Alle Decks auf die mitgelieferten Karten zurücksetzen. */
   resetDecks: () => void
+  /** Text einer Zeile in Kingstabelle/Minigames ändern (synct live). */
+  setTableRow: (table: BoardTableKey, index: number, text: string) => void
+  /** Neue Zeile ans Ende einer Brett-Tabelle anhängen. */
+  addTableRow: (table: BoardTableKey) => void
+  /** Zeile aus einer Brett-Tabelle löschen (Nummern rücken nach). */
+  removeTableRow: (table: BoardTableKey, index: number) => void
+  /** Eine Brett-Tabelle auf die mitgelieferten Inhalte zurücksetzen. */
+  resetTable: (table: BoardTableKey) => void
   // Decks / Würfeltabellen
   updateDecks: (decks: Deck[]) => void
   resetAll: () => void
@@ -473,6 +501,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         board: normalizeBoard(shared.board ?? s.board),
         // Dito: ältere Stände ohne Feldfarben behalten die lokalen Farben.
         fieldColors: normalizeFieldColors(shared.fieldColors ?? s.fieldColors),
+        // Dito: Stände ohne Tabellen behalten die lokalen Tabellen-Inhalte.
+        tables: normalizeTables(shared.tables ?? s.tables),
         currentTeamId: s.currentTeamId,
       }
     })
@@ -653,6 +683,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           flunk: normalizeFlunk(shared.flunk),
           board: normalizeBoard(shared.board ?? s.board),
           fieldColors: normalizeFieldColors(shared.fieldColors ?? s.fieldColors),
+          tables: normalizeTables(shared.tables ?? s.tables),
           currentTeamId: null,
         }))
         setSession({ code, isHost: false })
@@ -1453,6 +1484,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       resetDecks: () =>
         setState((s) => ({ ...s, decks: initialState.decks, decksVersion: DECKS_VERSION })),
+
+      setTableRow: (table, index, text) =>
+        setState((s) => ({
+          ...s,
+          tables: {
+            ...s.tables,
+            [table]: s.tables[table].map((t, i) => (i === index ? text : t)),
+          },
+        })),
+
+      addTableRow: (table) =>
+        setState((s) => ({
+          ...s,
+          tables: { ...s.tables, [table]: [...s.tables[table], ''] },
+        })),
+
+      removeTableRow: (table, index) =>
+        setState((s) => ({
+          ...s,
+          tables: { ...s.tables, [table]: s.tables[table].filter((_, i) => i !== index) },
+        })),
+
+      resetTable: (table) =>
+        setState((s) => ({
+          ...s,
+          tables: { ...s.tables, [table]: defaultTables()[table] },
+        })),
 
       updateDecks: (decks) => setState((s) => ({ ...s, decks })),
 

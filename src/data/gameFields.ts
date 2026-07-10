@@ -1,4 +1,4 @@
-import type { FieldColors } from '../types'
+import type { BoardFieldType, FieldColors } from '../types'
 import type { IconKind } from '../lib/boardArt'
 
 /**
@@ -56,4 +56,36 @@ export const ALL_GAME_FIELDS: GameFieldDef[] = [...GAME_GRID_FIELDS, GAME_FLUNK_
 /** Farbe eines Felds – individuell eingestellte Farbe vor der Standardfarbe. */
 export function gameFieldColor(def: GameFieldDef, overrides: FieldColors): string {
   return overrides[def.key] ?? def.color
+}
+
+/**
+ * Welcher Spielbrett-Feldtyp zu welchem Spiel-Feld gehört – darüber
+ * schlagen die auf der Karten-Seite eingestellten Farben auch auf dem
+ * Spielbrett (Editor-Ansicht und PDF-Export) durch. Edward und die
+ * Kingstabelle haben kein eigenes Brett-Feld.
+ */
+const FIELD_BOARD_TYPE: Partial<Record<GameFieldKey, BoardFieldType>> = {
+  zahltag: 'zahltag',
+  biersteuer: 'biersteuer',
+  aktionskarten: 'aktion',
+  spielveraendernd: 'gamechanger',
+  ereignis: 'ereignis',
+  challenge: 'challenge',
+  gehaltswechsel: 'berufswechsel',
+  minigames: 'minigame',
+  flunk: 'flunk',
+}
+
+/** Eingestellte Feldfarben in Brett-Feldtyp-Farben übersetzen. */
+export function boardColorOverrides(
+  colors: FieldColors,
+): Partial<Record<BoardFieldType, string>> {
+  const out: Partial<Record<BoardFieldType, string>> = {}
+  for (const [key, type] of Object.entries(FIELD_BOARD_TYPE) as Array<
+    [GameFieldKey, BoardFieldType]
+  >) {
+    const color = colors[key]
+    if (color) out[type] = color
+  }
+  return out
 }

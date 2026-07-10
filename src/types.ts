@@ -250,6 +250,17 @@ export interface FeedbackEntry {
  */
 export type FieldColors = Record<string, string>
 
+/** Die beiden bearbeitbaren Brett-Tabellen. */
+export type BoardTableKey = 'kingstabelle' | 'minigames'
+
+/**
+ * Bearbeitbare Inhalte der Kingstabelle und der Minigames-Tabelle
+ * (Karten-Seite). Nur die Zeilentexte in Reihenfolge – die Nummer ergibt
+ * sich aus der Position. Liegt im geteilten Zustand und landet beim
+ * PDF-Export mit auf dem Spielbrett.
+ */
+export type BoardTables = Record<BoardTableKey, string[]>
+
 // ---- Spielbrett (temporäre Editor-Seite) -----------------------------------
 
 /**
@@ -319,6 +330,8 @@ export interface AppState {
   board: BoardState
   /** Eingestellte Farben der Spiel-Felder (Karten-Seite, geteilt). */
   fieldColors: FieldColors
+  /** Bearbeitbare Kingstabelle & Minigames-Tabelle (Karten-Seite, geteilt). */
+  tables: BoardTables
 }
 
 /**

@@ -2,7 +2,15 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, typ
 import { useStore } from '../store'
 import type { BoardBranch, BoardField, BoardFieldType } from '../types'
 import { BOARD_FIELD_DEFS, boardFieldDef, splitBoardFields, type BoardEntry } from '../data/board'
-import { exportBoardPdf, iconDataUrl, iconKindOf, renderBoardToDataUrl } from '../lib/boardArt'
+import { boardColorOverrides } from '../data/gameFields'
+import { tableRows } from '../data/tables'
+import {
+  exportBoardPdf,
+  iconDataUrl,
+  iconKindOf,
+  renderBoardToDataUrl,
+  type BoardArtExtras,
+} from '../lib/boardArt'
 import { Modal } from './Modal'
 
 /**
@@ -21,14 +29,25 @@ export function SpielbrettView() {
   const [exporting, setExporting] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
 
+  // Auf der Karten-Seite eingestellte Farben & Tabellen-Inhalte – fließen
+  // in die Editor-Ansicht und in den PDF-Export mit ein.
+  const boardColors = boardColorOverrides(state.fieldColors)
+  const extras: BoardArtExtras = {
+    colors: boardColors,
+    kingstabelle: tableRows(state.tables.kingstabelle),
+    minigames: tableRows(state.tables.minigames),
+  }
+  const tileColor = (type: BoardFieldType) => boardColors[type] ?? boardFieldDef(type).color
+
   // Vorschau-Hook für automatisierte Layout-Checks (temporäre Seite).
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>
-    w.__fdlBoardPreview = (scale = 0.35) => renderBoardToDataUrl(board, scale)
+    w.__fdlBoardPreview = (scale = 0.35) => renderBoardToDataUrl(board, scale, extras)
     return () => {
       delete w.__fdlBoardPreview
     }
-  }, [board])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, state.fieldColors, state.tables])
 
   // Laufender Drag (nur im Verschieben-Modus).
   const dragRef = useRef<{
@@ -113,7 +132,7 @@ export function SpielbrettView() {
     if (exporting) return
     setExporting(true)
     try {
-      await exportBoardPdf(board)
+      await exportBoardPdf(board, extras)
       say('Spielbrett als PDF exportiert 🖨️')
     } catch (err) {
       console.error('[spielbrett] PDF-Export fehlgeschlagen –', err)
@@ -151,7 +170,7 @@ export function SpielbrettView() {
         key={field.id}
         data-sb-idx={index}
         className={cls}
-        style={{ '--f': def.color } as CSSProperties}
+        style={{ '--f': tileColor(field.type) } as CSSProperties}
         onPointerDown={(e) => onTilePointerDown(e, index)}
         onPointerMove={onTilePointerMove}
         onPointerUp={(e) => onTilePointerUp(e, field)}
@@ -196,7 +215,7 @@ export function SpielbrettView() {
           <button
             key={d.type}
             className="sb-chip"
-            style={{ '--f': d.color } as CSSProperties}
+            style={{ '--f': tileColor(d.type) } as CSSProperties}
             onClick={() => addField(d.type)}
             title={`${d.label} hinzufügen`}
           >
@@ -326,8 +345,9 @@ function FieldEditor({
   index: number
   onClose: () => void
 }) {
-  const { updateBoardField, insertBoardField, removeBoardField } = useStore()
+  const { state, updateBoardField, insertBoardField, removeBoardField } = useStore()
   const def = boardFieldDef(field.type)
+  const boardColors = boardColorOverrides(state.fieldColors)
 
   return (
     <Modal title={`${def.label} – Feld ${label}`} onClose={onClose}>
@@ -338,7 +358,7 @@ function FieldEditor({
             <button
               key={d.type}
               className={d.type === field.type ? 'sb-type selected' : 'sb-type'}
-              style={{ '--f': d.color } as CSSProperties}
+              style={{ '--f': boardColors[d.type] ?? d.color } as CSSProperties}
               onClick={() => updateBoardField(field.id, { type: d.type })}
             >
               <img

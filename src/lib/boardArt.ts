@@ -487,6 +487,17 @@ interface Pos {
 }
 
 /**
+ * Anpassbare Inhalte fürs Brett-Rendern: auf der Karten-Seite eingestellte
+ * Feldfarben (als Brett-Feldtyp-Overrides) und die bearbeiteten Inhalte
+ * von Kingstabelle & Minigames-Tabelle.
+ */
+export interface BoardArtExtras {
+  colors?: Partial<Record<BoardFieldType, string>>
+  kingstabelle?: TableRow[]
+  minigames?: TableRow[]
+}
+
+/**
  * Zeichnet das komplette Brett in den Canvas. `scale` skaliert das
  * Grundmaß 3508×2480 (z. B. 0.25 für Vorschau-Thumbnails).
  */
@@ -494,6 +505,7 @@ export async function renderBoardCanvas(
   canvas: HTMLCanvasElement,
   board: BoardState,
   scale = 1,
+  extras: BoardArtExtras = {},
 ): Promise<void> {
   const theme = COMIC
   canvas.width = Math.round(W * scale)
@@ -504,7 +516,8 @@ export async function renderBoardCanvas(
 
   const { ausbildung, studium, main } = splitBoardFields(board.fields)
   const cols = Math.max(4, board.cols)
-  const color = (t: BoardFieldType) => theme.colors[t] ?? boardFieldDef(t).color
+  const color = (t: BoardFieldType) =>
+    extras.colors?.[t] ?? theme.colors[t] ?? boardFieldDef(t).color
 
   // ---- Hintergrund ----------------------------------------------------------
   const bg = ctx.createLinearGradient(0, 0, W, H)
@@ -767,8 +780,10 @@ export async function renderBoardCanvas(
   const zoneH = cy(laneCount + 4) + rowPitch * 0.48 - zoneY
   if (zoneW > 400) {
     const gap = 30
+    const kings = extras.kingstabelle ?? KINGSTABELLE
+    const minis = extras.minigames ?? MINIGAMES
     const kingsH = (zoneH - gap) * 0.42
-    drawTable(ctx, theme, zoneX, zoneY, zoneW, kingsH, 'KINGSTABELLE', 'crown', KINGSTABELLE, scale)
+    drawTable(ctx, theme, zoneX, zoneY, zoneW, kingsH, 'KINGSTABELLE', 'crown', kings, scale)
     drawTable(
       ctx,
       theme,
@@ -778,7 +793,7 @@ export async function renderBoardCanvas(
       zoneH - kingsH - gap,
       'MINIGAMES',
       'minigame',
-      MINIGAMES,
+      minis,
       scale,
     )
   }
@@ -853,6 +868,7 @@ function drawTable(
   ctx.fillText(title, x + 26 + iconPx + 18, y + headH / 2 + 2)
 
   // Zeilen
+  if (rows.length === 0) return
   const pad = 16
   const rowH = (h - headH - pad * 2) / rows.length
   const chipR = Math.min(rowH * 0.38, 31)
@@ -889,17 +905,21 @@ function drawTable(
 }
 
 /** Brett rendern und als Data-URL zurückgeben (Vorschau/Tests). */
-export async function renderBoardToDataUrl(board: BoardState, scale = 0.35): Promise<string> {
+export async function renderBoardToDataUrl(
+  board: BoardState,
+  scale = 0.35,
+  extras: BoardArtExtras = {},
+): Promise<string> {
   const canvas = document.createElement('canvas')
-  await renderBoardCanvas(canvas, board, scale)
+  await renderBoardCanvas(canvas, board, scale, extras)
   return canvas.toDataURL('image/png')
 }
 
 /** Brett im Comic-Design als A4-quer-PDF herunterladen. */
-export async function exportBoardPdf(board: BoardState): Promise<void> {
+export async function exportBoardPdf(board: BoardState, extras: BoardArtExtras = {}): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const canvas = document.createElement('canvas')
-  await renderBoardCanvas(canvas, board, 1)
+  await renderBoardCanvas(canvas, board, 1, extras)
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 297, 210)
   pdf.save('flunk-des-lebens-spielbrett.pdf')

@@ -1,7 +1,8 @@
 import { useState, type CSSProperties } from 'react'
 import { useStore } from '../store'
-import type { Card, Deck } from '../types'
+import type { BoardTableKey, Card, Deck } from '../types'
 import { ALL_GAME_FIELDS, gameFieldColor } from '../data/gameFields'
+import type { IconKind } from '../lib/boardArt'
 import { formatMoney } from '../util'
 import { Modal } from './Modal'
 import { DECK_ICON_KIND, FieldIcon } from './FieldIcon'
@@ -45,7 +46,8 @@ export function KartenView() {
           )}
         </div>
         <p className="muted small">
-          Farbe der Felder auf der Spiel-Seite – gilt für alle Geräte.
+          Farbe der Felder auf der Spiel-Seite und der passenden Felder auf
+          dem Spielbrett (inkl. PDF-Export) – gilt für alle Geräte.
         </p>
         <div className="karten-color-list">
           {ALL_GAME_FIELDS.map((f) => {
@@ -83,6 +85,21 @@ export function KartenView() {
             )
           })}
         </div>
+      </div>
+
+      {/* ---- Brett-Tabellen -------------------------------------------------- */}
+      <div className="settings-table">
+        <div className="karten-section-head">
+          <h3 className="karten-section-title">
+            <FieldIcon kind="crown" /> Brett-Tabellen
+          </h3>
+        </div>
+        <p className="muted small">
+          Inhalte der Kingstabelle und der Minigames-Tabelle – sie stehen auf
+          dem Spielbrett und landen mit im PDF-Export.
+        </p>
+        <TableEditor table="kingstabelle" title="Kingstabelle" icon="crown" />
+        <TableEditor table="minigames" title="Minigames" icon="minigame" />
       </div>
 
       {/* ---- Karteninhalte -------------------------------------------------- */}
@@ -135,6 +152,75 @@ export function KartenView() {
         </Modal>
       )}
     </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Auf-/zuklappbarer Editor für eine Brett-Tabelle (Kingstabelle/Minigames):
+ * Zeilentexte direkt bearbeiten, Zeilen anhängen/löschen, zurücksetzen.
+ */
+function TableEditor({
+  table,
+  title,
+  icon,
+}: {
+  table: BoardTableKey
+  title: string
+  icon: IconKind
+}) {
+  const { state, setTableRow, addTableRow, removeTableRow, resetTable } = useStore()
+  const [open, setOpen] = useState(false)
+  const rows = state.tables[table]
+
+  return (
+    <div className="karten-deck">
+      <button className="settings-deck-head" onClick={() => setOpen((o) => !o)}>
+        <span className="karten-deck-name">
+          <FieldIcon kind={icon} /> {title}
+          <span className="muted small"> · {rows.length} Zeilen</span>
+        </span>
+        <span className="karten-deck-chevron">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className="settings-deck-body">
+          <div className="karten-table-rows">
+            {rows.map((text, i) => (
+              <div key={i} className="karten-table-row">
+                <span className="karten-card-num">{i + 1}</span>
+                <input
+                  type="text"
+                  value={text}
+                  placeholder="Text der Zeile"
+                  onChange={(e) => setTableRow(table, i, e.target.value)}
+                />
+                <button
+                  className="btn tiny ghost"
+                  title="Zeile löschen"
+                  aria-label={`Zeile ${i + 1} löschen`}
+                  onClick={() => removeTableRow(table, i)}
+                >
+                  🗑️
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="karten-table-actions">
+            <button className="btn small ghost" onClick={() => addTableRow(table)}>
+              ＋ Zeile hinzufügen
+            </button>
+            <button
+              className="btn small ghost"
+              title="Auf die mitgelieferten Inhalte zurücksetzen"
+              onClick={() => resetTable(table)}
+            >
+              ↩︎ Zurücksetzen
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

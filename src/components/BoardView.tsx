@@ -6,7 +6,6 @@ import {
   gameFieldColor,
   type GameFieldDef as FieldDef,
 } from '../data/gameFields'
-import { KINGSTABELLE, MINIGAMES } from '../data/tables'
 import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
@@ -531,9 +530,9 @@ function KingstabelleBody({ onDone }: { onDone: (msg: string) => void }) {
         {KINGSTABELLE_PENALTY} KK abgezogen.
       </p>
       <ol className="rule-table">
-        {KINGSTABELLE.map((row) => (
-          <li key={row.n} value={row.n}>
-            {row.text}
+        {state.tables.kingstabelle.map((text, i) => (
+          <li key={i} value={i + 1}>
+            {text}
           </li>
         ))}
       </ol>
@@ -574,9 +573,9 @@ function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
         Sieg zählt für die Endstatistik).
       </p>
       <ol className="rule-table">
-        {MINIGAMES.map((row) => (
-          <li key={row.n} value={row.n}>
-            {row.text}
+        {state.tables.minigames.map((text, i) => (
+          <li key={i} value={i + 1}>
+            {text}
           </li>
         ))}
       </ol>

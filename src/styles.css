@@ -3122,6 +3122,37 @@ button.stat-tile:active {
   gap: 6px;
 }
 
+/* Editor für die Brett-Tabellen (Kingstabelle/Minigames). */
+.karten-table-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.karten-table-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.karten-table-row input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.karten-table-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .karten-card-row {
   display: flex;
   align-items: center;
