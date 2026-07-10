@@ -71,6 +71,12 @@ export interface Team {
    * Team gehalten werden.
    */
   stockNumber: number | null
+  /**
+   * Dauerhafter Gehalts-Bonus in KK (Ereigniskarte „Gehaltserhöhung").
+   * Wird getrennt vom gewürfelten Gehalt gespeichert und bleibt deshalb
+   * auch beim Neuwürfeln des Gehalts erhalten.
+   */
+  salaryBonus: number
   actionCards: ActionCard[]
   transactions: Transaction[]
   /** Gezählte Biere (normal / Spaß / Strafe). */

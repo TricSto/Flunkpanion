@@ -37,7 +37,7 @@ import { FLUNK_BEER_BONUS, STOCK_NUMBERS, STOCK_PRICE } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { BOARD_COLS, BOARD_VERSION, defaultBoard, isBoardFieldType } from './data/board'
 import { CONTENT_ID, CONTENT_TABLE, GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
-import { isDiplomJob, pickRandom, sampleDistinct } from './util'
+import { effectiveSalary, isDiplomJob, pickRandom, sampleDistinct } from './util'
 
 const STORAGE_KEY = 'flunk-des-lebens/state/v1'
 const SESSION_KEY = 'flunk-des-lebens/session/v1'
@@ -142,6 +142,7 @@ function normalizeTeams(teams: Team[] | undefined, decks: Deck[]): Team[] {
       players: t.players ?? 1,
       education: t.education ?? 'none',
       stockNumber,
+      salaryBonus: t.salaryBonus ?? 0,
       actionCards: (t.actionCards ?? []).map((c) => ({
         ...c,
         kind: c.kind ?? (specialTitles.has(c.title) ? 'special' : 'action'),
@@ -327,6 +328,12 @@ interface Store {
    */
   rerollAllJobs: () => BerufswechselResult[]
   setSalary: (teamId: string, salary: number, beerTax: number) => void
+  /**
+   * Dauerhaften Gehalts-Bonus erhöhen (Ereigniskarte „Gehaltserhöhung").
+   * Der Bonus bleibt beim Neuwürfeln des Gehalts erhalten und wird bei
+   * jeder Gehaltsauszahlung mitgezahlt.
+   */
+  addSalaryBonus: (teamId: string, delta: number) => void
   payBeerTax: (teamId: string) => void
   // Team-Auswahl („Beitreten“)
   setCurrentTeam: (teamId: string | null) => void
@@ -827,6 +834,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             job: null,
             education: 'none',
             stockNumber: null,
+            salaryBonus: 0,
             actionCards: [],
             transactions: [],
             beers: { normal: 0, fun: 0, penalty: 0 },
@@ -1042,6 +1050,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           job: { title: t.job?.title ?? '', salary, beerTax },
         })),
 
+      addSalaryBonus: (teamId, delta) =>
+        mutateTeam(teamId, (t) => ({
+          ...t,
+          salaryBonus: Math.max(0, (t.salaryBonus ?? 0) + delta),
+        })),
+
       payBeerTax: (teamId) =>
         mutateTeam(teamId, (t) => {
           if (!t.job || !t.job.beerTax) return t
@@ -1216,7 +1230,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // #33) – ob schon gezahlt wurde, steht in flunk.paidIds.
         const s0 = stateRef.current
         const team = s0.teams.find((t) => t.id === teamId)
-        const salary = team?.job?.salary ?? 0
+        // Inkl. dauerhaftem Bonus aus „Gehaltserhöhung".
+        const salary = team ? effectiveSalary(team) : 0
         const alreadyPaid = s0.flunk?.paidIds?.includes(teamId) ?? false
         const alreadyReady = s0.flunk?.readyIds.includes(teamId) ?? false
         if (alreadyReady) return null

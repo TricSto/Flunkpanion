@@ -2435,6 +2435,15 @@ button.stat-tile:active {
   color: var(--primary);
 }
 
+/* Kleines „+1" neben dem Gehalt: dauerhafter Bonus aus „Gehaltserhöhung". */
+.salary-bonus {
+  color: var(--pos);
+  font-size: 0.75em;
+  font-weight: 700;
+  margin-left: 2px;
+  vertical-align: super;
+}
+
 .stat-tile-btns {
   display: inline-flex;
   gap: 4px;
