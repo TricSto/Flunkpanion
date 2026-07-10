@@ -11,6 +11,7 @@ import { Announcements } from './components/Announcements'
 import { FeedbackView } from './components/FeedbackView'
 import { SpielbrettView } from './components/SpielbrettView'
 import { KartenView } from './components/KartenView'
+import { FieldIcon } from './components/FieldIcon'
 
 // 'feedback' und 'spielbrett' sind temporäre Seiten (können später wieder raus).
 type Tab = 'board' | 'teams' | 'admin' | 'feedback' | 'spielbrett' | 'karten'
@@ -86,11 +87,25 @@ export function App() {
 
       <main className="app-main" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {overlay === 'challenge' ? (
-          <OverlayShell title="⚔️ Challenge" onBack={() => setOverlay(null)}>
+          <OverlayShell
+            title={
+              <>
+                <FieldIcon kind="challenge" /> Challenge
+              </>
+            }
+            onBack={() => setOverlay(null)}
+          >
             <ChallengeView onClose={() => setOverlay(null)} />
           </OverlayShell>
         ) : overlay === 'flunk' ? (
-          <OverlayShell title="🚩 Flunk-Feld" onBack={() => setOverlay(null)}>
+          <OverlayShell
+            title={
+              <>
+                <FieldIcon kind="flunk" /> Flunk-Feld
+              </>
+            }
+            onBack={() => setOverlay(null)}
+          >
             <FlunkView />
           </OverlayShell>
         ) : overlay === 'stats' ? (
@@ -201,7 +216,7 @@ function OverlayShell({
   onBack,
   children,
 }: {
-  title: string
+  title: ReactNode
   onBack: () => void
   children: ReactNode
 }) {

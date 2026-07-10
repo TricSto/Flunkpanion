@@ -6,6 +6,7 @@ import { formatMoney, formatTime, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
 import { BerufChooser } from './BerufChooser'
+import { FieldIcon } from './FieldIcon'
 
 /** Karten, die jünger sind, bekommen die „gerade gezogen"-Animation. */
 const JUST_ADDED_MS = 1500
@@ -157,7 +158,7 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
               −1
             </button>
             <button className="btn small book" onClick={() => setModal('cash')}>
-              💰 Betrag buchen
+              <FieldIcon kind="zahltag" /> Betrag buchen
             </button>
             <button
               className="btn small plus"
@@ -171,13 +172,13 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
               wird nur über die Spiel-Seite (Feedback #24), hier werden die
               Karten nur angezeigt und ausgespielt. */}
           <CardSection
-            title="🃏 Aktionskarten"
+            title="Aktionskarten"
             kind="action"
             cards={normalCards}
             onRemove={(id) => removeActionCard(team.id, id)}
           />
           <CardSection
-            title="⚡ Game Changer"
+            title="Game Changer"
             kind="special"
             cards={specialCards}
             onRemove={(id) => removeActionCard(team.id, id)}
@@ -186,7 +187,9 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
           {/* Bierzähler (für die Endstatistik) */}
           <div className="section">
             <div className="section-head">
-              <h4>🍺 Biere</h4>
+              <h4>
+                <FieldIcon kind="flunk" /> Biere
+              </h4>
             </div>
             <div className="beer-counters single">
               <BeerCounter
@@ -323,7 +326,8 @@ function CardSection({
     <div className="section">
       <div className="section-head">
         <h4>
-          {title} ({cards.length})
+          <FieldIcon kind={kind === 'special' ? 'gamechanger' : 'aktion'} /> {title} (
+          {cards.length})
         </h4>
       </div>
       {cards.length === 0 ? (
@@ -342,7 +346,7 @@ function CardSection({
                 .join(' ')}
             >
               <span className="chip-icon" aria-hidden="true">
-                {kind === 'special' ? '⚡' : '🃏'}
+                <FieldIcon kind={kind === 'special' ? 'gamechanger' : 'aktion'} size="16px" />
               </span>
               <span className="chip-text">
                 <strong>{c.title}</strong>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { formatMoney } from '../util'
 import { TeamCard } from './TeamCard'
+import { FieldIcon } from './FieldIcon'
 
 export function TeamsView({
   focusBeers = false,
@@ -101,7 +102,9 @@ export function TeamsView({
                 </div>
                 <div className="overview-side">
                   <span className="overview-cash">{formatMoney(t.cash)}</span>
-                  <span className="overview-beers muted small">🍺 {beers}</span>
+                  <span className="overview-beers muted small">
+                    <FieldIcon kind="flunk" /> {beers}
+                  </span>
                 </div>
               </li>
             )

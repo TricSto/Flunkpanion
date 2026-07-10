@@ -1,4 +1,5 @@
 import type { FieldColors } from '../types'
+import type { IconKind } from '../lib/boardArt'
 
 /**
  * Die Felder der Spiel-Seite (BoardView). Zentral definiert, damit die
@@ -20,7 +21,8 @@ export type GameFieldKey =
 export interface GameFieldDef {
   key: GameFieldKey
   label: string
-  icon: string
+  /** Vektor-Icon vom Spielbrett (siehe FieldIcon). */
+  icon: IconKind
   /** Standard-Farbe der Kachel (überschreibbar via fieldColors). */
   color: string
   sub: string
@@ -28,22 +30,22 @@ export interface GameFieldDef {
 
 // 5×2-Raster (10 Felder). Flunk bekommt darunter eine eigene große Reihe.
 export const GAME_GRID_FIELDS: GameFieldDef[] = [
-  { key: 'zahltag', label: 'Zahltag', icon: '💰', color: '#22c55e', sub: 'Gehalt aufs Konto' },
-  { key: 'biersteuer', label: 'Biersteuer', icon: '🍺', color: '#f59e0b', sub: 'Steuer abziehen' },
-  { key: 'aktionskarten', label: 'Aktionskarten', icon: '🃏', color: '#6366f1', sub: 'Karte ziehen' },
-  { key: 'spielveraendernd', label: 'Game Changer', icon: '⚡', color: '#a855f7', sub: 'Karte ziehen' },
-  { key: 'ereignis', label: 'Ereignis', icon: '🎲', color: '#06b6d4', sub: 'Vorlesen & buchen' },
-  { key: 'challenge', label: 'Challenge', icon: '🎯', color: '#ec4899', sub: 'Gegner fordern' },
-  { key: 'gehaltswechsel', label: 'Berufswechsel', icon: '🔄', color: '#eab308', sub: 'Beruf & Gehalt neu' },
-  { key: 'edward', label: 'Edward 20 Hands', icon: '🖐️', color: '#14b8a6', sub: 'Dose antapen' },
-  { key: 'kingstabelle', label: 'Kingstabelle', icon: '👑', color: '#f97316', sub: 'Am Brett würfeln' },
-  { key: 'minigames', label: 'Minigames', icon: '🎮', color: '#8b5cf6', sub: 'Am Brett würfeln' },
+  { key: 'zahltag', label: 'Zahltag', icon: 'zahltag', color: '#22c55e', sub: 'Gehalt aufs Konto' },
+  { key: 'biersteuer', label: 'Biersteuer', icon: 'biersteuer', color: '#f59e0b', sub: 'Steuer abziehen' },
+  { key: 'aktionskarten', label: 'Aktionskarten', icon: 'aktion', color: '#6366f1', sub: 'Karte ziehen' },
+  { key: 'spielveraendernd', label: 'Game Changer', icon: 'gamechanger', color: '#a855f7', sub: 'Karte ziehen' },
+  { key: 'ereignis', label: 'Ereignis', icon: 'ereignis', color: '#06b6d4', sub: 'Vorlesen & buchen' },
+  { key: 'challenge', label: 'Challenge', icon: 'challenge', color: '#ec4899', sub: 'Gegner fordern' },
+  { key: 'gehaltswechsel', label: 'Berufswechsel', icon: 'berufswechsel', color: '#eab308', sub: 'Beruf & Gehalt neu' },
+  { key: 'edward', label: 'Edward 20 Hands', icon: 'edward', color: '#14b8a6', sub: 'Dose antapen' },
+  { key: 'kingstabelle', label: 'Kingstabelle', icon: 'crown', color: '#f97316', sub: 'Am Brett würfeln' },
+  { key: 'minigames', label: 'Minigames', icon: 'minigame', color: '#8b5cf6', sub: 'Am Brett würfeln' },
 ]
 
 export const GAME_FLUNK_FIELD: GameFieldDef = {
   key: 'flunk',
   label: 'Flunk-Feld',
-  icon: '🚩',
+  icon: 'flunk',
   color: '#ef4444',
   sub: 'Warten · Match · gewinnen',
 }

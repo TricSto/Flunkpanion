@@ -4,6 +4,7 @@ import { FLUNK_BEER_BONUS } from '../types'
 import { useStore } from '../store'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
+import { FieldIcon } from './FieldIcon'
 
 /** KK, die ein Match-Sieger beim Beenden der Runde standardmäßig bekommt (#62). */
 const DEFAULT_WIN_REWARD = 25
@@ -400,7 +401,9 @@ function MyActionCards() {
   return (
     <section className="flunk-hand" style={{ borderLeftColor: team.color }}>
       <div className="hand-group">
-        <h3 className="flunk-hand-title">🃏 Deine Aktionskarten ({normal.length})</h3>
+        <h3 className="flunk-hand-title">
+          <FieldIcon kind="aktion" /> Deine Aktionskarten ({normal.length})
+        </h3>
         {normal.length === 0 ? (
           <p className="muted small flunk-hand-empty">Keine Aktionskarten auf der Hand.</p>
         ) : (
@@ -409,7 +412,9 @@ function MyActionCards() {
       </div>
       {specials.length > 0 && (
         <div className="hand-group hand-group-special">
-          <h3 className="flunk-hand-title">⚡ Game Changer ({specials.length})</h3>
+          <h3 className="flunk-hand-title">
+            <FieldIcon kind="gamechanger" /> Game Changer ({specials.length})
+          </h3>
           {cardList(specials)}
         </div>
       )}

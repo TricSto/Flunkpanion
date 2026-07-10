@@ -10,6 +10,7 @@ import { KINGSTABELLE, MINIGAMES } from '../data/tables'
 import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
+import { FieldIcon } from './FieldIcon'
 
 function tileStyle(color: string): CSSProperties {
   return { '--tile': color } as CSSProperties
@@ -47,7 +48,9 @@ export function BoardView({
             style={tileStyle(gameFieldColor(f, state.fieldColors))}
             onClick={() => tap(f)}
           >
-            <span className="field-icon">{f.icon}</span>
+            <span className="field-icon">
+              <FieldIcon kind={f.icon} size="1.4em" />
+            </span>
             <span className="field-label">{f.label}</span>
             <span className="field-sub">{f.sub}</span>
           </button>
@@ -86,7 +89,14 @@ function FieldSheet({
   const team = myTeam ?? state.teams.find((t) => t.id === teamId) ?? null
 
   return (
-    <Modal title={`${field.icon} ${field.label}`} onClose={onClose}>
+    <Modal
+      title={
+        <>
+          <FieldIcon kind={field.icon} /> {field.label}
+        </>
+      }
+      onClose={onClose}
+    >
       {needsTeam &&
         (state.teams.length === 0 ? (
           <p className="muted small">Noch keine Teams. Lege sie im Tab „Setup“ an.</p>
@@ -186,7 +196,7 @@ function FieldBody({
               say(`+${salary} KK an ${team.name}`)
             }}
           >
-            💰 Zahltag auszahlen +{salary} KK
+            <FieldIcon kind="zahltag" /> Zahltag auszahlen +{salary} KK
           </button>
         ) : (
           <p className="muted small">
@@ -212,7 +222,7 @@ function FieldBody({
               say(`−${tax} KK Biersteuer bei ${team.name}`)
             }}
           >
-            🍺 Biersteuer abziehen −{tax} KK
+            <FieldIcon kind="biersteuer" /> Biersteuer abziehen −{tax} KK
           </button>
         ) : (
           <p className="muted small">
@@ -244,7 +254,8 @@ function FieldBody({
     return (
       <>
         <button className="btn primary block" onClick={draw}>
-          🃏 Karte ziehen für {team.name}
+          <FieldIcon kind={kind === 'special' ? 'gamechanger' : 'aktion'} /> Karte ziehen für{' '}
+          {team.name}
         </button>
         {drawn && (
           <div className="drawn-card sheet-drawn">
@@ -278,7 +289,7 @@ function FieldBody({
         {!drawn ? (
           <>
             <button className="btn primary block" onClick={draw}>
-              🎲 Ereignis ziehen
+              <FieldIcon kind="ereignis" /> Ereignis ziehen
             </button>
             {doneBtn}
           </>
@@ -356,7 +367,7 @@ function FieldBody({
             onGoToTeams('beers')
           }}
         >
-          🍺 Getränk zählen (+1 Bier)
+          <FieldIcon kind="flunk" /> Getränk zählen (+1 Bier)
         </button>
         {doneBtn}
       </>
@@ -537,7 +548,7 @@ function KingstabelleBody({ onDone }: { onDone: (msg: string) => void }) {
           onDone(`👑 ${loser.name} verliert die Kingstabelle: −${KINGSTABELLE_PENALTY} KK`)
         }}
       >
-        👑 −{KINGSTABELLE_PENALTY} KK beim Verlierer abziehen
+        <FieldIcon kind="crown" /> −{KINGSTABELLE_PENALTY} KK beim Verlierer abziehen
       </button>
     </>
   )

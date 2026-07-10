@@ -4,6 +4,7 @@ import type { Card, Deck } from '../types'
 import { ALL_GAME_FIELDS, gameFieldColor } from '../data/gameFields'
 import { formatMoney } from '../util'
 import { Modal } from './Modal'
+import { DECK_ICON_KIND, FieldIcon } from './FieldIcon'
 
 /**
  * Karten-Seite (rechts neben dem Spielbrett): Hier lassen sich alle Inhalte
@@ -56,7 +57,7 @@ export function KartenView() {
                   className="karten-color-tile"
                   style={{ '--tile': color } as CSSProperties}
                 >
-                  {f.icon}
+                  <FieldIcon kind={f.icon} size="20px" />
                 </span>
                 <span className="karten-color-name">
                   {f.label}
@@ -168,7 +169,7 @@ function DeckPanel({
     <div className="karten-deck">
       <button className="settings-deck-head" onClick={onToggle}>
         <span className="karten-deck-name">
-          {deck.icon} {deck.name}
+          <FieldIcon kind={DECK_ICON_KIND[deck.type]} /> {deck.name}
           <span className="muted small"> · {deck.cards.length} Karten</span>
         </span>
         <span className="karten-deck-chevron">{open ? '▾' : '▸'}</span>
@@ -240,7 +241,14 @@ function CardEditor({
   }
 
   return (
-    <Modal title={`${deck.icon} ${deck.name} bearbeiten`} onClose={onClose}>
+    <Modal
+      title={
+        <>
+          <FieldIcon kind={DECK_ICON_KIND[deck.type]} /> {deck.name} bearbeiten
+        </>
+      }
+      onClose={onClose}
+    >
       <label className="field">
         <span>Titel</span>
         <input
