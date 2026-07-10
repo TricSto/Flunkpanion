@@ -9,8 +9,9 @@ import { Modal } from './Modal'
  * Karten-Seite (rechts neben dem Spielbrett): Hier lassen sich alle Inhalte
  * der Spiel-Seite bearbeiten – die Farbe jedes Felds und die Karten der
  * einzelnen Decks (Berufe, Gehalt, Aktionskarten, Game Changer, Challenges,
- * Ereignisse). Alle Änderungen liegen im geteilten Zustand und werden
- * gespeichert/gesynct.
+ * Ereignisse). Alle Änderungen werden global auf dem Server gespeichert
+ * (Tabelle app_content) und gelten dauerhaft – auch für alle zukünftigen
+ * Spiele/Sessions, nicht nur für die laufende.
  */
 export function KartenView() {
   const { state, setFieldColor, resetFieldColors, resetDecks } = useStore()
@@ -29,8 +30,8 @@ export function KartenView() {
     <section className="karten">
       <p className="muted small feedback-intro">
         Inhalte der Spiel-Seite bearbeiten: Feldfarben einstellen und die
-        Karten der einzelnen Decks anpassen. Alles wird automatisch
-        gespeichert und live geteilt.
+        Karten der einzelnen Decks anpassen. Alles wird automatisch dauerhaft
+        gespeichert – auch für zukünftige Spiele – und live geteilt.
       </p>
 
       {/* ---- Feldfarben ---------------------------------------------------- */}

@@ -20,3 +20,12 @@ export const supabase: SupabaseClient | null = isRemoteConfigured
 
 /** Tabellenname für die geteilten Spielstände. */
 export const GAMES_TABLE = 'games'
+
+/**
+ * Tabellenname für die global gespeicherten App-Inhalte (Karten-Seite:
+ * Karteninhalte & Feldfarben). Eine einzige Zeile – gilt für alle Spiele.
+ */
+export const CONTENT_TABLE = 'app_content'
+
+/** ID der einen Inhalte-Zeile in CONTENT_TABLE. */
+export const CONTENT_ID = 'karten'
