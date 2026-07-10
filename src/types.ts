@@ -336,6 +336,12 @@ export interface AppState {
   feedback: FeedbackEntry[]
   /** Das bearbeitbare Spielbrett (temporäre Editor-Seite, geteilt). */
   board: BoardState
+  /**
+   * IDs der Berufswechsel-Brettfelder, die schon ausgelöst wurden (geteilt).
+   * Jedes Feld löst den Berufswechsel nur einmal aus – es zählt nur das
+   * erste Team, das daran vorbeikommt.
+   */
+  usedBerufswechsel: string[]
   /** Eingestellte Farben der Spiel-Felder (Karten-Seite, geteilt). */
   fieldColors: FieldColors
   /** Bearbeitbare Kingstabelle & Minigames-Tabelle (Karten-Seite, geteilt). */

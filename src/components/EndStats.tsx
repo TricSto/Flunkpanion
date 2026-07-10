@@ -31,9 +31,22 @@ function leaders(teams: Team[], metric: Metric): { teams: Team[]; value: number 
 
 const nameList = (ts: Team[]) => ts.map((t) => t.name).join(' & ')
 
-export function EndStats() {
-  const { state } = useStore()
+export function EndStats({ onNewGame }: { onNewGame?: () => void }) {
+  const { state, isHost, newGame } = useStore()
   const teams = state.teams
+
+  // Neues Spiel mit denselben Teams – mit Rückfrage, damit die Auswertung
+  // nicht aus Versehen weggeworfen wird.
+  const startNewGame = () => {
+    if (
+      confirm(
+        'Neues Spiel starten? Kronkorken, Berufe, Karten und Zähler aller Teams werden zurückgesetzt – die Teams bleiben.',
+      )
+    ) {
+      newGame()
+      onNewGame?.()
+    }
+  }
 
   if (teams.length === 0) {
     return (
@@ -82,8 +95,13 @@ export function EndStats() {
         </div>
       </div>
 
+      {isHost && (
+        <button className="btn primary block" onClick={startNewGame}>
+          🔄 Neues Spiel starten
+        </button>
+      )}
       <p className="muted small center endstats-note">
-        Prost! 🍻 Die Zähler kannst du im Setup mit „Alles zurücksetzen“ leeren.
+        Prost! 🍻 „Neues Spiel“ setzt alles zurück, die Teams bleiben bestehen.
       </p>
     </section>
   )

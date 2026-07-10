@@ -194,6 +194,7 @@ export const initialState: AppState = {
   announcements: [],
   feedback: [],
   board: defaultBoard(),
+  usedBerufswechsel: [],
   fieldColors: {},
   tables: defaultTables(),
 }

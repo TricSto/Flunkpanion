@@ -110,7 +110,13 @@ export function App() {
           </OverlayShell>
         ) : overlay === 'stats' ? (
           <OverlayShell title="🏁 Siegesauswertung" onBack={() => setOverlay(null)}>
-            <EndStats />
+            {/* Nach „Neues Spiel" zurück zur Setup-Seite (Teams bleiben). */}
+            <EndStats
+              onNewGame={() => {
+                setOverlay(null)
+                switchTab('admin')
+              }}
+            />
           </OverlayShell>
         ) : (
           <div
