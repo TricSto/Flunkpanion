@@ -1,24 +1,16 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type TouchEvent } from 'react'
 import { useStore } from '../store'
-import type { BoardBranch, BoardField, BoardFieldType, BoardState } from '../types'
+import type { BoardBranch, BoardField, BoardFieldType } from '../types'
 import { BOARD_FIELD_DEFS, boardFieldDef, splitBoardFields, type BoardEntry } from '../data/board'
-import {
-  BOARD_THEMES,
-  exportBoardPdf,
-  iconDataUrl,
-  iconKindOf,
-  renderBoardCanvas,
-  renderBoardToDataUrl,
-  type BoardTheme,
-} from '../lib/boardArt'
+import { exportBoardPdf, iconDataUrl, iconKindOf, renderBoardToDataUrl } from '../lib/boardArt'
 import { Modal } from './Modal'
 
 /**
  * Temporäre Spielbrett-Seite: bearbeitbares Brett mit zwei Startwegen
  * (Ausbildung kurz, Studium lang) und Serpentinen-Hauptweg – Felder
- * verschieben, Typ/Text/Weg ändern, einfügen/löschen und in einem von
- * fünf Designs als PDF exportieren. Alle Änderungen liegen im geteilten
- * Zustand und werden gespeichert/gesynct.
+ * verschieben, Typ/Text/Weg ändern, einfügen/löschen und im Comic-Design
+ * als PDF exportieren. Alle Änderungen liegen im geteilten Zustand und
+ * werden gespeichert/gesynct.
  */
 export function SpielbrettView() {
   const { state, moveBoardField, insertBoardField, resetBoard } = useStore()
@@ -26,14 +18,13 @@ export function SpielbrettView() {
   const [moveMode, setMoveMode] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
-  const [themePick, setThemePick] = useState(false)
-  const [exporting, setExporting] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
 
   // Vorschau-Hook für automatisierte Layout-Checks (temporäre Seite).
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>
-    w.__fdlBoardPreview = (themeId: string, scale = 0.35) => renderBoardToDataUrl(board, themeId, scale)
+    w.__fdlBoardPreview = (scale = 0.35) => renderBoardToDataUrl(board, scale)
     return () => {
       delete w.__fdlBoardPreview
     }
@@ -118,17 +109,17 @@ export function SpielbrettView() {
     say(`${boardFieldDef(type).label} ans Ende des Hauptwegs angefügt`)
   }
 
-  const exportWith = async (theme: BoardTheme) => {
-    setExporting(theme.id)
+  const exportPdf = async () => {
+    if (exporting) return
+    setExporting(true)
     try {
-      await exportBoardPdf(board, theme.id)
-      setThemePick(false)
-      say(`PDF im Design „${theme.name}“ exportiert`)
+      await exportBoardPdf(board)
+      say('Spielbrett als PDF exportiert 🖨️')
     } catch (err) {
       console.error('[spielbrett] PDF-Export fehlgeschlagen –', err)
       say('PDF-Export fehlgeschlagen 😕')
     } finally {
-      setExporting(null)
+      setExporting(false)
     }
   }
 
@@ -191,8 +182,8 @@ export function SpielbrettView() {
         >
           ✋ Verschieben {moveMode ? 'an' : 'aus'}
         </button>
-        <button className="btn small ghost" onClick={() => setThemePick(true)}>
-          📄 Als PDF exportieren
+        <button className="btn small ghost" disabled={exporting} onClick={exportPdf}>
+          {exporting ? '⏳ Exportiere …' : '📄 Als PDF exportieren'}
         </button>
         <button className="btn small ghost" onClick={() => setConfirmReset(true)}>
           ↩︎ Zurücksetzen
@@ -289,15 +280,6 @@ export function SpielbrettView() {
         />
       )}
 
-      {themePick && (
-        <ThemePicker
-          board={board}
-          exporting={exporting}
-          onPick={exportWith}
-          onClose={() => setThemePick(false)}
-        />
-      )}
-
       {confirmReset && (
         <Modal title="↩︎ Brett zurücksetzen?" onClose={() => setConfirmReset(false)}>
           <p className="sheet-info">
@@ -322,66 +304,6 @@ export function SpielbrettView() {
       )}
     </section>
   )
-}
-
-// ---------------------------------------------------------------------------
-
-/** Design-Auswahl fürs PDF: fünf Themes mit Live-Vorschau des echten Bretts. */
-function ThemePicker({
-  board,
-  exporting,
-  onPick,
-  onClose,
-}: {
-  board: BoardState
-  exporting: string | null
-  onPick: (theme: BoardTheme) => void
-  onClose: () => void
-}) {
-  return (
-    <Modal title="🎨 Design fürs PDF wählen" onClose={onClose}>
-      <p className="sheet-info">
-        Das Brett wird im gewählten Design als A4-PDF exportiert – inklusive
-        Kingstabelle und Minigames-Tabelle.
-      </p>
-      <div className="sb-theme-list">
-        {BOARD_THEMES.map((t) => (
-          <button
-            key={t.id}
-            className="sb-theme"
-            disabled={exporting != null}
-            onClick={() => onPick(t)}
-          >
-            <ThemeThumb board={board} themeId={t.id} />
-            <span className="sb-theme-name">
-              {exporting === t.id ? '⏳ Exportiere …' : t.name}
-            </span>
-            <span className="sb-theme-desc">{t.desc}</span>
-          </button>
-        ))}
-      </div>
-    </Modal>
-  )
-}
-
-/** Kleine Canvas-Vorschau eines Themes (echtes Brett, herunterskaliert). */
-function ThemeThumb({ board, themeId }: { board: BoardState; themeId: string }) {
-  const ref = useRef<HTMLCanvasElement | null>(null)
-  useEffect(() => {
-    const canvas = ref.current
-    if (!canvas) return
-    let alive = true
-    renderBoardCanvas(canvas, board, themeId, 0.12).catch(() => {
-      if (alive) {
-        const g = canvas.getContext('2d')
-        g?.fillText('Vorschau nicht verfügbar', 10, 20)
-      }
-    })
-    return () => {
-      alive = false
-    }
-  }, [board, themeId])
-  return <canvas ref={ref} className="sb-theme-thumb" />
 }
 
 // ---------------------------------------------------------------------------

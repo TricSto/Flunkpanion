@@ -4,7 +4,7 @@ import { KINGSTABELLE, MINIGAMES, type TableRow } from '../data/tables'
 
 // ============================================================================
 // Spielbrett-Grafik: von Hand gezeichnete Vektor-Icons (statt Emojis),
-// fünf wählbare Design-Themes und der Canvas-Renderer für Ansicht/PDF.
+// das „Comic Pop“-Design und der Canvas-Renderer für Ansicht/PDF.
 // ============================================================================
 
 type G = CanvasRenderingContext2D
@@ -62,6 +62,7 @@ export type IconKind =
   | 'start-ausbildung'
   | 'start-studium'
   | 'crown'
+  | 'edward'
 
 const ICONS: Record<IconKind, (g: G) => void> = {
   // 📣 Megafon
@@ -311,6 +312,23 @@ const ICONS: Record<IconKind, (g: G) => void> = {
     g.ellipse(58, 90, 26, 6, 0, 0, Math.PI * 2)
     g.fill()
   },
+  // 🖐️ Offene Hand (Edward 20 Hands)
+  edward(g) {
+    // Vier Finger, Mittelfinger am längsten
+    frr(g, 17, 28, 12, 36, 6)
+    frr(g, 31, 14, 12, 48, 6)
+    frr(g, 45, 10, 12, 52, 6)
+    frr(g, 59, 20, 12, 44, 6)
+    // Daumen, leicht nach außen gekippt
+    g.save()
+    g.translate(74, 66)
+    g.rotate(0.75)
+    frr(g, -6, -30, 13, 36, 6.5)
+    g.restore()
+    // Handfläche + Handgelenk
+    frr(g, 17, 48, 54, 34, 15)
+    frr(g, 30, 78, 30, 14, 6)
+  },
   // 👑 Krone (Tabellen-Kopf)
   crown(g) {
     poly(g, [
@@ -370,305 +388,52 @@ export function iconKindOf(field: BoardField): IconKind {
   return field.type
 }
 
-// ---- Themes -----------------------------------------------------------------
+// ---- Design -------------------------------------------------------------------
 
-export interface BoardTheme {
-  id: string
-  name: string
-  desc: string
-  bg: [string, string]
-  decor: 'confetti' | 'stars' | 'coaster' | 'halftone' | 'none'
-  titleFamily: string
-  titleColor: string
-  titleUpper: boolean
-  subColor: string
-  tileShape: 'rounded' | 'circle'
-  /** 'fill' = bunte Fläche + dunkle Icons; 'outline' = dunkle Fläche + bunte Ränder/Icons. */
-  tileMode: 'fill' | 'outline'
-  tileBase: string
-  colors: Record<BoardFieldType, string>
-  /** 'type' = Icon in Feldfarbe (Neon), sonst feste Farbe. */
-  iconColor: string
-  tileStroke: string
-  tileStrokeFactor: number
-  doubleRing: boolean
-  shadow: 'soft' | 'hard' | 'none'
-  gloss: boolean
+/**
+ * Das eine Brett-Design „Comic Pop“: fette schwarze Outlines, knallige
+ * Farben, Sticker-Optik. Die früheren Alternativ-Themes sind raus –
+ * exportiert wird immer in diesem Stil.
+ */
+const COMIC = {
+  bg: ['#fff8e0', '#ffedc2'] as [string, string],
+  titleFamily: '"Comic Sans MS", "Trebuchet MS", sans-serif',
+  titleColor: '#17130d',
+  subColor: '#6b5c3f',
+  colors: {
+    ereignis: '#29abe2',
+    aktion: '#ffb703',
+    gamechanger: '#9b5de5',
+    challenge: '#06d6a0',
+    minigame: '#ff70a6',
+    flunk: '#ef476f',
+    zahltag: '#4ad66d',
+    biersteuer: '#ff8c42',
+    berufswechsel: '#5c7cfa',
+    start: '#f4f4f4',
+    rente: '#ffd23f',
+  } as Record<BoardFieldType, string>,
+  iconColor: '#17130d',
+  tileStroke: '#17130d',
+  tileStrokeFactor: 0.05,
   /** Max. Zufallsrotation der Felder in Grad. */
-  rotation: number
-  textColor: string
-  numBg: string
-  numText: string
-  path: { fill: string; edge?: string; center?: string; dash: [number, number] | null; glow?: string }
-  lanes: { studium: string; ausbildung: string }
+  rotation: 5,
+  textColor: '#17130d',
+  numBg: '#ffffff',
+  numText: '#17130d',
+  path: { fill: '#fffdf4', edge: '#17130d', center: '#c9c2b2', dash: [24, 28] as [number, number] },
+  lanes: { studium: '#e6e0ff', ausbildung: '#ffe3b8' },
   table: {
-    bg: string
-    border: string
-    borderW: number
-    headBg: string
-    headText: string
-    text: string
-    chipBg: string
-    chipText: string
-    zebra: string | null
-  }
-}
-
-export const BOARD_THEMES: BoardTheme[] = [
-  {
-    id: 'comic',
-    name: 'Comic Pop',
-    desc: 'Das Standard-Design: fette schwarze Outlines, knallige Farben, Sticker-Optik.',
-    bg: ['#fff8e0', '#ffedc2'],
-    decor: 'halftone',
-    titleFamily: '"Comic Sans MS", "Trebuchet MS", sans-serif',
-    titleColor: '#17130d',
-    titleUpper: true,
-    subColor: '#6b5c3f',
-    tileShape: 'rounded',
-    tileMode: 'fill',
-    tileBase: '#ffffff',
-    colors: {
-      ereignis: '#29abe2',
-      aktion: '#ffb703',
-      gamechanger: '#9b5de5',
-      challenge: '#06d6a0',
-      minigame: '#ff70a6',
-      flunk: '#ef476f',
-      zahltag: '#4ad66d',
-      biersteuer: '#ff8c42',
-      berufswechsel: '#5c7cfa',
-      start: '#f4f4f4',
-      rente: '#ffd23f',
-    },
-    iconColor: '#17130d',
-    tileStroke: '#17130d',
-    tileStrokeFactor: 0.05,
-    doubleRing: false,
-    shadow: 'hard',
-    gloss: false,
-    rotation: 5,
-    textColor: '#17130d',
-    numBg: '#ffffff',
-    numText: '#17130d',
-    path: { fill: '#fffdf4', edge: '#17130d', center: '#c9c2b2', dash: [24, 28] },
-    lanes: { studium: '#e6e0ff', ausbildung: '#ffe3b8' },
-    table: {
-      bg: '#fffdf4',
-      border: '#17130d',
-      borderW: 8,
-      headBg: '#ffd23f',
-      headText: '#17130d',
-      text: '#241d12',
-      chipBg: '#17130d',
-      chipText: '#ffd23f',
-      zebra: '#f6efdb',
-    },
+    bg: '#fffdf4',
+    border: '#17130d',
+    borderW: 8,
+    headBg: '#ffd23f',
+    headText: '#17130d',
+    text: '#241d12',
+    chipBg: '#17130d',
+    chipText: '#ffd23f',
+    zebra: '#f6efdb',
   },
-  {
-    id: 'sommerfest',
-    name: 'Sommerfest',
-    desc: 'Bunt & verspielt wie Mario Party – Konfetti, Candy-Farben, Straßen-Look.',
-    bg: ['#fdf7ec', '#f3e6cc'],
-    decor: 'confetti',
-    titleFamily: '"Trebuchet MS", "Segoe UI", sans-serif',
-    titleColor: '#2b2018',
-    titleUpper: true,
-    subColor: '#8a7a63',
-    tileShape: 'rounded',
-    tileMode: 'fill',
-    tileBase: '#ffffff',
-    colors: {
-      ereignis: '#54c3f1',
-      aktion: '#ffc53d',
-      gamechanger: '#bd8df5',
-      challenge: '#3fd1be',
-      minigame: '#ff8fcf',
-      flunk: '#ff5d5d',
-      zahltag: '#55d287',
-      biersteuer: '#ff9f45',
-      berufswechsel: '#7ea6ff',
-      start: '#f1ead9',
-      rente: '#ffd166',
-    },
-    iconColor: '#2b2018',
-    tileStroke: '#fffdf6',
-    tileStrokeFactor: 0.055,
-    doubleRing: false,
-    shadow: 'soft',
-    gloss: true,
-    rotation: 3,
-    textColor: '#2b2018',
-    numBg: '#fffdf6',
-    numText: '#4b4238',
-    path: { fill: '#e7d6b0', center: 'rgba(255,255,255,0.75)', dash: [26, 34] },
-    lanes: { studium: '#d6cff0', ausbildung: '#efdcba' },
-    table: {
-      bg: '#fffdf4',
-      border: '#e4d5b2',
-      borderW: 4,
-      headBg: '#2b2018',
-      headText: '#ffe9b0',
-      text: '#3b3126',
-      chipBg: '#2b2018',
-      chipText: '#ffe9b0',
-      zebra: '#f7efdc',
-    },
-  },
-  {
-    id: 'neon',
-    name: 'Neonnacht',
-    desc: 'Dunkles Brett, leuchtende Felder – Arcade-Look für Abendrunden.',
-    bg: ['#191430', '#0d0b1a'],
-    decor: 'stars',
-    titleFamily: '"Trebuchet MS", "Segoe UI", sans-serif',
-    titleColor: '#f4f1ff',
-    titleUpper: true,
-    subColor: '#8f87b8',
-    tileShape: 'rounded',
-    tileMode: 'outline',
-    tileBase: '#221d40',
-    colors: {
-      ereignis: '#4dd8ff',
-      aktion: '#ffd54d',
-      gamechanger: '#c07bff',
-      challenge: '#3ff0d0',
-      minigame: '#ff6ad5',
-      flunk: '#ff4d6d',
-      zahltag: '#55ff9f',
-      biersteuer: '#ffa04d',
-      berufswechsel: '#7d9bff',
-      start: '#cfc9e8',
-      rente: '#ffd166',
-    },
-    iconColor: 'type',
-    tileStroke: 'type',
-    tileStrokeFactor: 0.045,
-    doubleRing: false,
-    shadow: 'none',
-    gloss: false,
-    rotation: 0,
-    textColor: '#e8e4ff',
-    numBg: '#141126',
-    numText: '#b9b1e0',
-    path: { fill: '#282250', edge: '#3a3468', center: '#6ee7ff', dash: [22, 30], glow: '#6ee7ff' },
-    lanes: { studium: '#3b2f68', ausbildung: '#4a3350' },
-    table: {
-      bg: '#1d1838',
-      border: '#3a3468',
-      borderW: 4,
-      headBg: '#2c2554',
-      headText: '#6ee7ff',
-      text: '#d9d3f2',
-      chipBg: '#6ee7ff',
-      chipText: '#141126',
-      zebra: '#231d45',
-    },
-  },
-  {
-    id: 'brauhaus',
-    name: 'Brauhaus',
-    desc: 'Vintage-Bierdeckel auf altem Papier – warm, gemütlich, Wirtshaus-Charme.',
-    bg: ['#f4ead2', '#e3d0a4'],
-    decor: 'coaster',
-    titleFamily: 'Georgia, "Times New Roman", serif',
-    titleColor: '#4b3621',
-    titleUpper: false,
-    subColor: '#8c7350',
-    tileShape: 'circle',
-    tileMode: 'fill',
-    tileBase: '#ffffff',
-    colors: {
-      ereignis: '#5e8aa8',
-      aktion: '#d9a13b',
-      gamechanger: '#8d6ba0',
-      challenge: '#64a08b',
-      minigame: '#c96f8e',
-      flunk: '#c14f38',
-      zahltag: '#6f9a4f',
-      biersteuer: '#a8763e',
-      berufswechsel: '#647cae',
-      start: '#e9dfc6',
-      rente: '#c9972f',
-    },
-    iconColor: '#332211',
-    tileStroke: '#f6efdc',
-    tileStrokeFactor: 0.05,
-    doubleRing: true,
-    shadow: 'soft',
-    gloss: false,
-    rotation: 2,
-    textColor: '#332211',
-    numBg: '#f6efdc',
-    numText: '#5a452c',
-    path: { fill: '#c9ae7f', edge: '#a98d5e', center: '#f0e4c6', dash: [8, 26] },
-    lanes: { studium: '#b3a487', ausbildung: '#c4a06b' },
-    table: {
-      bg: '#f8f1de',
-      border: '#8c7350',
-      borderW: 6,
-      headBg: '#4b3621',
-      headText: '#f0e0b8',
-      text: '#43331e',
-      chipBg: '#4b3621',
-      chipText: '#f0e0b8',
-      zebra: '#efe5c9',
-    },
-  },
-  {
-    id: 'minimal',
-    name: 'Studio Minimal',
-    desc: 'Ruhig & aufgeräumt – Pastellfelder, feine Linien, viel Weißraum.',
-    bg: ['#fafaf8', '#fafaf8'],
-    decor: 'none',
-    titleFamily: '"Helvetica Neue", Arial, sans-serif',
-    titleColor: '#1c1c21',
-    titleUpper: false,
-    subColor: '#a1a19a',
-    tileShape: 'rounded',
-    tileMode: 'fill',
-    tileBase: '#ffffff',
-    colors: {
-      ereignis: '#d4eaf7',
-      aktion: '#fdeec2',
-      gamechanger: '#e9ddfb',
-      challenge: '#d2f2ea',
-      minigame: '#fbddec',
-      flunk: '#ffd9d9',
-      zahltag: '#d8f3e0',
-      biersteuer: '#ffe7cf',
-      berufswechsel: '#dde5fb',
-      start: '#efefec',
-      rente: '#fff0c2',
-    },
-    iconColor: '#42424c',
-    tileStroke: 'rgba(0,0,0,0)',
-    tileStrokeFactor: 0,
-    doubleRing: false,
-    shadow: 'none',
-    gloss: false,
-    rotation: 0,
-    textColor: '#42424c',
-    numBg: 'rgba(255,255,255,0.85)',
-    numText: '#8a8a92',
-    path: { fill: '#e3e3dc', dash: null },
-    lanes: { studium: '#e6e3f2', ausbildung: '#eee7d9' },
-    table: {
-      bg: '#ffffff',
-      border: '#e6e6df',
-      borderW: 2,
-      headBg: '#f2f2ee',
-      headText: '#1c1c21',
-      text: '#4a4a52',
-      chipBg: '#1c1c21',
-      chipText: '#ffffff',
-      zebra: '#f7f7f3',
-    },
-  },
-]
-
-export function boardTheme(id: string): BoardTheme {
-  return BOARD_THEMES.find((t) => t.id === id) ?? BOARD_THEMES[0]
 }
 
 // ---- Renderer ---------------------------------------------------------------
@@ -728,10 +493,9 @@ interface Pos {
 export async function renderBoardCanvas(
   canvas: HTMLCanvasElement,
   board: BoardState,
-  themeId: string,
   scale = 1,
 ): Promise<void> {
-  const theme = boardTheme(themeId)
+  const theme = COMIC
   canvas.width = Math.round(W * scale)
   canvas.height = Math.round(H * scale)
   const ctx = canvas.getContext('2d')
@@ -748,7 +512,7 @@ export async function renderBoardCanvas(
   bg.addColorStop(1, theme.bg[1])
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, W, H)
-  drawDecor(ctx, theme)
+  drawHalftone(ctx)
 
   const margin = 130
   const logo = await loadImage('./logo-fdl.png')
@@ -834,7 +598,7 @@ export async function renderBoardCanvas(
       ctx.restore()
     }
     const tx = margin + (logo && availW > 400 ? logoSize + 30 : 0)
-    const title = theme.titleUpper ? 'FLUNK DES LEBENS' : 'Flunk des Lebens'
+    const title = 'FLUNK DES LEBENS'
     let titlePx = 108
     ctx.font = `900 ${titlePx}px ${theme.titleFamily}`
     const wMax = Math.max(300, availW - (tx - margin))
@@ -855,21 +619,13 @@ export async function renderBoardCanvas(
   // ---- Wege -------------------------------------------------------------------
   const ribbonWidth = tile * 0.6
 
-  const strokeAlong = (build: () => void, width: number, style: string, dash: [number, number] | null, glow?: string) => {
+  const strokeAlong = (build: () => void, width: number, style: string, dash: [number, number] | null) => {
     ctx.save()
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.strokeStyle = style
     ctx.lineWidth = width
     if (dash) ctx.setLineDash(dash)
-    if (glow) {
-      ctx.shadowColor = glow
-      ctx.shadowBlur = 26
-    } else if (theme.shadow === 'soft') {
-      ctx.shadowColor = 'rgba(60, 40, 10, 0.14)'
-      ctx.shadowBlur = 20
-      ctx.shadowOffsetY = 8
-    }
     ctx.beginPath()
     build()
     ctx.stroke()
@@ -877,11 +633,9 @@ export async function renderBoardCanvas(
   }
 
   const ribbon = (build: () => void, fill: string) => {
-    if (theme.path.edge) strokeAlong(build, ribbonWidth * 1.16, theme.path.edge, null)
+    strokeAlong(build, ribbonWidth * 1.16, theme.path.edge, null)
     strokeAlong(build, ribbonWidth, fill, null)
-    if (theme.path.center) {
-      strokeAlong(build, 7, theme.path.center, theme.path.dash, theme.path.glow)
-    }
+    strokeAlong(build, 7, theme.path.center, theme.path.dash)
   }
 
   const mainPath = () => {
@@ -924,80 +678,44 @@ export async function renderBoardCanvas(
     const special = field.type === 'start' || field.type === 'rente'
     const t = special ? tile * 1.22 : tile
     const c = color(field.type)
-    const fillColor = theme.tileMode === 'outline' ? theme.tileBase : c
-    const strokeColor = theme.tileStroke === 'type' ? c : theme.tileStroke
-    const iconColor = theme.iconColor === 'type' ? c : theme.iconColor
-    const rot = theme.rotation ? ((hash01(seed, 9) - 0.5) * 2 * theme.rotation * Math.PI) / 180 : 0
+    const rot = ((hash01(seed, 9) - 0.5) * 2 * theme.rotation * Math.PI) / 180
 
     ctx.save()
     ctx.translate(pos.x, pos.y)
     ctx.rotate(rot)
 
     const shape = () => {
-      if (theme.tileShape === 'circle') {
-        ctx.beginPath()
-        ctx.arc(0, 0, t / 2, 0, Math.PI * 2)
-      } else {
-        rr(ctx, -t / 2, -t / 2, t, t, t * 0.26)
-      }
+      rr(ctx, -t / 2, -t / 2, t, t, t * 0.26)
     }
 
-    // Schatten + Grundfläche
-    if (theme.shadow === 'soft') {
-      ctx.shadowColor = 'rgba(60, 38, 8, 0.24)'
-      ctx.shadowBlur = 20
-      ctx.shadowOffsetY = 9
-    } else if (theme.shadow === 'hard') {
-      ctx.shadowColor = '#17130d'
-      ctx.shadowBlur = 0
-      ctx.shadowOffsetX = t * 0.045
-      ctx.shadowOffsetY = t * 0.055
-    } else if (theme.tileMode === 'outline') {
-      ctx.shadowColor = c
-      ctx.shadowBlur = t * 0.12
-    }
-    ctx.fillStyle = fillColor
+    // Harter Comic-Schatten + Grundfläche
+    ctx.shadowColor = '#17130d'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetX = t * 0.045
+    ctx.shadowOffsetY = t * 0.055
+    ctx.fillStyle = c
     shape()
     ctx.fill()
     ctx.shadowColor = 'transparent'
     ctx.shadowOffsetX = 0
     ctx.shadowOffsetY = 0
 
-    if (theme.gloss) {
-      const gloss = ctx.createLinearGradient(0, -t / 2, 0, t / 2)
-      gloss.addColorStop(0, 'rgba(255,255,255,0.36)')
-      gloss.addColorStop(0.5, 'rgba(255,255,255,0)')
-      ctx.fillStyle = gloss
-      shape()
-      ctx.fill()
-    }
-
-    if (theme.tileStrokeFactor > 0) {
-      ctx.strokeStyle = strokeColor
-      ctx.lineWidth = t * theme.tileStrokeFactor
-      shape()
-      ctx.stroke()
-      if (theme.doubleRing) {
-        ctx.lineWidth = t * 0.018
-        ctx.beginPath()
-        ctx.arc(0, 0, t / 2 - t * 0.1, 0, Math.PI * 2)
-        ctx.stroke()
-      }
-    }
+    ctx.strokeStyle = theme.tileStroke
+    ctx.lineWidth = t * theme.tileStrokeFactor
+    shape()
+    ctx.stroke()
 
     // Nummern-Plakette
     const numR = t * 0.135
-    const numX = theme.tileShape === 'circle' ? 0 : -t * 0.33
-    const numY = theme.tileShape === 'circle' ? -t * 0.36 : -t * 0.33
+    const numX = -t * 0.33
+    const numY = -t * 0.33
     ctx.beginPath()
     ctx.arc(numX, numY, numR, 0, Math.PI * 2)
     ctx.fillStyle = theme.numBg
     ctx.fill()
-    if (theme.tileMode === 'outline' || theme.id === 'comic') {
-      ctx.strokeStyle = theme.tileMode === 'outline' ? c : theme.tileStroke
-      ctx.lineWidth = t * 0.02
-      ctx.stroke()
-    }
+    ctx.strokeStyle = theme.tileStroke
+    ctx.lineWidth = t * 0.02
+    ctx.stroke()
     ctx.fillStyle = theme.numText
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -1006,7 +724,7 @@ export async function renderBoardCanvas(
 
     // Inhalt: Icon + Beschriftung
     const icon = (px: number, dy: number) => {
-      const img = iconCanvas(iconKindOf(field), Math.max(24, Math.round(px * scale * 2)), iconColor)
+      const img = iconCanvas(iconKindOf(field), Math.max(24, Math.round(px * scale * 2)), theme.iconColor)
       ctx.drawImage(img, -px / 2, dy - px / 2, px, px)
     }
     ctx.fillStyle = theme.textColor
@@ -1066,73 +784,21 @@ export async function renderBoardCanvas(
   }
 }
 
-function drawDecor(ctx: G, theme: BoardTheme) {
+/** Comic-Deko: verstreute Halbton-Punktraster im Hintergrund. */
+function drawHalftone(ctx: G) {
   ctx.save()
-  if (theme.decor === 'confetti') {
-    const palette = Object.values(theme.colors)
-    ctx.globalAlpha = 0.13
-    for (let i = 0; i < 130; i++) {
-      const x = hash01(i, 1) * W
-      const y = hash01(i, 2) * H
-      const c = palette[Math.floor(hash01(i, 3) * palette.length) % palette.length]
-      const s = 8 + hash01(i, 4) * 22
-      ctx.fillStyle = c
-      ctx.strokeStyle = c
-      ctx.lineWidth = 7
-      const kind = Math.floor(hash01(i, 5) * 3)
-      if (kind === 0) {
+  const cols2 = ['#ff8c42', '#29abe2', '#9b5de5']
+  for (let k = 0; k < 9; k++) {
+    const bx = hash01(k, 1) * W
+    const by = hash01(k, 2) * H
+    const c = cols2[k % cols2.length]
+    ctx.fillStyle = c
+    for (let i = 0; i < 6; i++) {
+      for (let j = 0; j < 4; j++) {
+        ctx.globalAlpha = 0.1
         ctx.beginPath()
-        ctx.arc(x, y, s * 0.5, 0, Math.PI * 2)
+        ctx.arc(bx + i * 34, by + j * 34, 4 + ((i + j) % 3) * 2.2, 0, Math.PI * 2)
         ctx.fill()
-      } else if (kind === 1) {
-        ctx.beginPath()
-        ctx.arc(x, y, s * 0.55, 0, Math.PI * 2)
-        ctx.stroke()
-      } else {
-        ctx.save()
-        ctx.translate(x, y)
-        ctx.rotate(hash01(i, 6) * Math.PI)
-        frr(ctx, -s * 0.7, -s * 0.22, s * 1.4, s * 0.44, s * 0.22)
-        ctx.restore()
-      }
-    }
-  } else if (theme.decor === 'stars') {
-    for (let i = 0; i < 180; i++) {
-      const x = hash01(i, 1) * W
-      const y = hash01(i, 2) * H
-      const r = 1.5 + hash01(i, 3) * 3
-      ctx.globalAlpha = 0.1 + hash01(i, 4) * 0.22
-      ctx.fillStyle = i % 9 === 0 ? '#6ee7ff' : '#cfc9e8'
-      ctx.beginPath()
-      ctx.arc(x, y, r, 0, Math.PI * 2)
-      ctx.fill()
-    }
-  } else if (theme.decor === 'coaster') {
-    ctx.strokeStyle = '#7a5c33'
-    for (let i = 0; i < 12; i++) {
-      const x = hash01(i, 1) * W
-      const y = hash01(i, 2) * H
-      const r = 70 + hash01(i, 3) * 110
-      ctx.globalAlpha = 0.045
-      ctx.lineWidth = 16 + hash01(i, 4) * 14
-      ctx.beginPath()
-      ctx.arc(x, y, r, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-  } else if (theme.decor === 'halftone') {
-    const cols2 = ['#ff8c42', '#29abe2', '#9b5de5']
-    for (let k = 0; k < 9; k++) {
-      const bx = hash01(k, 1) * W
-      const by = hash01(k, 2) * H
-      const c = cols2[k % cols2.length]
-      ctx.fillStyle = c
-      for (let i = 0; i < 6; i++) {
-        for (let j = 0; j < 4; j++) {
-          ctx.globalAlpha = 0.1
-          ctx.beginPath()
-          ctx.arc(bx + i * 34, by + j * 34, 4 + ((i + j) % 3) * 2.2, 0, Math.PI * 2)
-          ctx.fill()
-        }
       }
     }
   }
@@ -1141,7 +807,7 @@ function drawDecor(ctx: G, theme: BoardTheme) {
 
 function drawTable(
   ctx: G,
-  theme: BoardTheme,
+  theme: typeof COMIC,
   x: number,
   y: number,
   w: number,
@@ -1153,15 +819,9 @@ function drawTable(
 ) {
   const r = 26
   ctx.save()
-  if (theme.shadow === 'soft') {
-    ctx.shadowColor = 'rgba(60, 38, 8, 0.18)'
-    ctx.shadowBlur = 22
-    ctx.shadowOffsetY = 8
-  } else if (theme.shadow === 'hard') {
-    ctx.shadowColor = theme.table.border
-    ctx.shadowOffsetX = 10
-    ctx.shadowOffsetY = 12
-  }
+  ctx.shadowColor = theme.table.border
+  ctx.shadowOffsetX = 10
+  ctx.shadowOffsetY = 12
   ctx.fillStyle = theme.table.bg
   frr(ctx, x, y, w, h, r)
   ctx.restore()
@@ -1229,22 +889,18 @@ function drawTable(
 }
 
 /** Brett rendern und als Data-URL zurückgeben (Vorschau/Tests). */
-export async function renderBoardToDataUrl(
-  board: BoardState,
-  themeId: string,
-  scale = 0.35,
-): Promise<string> {
+export async function renderBoardToDataUrl(board: BoardState, scale = 0.35): Promise<string> {
   const canvas = document.createElement('canvas')
-  await renderBoardCanvas(canvas, board, themeId, scale)
+  await renderBoardCanvas(canvas, board, scale)
   return canvas.toDataURL('image/png')
 }
 
-/** Brett im gewählten Design als A4-quer-PDF herunterladen. */
-export async function exportBoardPdf(board: BoardState, themeId: string): Promise<void> {
+/** Brett im Comic-Design als A4-quer-PDF herunterladen. */
+export async function exportBoardPdf(board: BoardState): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const canvas = document.createElement('canvas')
-  await renderBoardCanvas(canvas, board, themeId, 1)
+  await renderBoardCanvas(canvas, board, 1)
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 297, 210)
-  pdf.save(`flunk-des-lebens-spielbrett-${themeId}.pdf`)
+  pdf.save('flunk-des-lebens-spielbrett.pdf')
 }

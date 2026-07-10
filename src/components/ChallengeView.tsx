@@ -3,6 +3,7 @@ import { useStore } from '../store'
 import type { Card, ChallengeReward } from '../types'
 import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
+import { FieldIcon } from './FieldIcon'
 
 export function ChallengeView({ onClose }: { onClose: () => void }) {
   const { state, startChallenge } = useStore()
@@ -152,7 +153,9 @@ function ActiveChallenge({
       </div>
 
       <div className="challenge-card-big">
-        <span className="challenge-card-icon">🎯</span>
+        <span className="challenge-card-icon">
+          <FieldIcon kind="challenge" />
+        </span>
         <strong className="challenge-card-title">{challenge.title}</strong>
         {challenge.detail && <p className="challenge-card-detail">{challenge.detail}</p>}
       </div>
