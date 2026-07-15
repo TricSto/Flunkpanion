@@ -138,10 +138,9 @@ select {
   left: 0;
   right: 0;
   display: flex;
-  justify-content: space-around;
   background: var(--bg-elev);
   border-top: 1px solid var(--border);
-  padding: 8px 0 calc(env(safe-area-inset-bottom) + 8px);
+  padding: 8px 4px calc(env(safe-area-inset-bottom) + 8px);
   z-index: 20;
 }
 
@@ -154,10 +153,20 @@ select {
   align-items: center;
   gap: 3px;
   font-size: 11px;
-  /* 5 Tabs: schmaler, damit alles auf kleine Screens passt. */
-  padding: 4px 10px;
+  /* 7 Tabs: gleich breit + kein Umbruch, damit alles auf kleine Screens passt. */
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 4px 2px;
   border-radius: 10px;
   transition: color 0.15s;
+}
+
+/* Label auf schmalen Screens notfalls kürzen statt überlaufen zu lassen. */
+.tab > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tab .tab-icon {
@@ -3305,4 +3314,153 @@ button.stat-tile:active {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+/* ---- Playbook-Seite (Hommage an das HIMYM-Playbook) ----------------------- */
+
+.playbook-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: center;
+  text-align: center;
+  padding: 24px 4px;
+}
+
+.playbook-intro .muted {
+  max-width: 32ch;
+}
+
+.playbook-draw {
+  font-size: 17px;
+  padding: 16px 20px;
+}
+
+.playbook-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+/* Das „Blatt Papier": alterndes Playbook-Blatt, per Tap neu ziehbar. */
+.playbook-sheet {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  perspective: 1200px;
+}
+
+.playbook-sheet-inner {
+  position: relative;
+  text-align: center;
+  color: #3a2c17;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #fffdf5 0%, #f7edcf 55%, #efe0b4 100%);
+  border: 1px solid #d8c48a;
+  border-radius: 8px;
+  padding: 30px 24px 26px;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    var(--shadow),
+    inset 0 0 42px rgba(150, 118, 55, 0.22);
+  /* Doppelter Rahmen wie ein Zertifikat/Playbook-Blatt. */
+  outline: 2px solid #c9b174;
+  outline-offset: -10px;
+  animation: playbook-pop 0.28s ease-out;
+}
+
+@keyframes playbook-pop {
+  from { transform: scale(0.97) rotate(-0.4deg); opacity: 0.4; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* Umblätter-Effekt beim Ziehen des nächsten Flunks. */
+.playbook-sheet.flipping .playbook-sheet-inner {
+  animation: playbook-flip 0.26s ease-in-out;
+}
+
+@keyframes playbook-flip {
+  0% { transform: rotateY(0); }
+  50% { transform: rotateY(12deg) scale(0.98); opacity: 0.55; }
+  100% { transform: rotateY(0); }
+}
+
+.playbook-brand {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: #7a5c22;
+  border-bottom: 1px solid rgba(122, 92, 34, 0.35);
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+}
+
+.playbook-stamp {
+  position: absolute;
+  top: 22px;
+  right: 20px;
+  font-family: 'Georgia', serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b5322b;
+  border: 2px solid #b5322b;
+  border-radius: 6px;
+  padding: 2px 7px;
+  transform: rotate(8deg);
+  opacity: 0.8;
+}
+
+.playbook-title {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 26px;
+  line-height: 1.15;
+  margin: 6px 0 0;
+  color: #2a2010;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.playbook-rule {
+  width: 60px;
+  height: 3px;
+  margin: 14px auto 16px;
+  background: #b5322b;
+  border-radius: 2px;
+}
+
+.playbook-desc {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 16px;
+  line-height: 1.55;
+  margin: 0;
+  color: #3a2c17;
+  flex: 1;
+}
+
+.playbook-foot {
+  margin-top: 22px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(122, 92, 34, 0.35);
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  font-size: 12px;
+  color: #7a5c22;
+}
+
+.playbook-hint {
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playbook-sheet-inner,
+  .playbook-sheet.flipping .playbook-sheet-inner {
+    animation: none;
+  }
 }

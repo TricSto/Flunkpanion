@@ -11,14 +11,15 @@ import { Announcements } from './components/Announcements'
 import { FeedbackView } from './components/FeedbackView'
 import { SpielbrettView } from './components/SpielbrettView'
 import { KartenView } from './components/KartenView'
+import { PlaybookView } from './components/PlaybookView'
 import { FieldIcon } from './components/FieldIcon'
 
 // 'feedback' und 'spielbrett' sind temporäre Seiten (können später wieder raus).
-type Tab = 'board' | 'teams' | 'admin' | 'feedback' | 'spielbrett' | 'karten'
+type Tab = 'board' | 'teams' | 'admin' | 'feedback' | 'spielbrett' | 'karten' | 'playbook'
 type Overlay = null | 'challenge' | 'flunk' | 'stats'
 
 /** Reihenfolge der Seiten – bestimmt, wohin ein Wisch nach links/rechts führt. */
-const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'feedback', 'spielbrett', 'karten']
+const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'feedback', 'spielbrett', 'karten', 'playbook']
 
 /** Mindest-Wischstrecke in px; quer muss klar dominieren, damit
     normales Scrollen nicht aus Versehen die Seite wechselt. */
@@ -150,6 +151,7 @@ export function App() {
             {tab === 'feedback' && <FeedbackView />}
             {tab === 'spielbrett' && <SpielbrettView />}
             {tab === 'karten' && <KartenView />}
+            {tab === 'playbook' && <PlaybookView />}
           </div>
         )}
       </main>
@@ -191,6 +193,12 @@ export function App() {
             onClick={() => switchTab('karten')}
             icon="🃏"
             label="Karten"
+          />
+          <TabButton
+            active={tab === 'playbook'}
+            onClick={() => switchTab('playbook')}
+            icon="📕"
+            label="Playbook"
           />
         </nav>
       )}
