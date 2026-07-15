@@ -57,7 +57,7 @@ export interface PlaybookPlay {
 }
 
 /** Titel des Playbooks (steht als „Buchtitel" auf jedem Blatt). */
-export const PLAYBOOK_TITLE = '25 Wege sich die Lichter auszuknipsen'
+export const PLAYBOOK_TITLE = 'Wege, nicht auf Flunk zu verzichten.'
 
 /**
  * Alle bekannten Flunk-Varianten. Reihenfolge egal – gezogen wird zufällig,
