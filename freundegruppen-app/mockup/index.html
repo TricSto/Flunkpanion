@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tripanion – Mockup</title>
+<style>
+  :root {
+    --bg: #f4f2ee;
+    --card: #ffffff;
+    --ink: #26221c;
+    --muted: #8a8378;
+    --accent: #e8642c;
+    --accent-soft: #fdeee6;
+    --green: #3d8b5f;
+    --line: #e6e1d8;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #d8d4cc;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 12px;
+  }
+  h1.demo-title { font-size: 18px; margin-bottom: 4px; }
+  p.demo-sub { font-size: 13px; color: #5c574e; margin-bottom: 16px; text-align: center; }
+
+  .phone {
+    width: 380px;
+    max-width: 100%;
+    height: 740px;
+    background: var(--bg);
+    border-radius: 32px;
+    border: 8px solid #26221c;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  }
+  .screen { flex: 1; overflow-y: auto; padding: 20px 16px 16px; display: none; }
+  .screen.active { display: block; }
+
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .topbar .back { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); }
+  .topbar h2 { font-size: 20px; }
+  .topbar .sub { font-size: 12px; color: var(--muted); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .card h3 { font-size: 15px; margin-bottom: 6px; }
+  .card p { font-size: 13px; color: var(--muted); }
+
+  button.primary {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  button.ghost {
+    width: 100%;
+    background: none;
+    border: 1px dashed var(--muted);
+    color: var(--muted);
+    border-radius: var(--radius);
+    padding: 12px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+
+  /* Paketauswahl */
+  .paket {
+    display: flex; gap: 12px; align-items: center;
+    cursor: pointer; transition: border-color .15s;
+  }
+  .paket.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .paket .emoji { font-size: 28px; }
+  .paket .mods { font-size: 12px; margin-top: 4px; letter-spacing: 2px; }
+
+  /* Toggles */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 14px;
+  }
+  .toggle-row + .toggle-row { border-top: 1px solid var(--line); }
+  .toggle-row .label { display: flex; gap: 10px; align-items: center; font-size: 15px; }
+  .toggle-row small { display: block; color: var(--muted); font-size: 12px; }
+  .switch {
+    width: 46px; height: 27px; border-radius: 20px;
+    background: #d5cfc4; position: relative; cursor: pointer;
+    transition: background .15s; flex-shrink: 0; border: none;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 21px; height: 21px; border-radius: 50%;
+    background: #fff; transition: left .15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  .switch.on { background: var(--green); }
+  .switch.on::after { left: 22px; }
+  .group-card { padding: 0; overflow: hidden; }
+  .group-card .head { padding: 12px 14px; background: var(--accent-soft); font-weight: 600; font-size: 14px; }
+
+  /* Dashboard */
+  .modul-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modul-tile {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px 14px; cursor: pointer;
+  }
+  .modul-tile .emoji { font-size: 26px; }
+  .modul-tile h3 { font-size: 15px; margin: 8px 0 2px; }
+  .modul-tile p { font-size: 12px; color: var(--muted); }
+  .badge {
+    display: inline-block; background: var(--accent); color: #fff;
+    font-size: 11px; border-radius: 10px; padding: 1px 8px; margin-left: 6px;
+  }
+
+  /* Listen */
+  .check-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; font-size: 15px; }
+  .check-row + .check-row { border-top: 1px solid var(--line); }
+  .check-row input { width: 20px; height: 20px; accent-color: var(--green); }
+  .check-row .who { margin-left: auto; font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 10px; padding: 2px 8px; }
+  .check-row.done { color: var(--muted); text-decoration: line-through; }
+
+  /* Umfrage */
+  .poll-opt { padding: 11px 14px; cursor: pointer; }
+  .poll-opt + .poll-opt { border-top: 1px solid var(--line); }
+  .poll-opt .row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+  .poll-opt .bar { height: 8px; border-radius: 6px; background: var(--bg); overflow: hidden; }
+  .poll-opt .bar span { display: block; height: 100%; background: var(--accent); border-radius: 6px; }
+
+  /* Finanzen */
+  .saldo { display: flex; justify-content: space-between; padding: 11px 14px; font-size: 14px; }
+  .saldo + .saldo { border-top: 1px solid var(--line); }
+  .saldo .plus { color: var(--green); font-weight: 600; }
+  .saldo .minus { color: #c0392b; font-weight: 600; }
+
+  /* Kalender */
+  .termin { display: flex; gap: 12px; padding: 12px 14px; }
+  .termin + .termin { border-top: 1px solid var(--line); }
+  .termin .datum {
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 10px; padding: 6px 10px; text-align: center;
+    font-weight: 700; font-size: 13px; line-height: 1.2; flex-shrink: 0;
+  }
+  .termin .datum small { display: block; font-weight: 400; font-size: 11px; }
+  .termin h4 { font-size: 14px; }
+  .termin p { font-size: 12px; color: var(--muted); }
+
+  .hint { font-size: 12px; color: var(--muted); text-align: center; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<h1 class="demo-title">Tripanion – klickbares Mockup</h1>
+<p class="demo-sub">Ausflugs-Organizer für Freundesgruppen · Paket wählen, Module togglen, Dashboard erkunden</p>
+
+<div class="phone">
+
+  <!-- Screen 1: Paketauswahl -->
+  <div class="screen active" id="s-paket">
+    <div class="topbar">
+      <div>
+        <h2>Neue Gruppe 🎉</h2>
+        <div class="sub">Was plant ihr? Wähle ein Paket – anpassen kannst du alles.</div>
+      </div>
+    </div>
+    <div class="card paket" data-mods="0111" onclick="waehlePaket(this,'Festival')">
+      <div class="emoji">🎪</div>
+      <div><h3>Festival</h3><p>Termin steht fest – Packliste, Kasse &amp; Abstimmungen reichen.</p><div class="mods">🗳️📝💰</div></div>
+    </div>
+    <div class="card paket" data-mods="1111" onclick="waehlePaket(this,'Wochenendtrip')">
+      <div class="emoji">🏔️</div>
+      <div><h3>Wochenendtrip</h3><p>Terminfindung, Listen und gemeinsame Kasse.</p><div class="mods">📅🗳️📝💰</div></div>
+    </div>
+    <div class="card paket" data-mods="1101" onclick="waehlePaket(this,'Stammtisch')">
+      <div class="emoji">🍻</div>
+      <div><h3>Stammtisch</h3><p>Wiederkehrende Termine und Deckel-Abrechnung.</p><div class="mods">📅🗳️💰</div></div>
+    </div>
+    <div class="card paket" data-mods="0000" onclick="waehlePaket(this,'Individuell')">
+      <div class="emoji">⚙️</div>
+      <div><h3>Individuell</h3><p>Leere Auswahl – stell dir alles selbst zusammen.</p><div class="mods">–</div></div>
+    </div>
+    <button class="primary" onclick="zeige('s-module')">Weiter</button>
+  </div>
+
+  <!-- Screen 2: Modul-Konfiguration -->
+  <div class="screen" id="s-module">
+    <div class="topbar">
+      <button class="back" onclick="zeige('s-paket')">←</button>
+      <div>
+        <h2>Module wählen</h2>
+        <div class="sub" id="paket-info">Vorauswahl: Festival – jederzeit änderbar, auch später.</div>
+      </div>
+    </div>
+    <div class="card group-card">
+      <div class="head">Aktive Module</div>
+      <div class="toggle-row">
+        <div class="label">📅 <span>Kalender<small>Gemeinsame Termine &amp; Terminfindung</small></span></div>
+        <button class="switch" data-mod="0" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="toggle-row">
+        <div class="label">🗳️ <span>Umfragen<small>Schnelle Abstimmungen in der Gruppe</small></span></div>
+        <button class="switch" data-mod="1" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="toggle-row">
+        <div class="label">📝 <span>Listen<small>Einkaufs-, Pack- und To-do-Listen</small></span></div>
+        <button class="switch" data-mod="2" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="toggle-row">
+        <div class="label">💰 <span>Finanzen<small>Ausgaben teilen, Salden ausgleichen</small></span></div>
+        <button class="switch" data-mod="3" onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+    <button class="primary" onclick="baueDashboard()">Gruppe erstellen</button>
+    <div class="hint">Deaktivierte Module lassen sich später in den Einstellungen wieder einschalten – Daten bleiben erhalten.</div>
+  </div>
+
+  <!-- Screen 3: Dashboard -->
+  <div class="screen" id="s-dash">
+    <div class="topbar">
+      <button class="back" onclick="zeige('s-module')">⚙️</button>
+      <div>
+        <h2 id="dash-titel">Hurricane 2026 🎪</h2>
+        <div class="sub">5 Mitglieder · Einladungslink teilen</div>
+      </div>
+    </div>
+    <div class="modul-grid" id="dash-grid"></div>
+    <div class="hint">Tippe auf ein Modul. Über ⚙️ oben links kannst du Module jederzeit ändern.</div>
+  </div>
+
+  <!-- Screen 4: Kalender -->
+  <div class="screen" id="s-kalender">
+    <div class="topbar">
+      <button class="back" onclick="zeige('s-dash')">←</button>
+      <div><h2>📅 Kalender</h2><div class="sub">Termine &amp; Terminfindung</div></div>
+    </div>
+    <div class="card group-card">
+      <div class="head">Nächste Termine</div>
+      <div class="termin">
+        <div class="datum">14.<small>Aug</small></div>
+        <div><h4>Abfahrt Zeltplatz</h4><p>10:00 · Treffpunkt Aral Nord · 4 Zusagen</p></div>
+      </div>
+      <div class="termin">
+        <div class="datum">02.<small>Aug</small></div>
+        <div><h4>Vorglüh- &amp; Packabend</h4><p>19:00 · bei Alex · Abstimmung läuft (3 ✓ / 1 ?)</p></div>
+      </div>
+    </div>
+    <button class="ghost">+ Termin vorschlagen</button>
+  </div>
+
+  <!-- Screen 5: Umfrage -->
+  <div class="screen" id="s-umfrage">
+    <div class="topbar">
+      <button class="back" onclick="zeige('s-dash')">←</button>
+      <div><h2>🗳️ Umfragen</h2><div class="sub">1 offene Abstimmung</div></div>
+    </div>
+    <div class="card group-card">
+      <div class="head">Wie reisen wir an?</div>
+      <div class="poll-opt" onclick="stimme(this,4)">
+        <div class="row"><span>🚐 Bulli mieten</span><span class="cnt">3 Stimmen</span></div>
+        <div class="bar"><span style="width:60%"></span></div>
+      </div>
+      <div class="poll-opt" onclick="stimme(this,4)">
+        <div class="row"><span>🚗 Zwei Autos</span><span class="cnt">1 Stimme</span></div>
+        <div class="bar"><span style="width:20%"></span></div>
+      </div>
+      <div class="poll-opt" onclick="stimme(this,4)">
+        <div class="row"><span>🚆 Zug + Shuttle</span><span class="cnt">1 Stimme</span></div>
+        <div class="bar"><span style="width:20%"></span></div>
+      </div>
+    </div>
+    <button class="ghost">+ Neue Umfrage</button>
+    <div class="hint">Tippe eine Option an, um abzustimmen.</div>
+  </div>
+
+  <!-- Screen 6: Listen -->
+  <div class="screen" id="s-listen">
+    <div class="topbar">
+      <button class="back" onclick="zeige('s-dash')">←</button>
+      <div><h2>📝 Listen</h2><div class="sub">Einkaufsliste · Packliste</div></div>
+    </div>
+    <div class="card group-card">
+      <div class="head">🛒 Einkaufsliste</div>
+      <div class="check-row"><input type="checkbox" onchange="hake(this)"><span>2× Kasten Flunkstoff</span><span class="who">Alex</span></div>
+      <div class="check-row"><input type="checkbox" onchange="hake(this)"><span>Grillkohle 5 kg</span><span class="who">Miri</span></div>
+      <div class="check-row done"><input type="checkbox" checked onchange="hake(this)"><span>Pavillon</span><span class="who">Jo</span></div>
+      <div class="check-row"><input type="checkbox" onchange="hake(this)"><span>Sonnencreme</span><span class="who">offen</span></div>
+    </div>
+    <div class="card group-card">
+      <div class="head">🎒 Packliste (Festival-Vorlage)</div>
+      <div class="check-row"><input type="checkbox" onchange="hake(this)"><span>Zelt + Heringe</span><span class="who">Jo</span></div>
+      <div class="check-row"><input type="checkbox" onchange="hake(this)"><span>Powerbank</span><span class="who">offen</span></div>
+    </div>
+    <button class="ghost">+ Neue Liste</button>
+  </div>
+
+  <!-- Screen 7: Finanzen -->
+  <div class="screen" id="s-finanzen">
+    <div class="topbar">
+      <button class="back" onclick="zeige('s-dash')">←</button>
+      <div><h2>💰 Finanzen</h2><div class="sub">Gesamtausgaben: 342,50 €</div></div>
+    </div>
+    <div class="card group-card">
+      <div class="head">Wer schuldet wem?</div>
+      <div class="saldo"><span>Miri → Alex</span><span class="minus">28,50 €</span></div>
+      <div class="saldo"><span>Jo → Alex</span><span class="minus">14,00 €</span></div>
+      <div class="saldo"><span>Du bekommst insgesamt</span><span class="plus">+42,50 €</span></div>
+    </div>
+    <div class="card group-card">
+      <div class="head">Letzte Ausgaben</div>
+      <div class="saldo"><span>🎫 Tickets (Alex, für alle)</span><span>250,00 €</span></div>
+      <div class="saldo"><span>⛽ Sprit Vorfahrt (Du)</span><span>62,50 €</span></div>
+      <div class="saldo"><span>🛒 Großeinkauf (Miri)</span><span>30,00 €</span></div>
+    </div>
+    <button class="primary">+ Ausgabe eintragen</button>
+  </div>
+
+</div>
+
+<script>
+  const MODULE = [
+    { id: 's-kalender', emoji: '📅', name: 'Kalender', info: '2 Termine, 1 Abstimmung', badge: '' },
+    { id: 's-umfrage',  emoji: '🗳️', name: 'Umfragen', info: '„Wie reisen wir an?"', badge: '1' },
+    { id: 's-listen',   emoji: '📝', name: 'Listen',   info: '2 Listen, 4 offene Punkte', badge: '' },
+    { id: 's-finanzen', emoji: '💰', name: 'Finanzen', info: 'Du bekommst 42,50 €', badge: '' },
+  ];
+  let paketName = 'Festival';
+
+  function zeige(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function waehlePaket(el, name) {
+    document.querySelectorAll('.paket').forEach(p => p.classList.remove('selected'));
+    el.classList.add('selected');
+    paketName = name;
+    const mods = el.dataset.mods;
+    document.querySelectorAll('.switch[data-mod]').forEach((sw, i) => {
+      sw.classList.toggle('on', mods[i] === '1');
+    });
+    document.getElementById('paket-info').textContent =
+      'Vorauswahl: ' + name + ' – jederzeit änderbar, auch später.';
+  }
+
+  function baueDashboard() {
+    const grid = document.getElementById('dash-grid');
+    grid.innerHTML = '';
+    document.querySelectorAll('.switch[data-mod]').forEach((sw, i) => {
+      if (!sw.classList.contains('on')) return;
+      const m = MODULE[i];
+      const tile = document.createElement('div');
+      tile.className = 'modul-tile';
+      tile.onclick = () => zeige(m.id);
+      tile.innerHTML = '<div class="emoji">' + m.emoji + '</div><h3>' + m.name +
+        (m.badge ? '<span class="badge">' + m.badge + '</span>' : '') +
+        '</h3><p>' + m.info + '</p>';
+      grid.appendChild(tile);
+    });
+    if (!grid.children.length) {
+      grid.innerHTML = '<div class="card" style="grid-column:1/-1"><p>Keine Module aktiv – über ⚙️ kannst du welche einschalten.</p></div>';
+    }
+    document.getElementById('dash-titel').textContent =
+      paketName === 'Festival' ? 'Hurricane 2026 🎪' : 'Unsere Gruppe ✨';
+    zeige('s-dash');
+  }
+
+  function stimme(el, gesamt) {
+    const cnt = el.querySelector('.cnt');
+    const n = parseInt(cnt.textContent) + 1;
+    cnt.textContent = n + ' Stimmen';
+    el.querySelector('.bar span').style.width = Math.min(100, Math.round(n / (gesamt + 1) * 100)) + '%';
+  }
+
+  function hake(cb) {
+    cb.closest('.check-row').classList.toggle('done', cb.checked);
+  }
+
+  // Startzustand: Festival vorausgewählt
+  waehlePaket(document.querySelector('.paket'), 'Festival');
+</script>
+
+</body>
+</html>
