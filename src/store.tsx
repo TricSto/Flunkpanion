@@ -24,8 +24,6 @@ import type {
   ChallengeReward,
   Deck,
   Education,
-  FeedbackEntry,
-  FeedbackKind,
   FieldColors,
   FlunkMatch,
   FlunkRound,
@@ -235,7 +233,6 @@ function sharedOf(state: AppState): SharedState {
     challenge: state.challenge,
     flunk: state.flunk,
     announcements: state.announcements,
-    feedback: state.feedback,
     board: state.board,
     usedBerufswechsel: state.usedBerufswechsel,
     fieldColors: state.fieldColors,
@@ -282,7 +279,6 @@ function loadState(): AppState {
       challenge: parsed.challenge ?? null,
       flunk: normalizeFlunk(parsed.flunk),
       announcements: parsed.announcements ?? [],
-      feedback: parsed.feedback ?? [],
       board: normalizeBoard(parsed.board),
       usedBerufswechsel: normalizeUsedBerufswechsel(parsed.usedBerufswechsel),
       fieldColors: normalizeFieldColors(parsed.fieldColors),
@@ -431,11 +427,6 @@ interface Store {
   flunkFinish: (rewardPerWin?: number) => void
   /** Flunk-Runde abbrechen/zurücksetzen (nimmt gezählte Siege zurück). */
   flunkReset: () => void
-  // Feedback (temporäre Feedback-Seite)
-  /** Feedback-Eintrag speichern (synct live an alle Geräte). */
-  addFeedback: (kind: FeedbackKind, text: string, author: string) => void
-  /** Feedback-Eintrag löschen (nur Host). */
-  removeFeedback: (feedbackId: string) => void
   // Spielbrett (temporäre Editor-Seite)
   /**
    * Feld im Laufweg verschieben (Index → Index, synct live). Das Feld
@@ -556,9 +547,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...shared,
         teams,
         flunk: normalizeFlunk(shared.flunk),
-        // Ältere Stände ohne Feedback-Feld dürfen lokales Feedback nicht löschen.
-        feedback: shared.feedback ?? s.feedback,
-        // Dito: Stände älterer Clients ohne Spielbrett behalten das lokale Brett.
+        // Stände älterer Clients ohne Spielbrett behalten das lokale Brett.
         board: normalizeBoard(shared.board ?? s.board),
         // Dito: ältere Clients ohne das Feld dürfen es nicht zurücksetzen.
         usedBerufswechsel: normalizeUsedBerufswechsel(
@@ -1578,26 +1567,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             ? { ...s, teams: revertFlunkWins(s.teams, s.flunk.matches), flunk: null }
             : s,
         ),
-
-      addFeedback: (kind, text, author) =>
-        setState((s) => {
-          const entry: FeedbackEntry = {
-            id: uid(),
-            kind,
-            text: text.trim(),
-            author: author.trim(),
-            at: Date.now(),
-          }
-          if (!entry.text) return s
-          // Deckel gegen unbegrenztes Wachstum des geteilten Zustands.
-          return { ...s, feedback: [entry, ...s.feedback].slice(0, 100) }
-        }),
-
-      removeFeedback: (feedbackId) =>
-        setState((s) => ({
-          ...s,
-          feedback: s.feedback.filter((f) => f.id !== feedbackId),
-        })),
 
       moveBoardField: (fromIndex, toIndex) =>
         setState((s) => {

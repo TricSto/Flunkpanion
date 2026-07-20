@@ -8,18 +8,17 @@ import { FlunkView } from './components/FlunkView'
 import { EndStats } from './components/EndStats'
 import { ConnectionBar } from './components/ConnectionBar'
 import { Announcements } from './components/Announcements'
-import { FeedbackView } from './components/FeedbackView'
 import { SpielbrettView } from './components/SpielbrettView'
 import { KartenView } from './components/KartenView'
 import { PlaybookView } from './components/PlaybookView'
 import { FieldIcon } from './components/FieldIcon'
 
-// 'feedback' und 'spielbrett' sind temporäre Seiten (können später wieder raus).
-type Tab = 'board' | 'teams' | 'admin' | 'feedback' | 'spielbrett' | 'karten' | 'playbook'
+// 'spielbrett' ist eine temporäre Seite (kann später wieder raus).
+type Tab = 'board' | 'teams' | 'admin' | 'spielbrett' | 'karten' | 'playbook'
 type Overlay = null | 'challenge' | 'flunk' | 'stats'
 
 /** Reihenfolge der Seiten – bestimmt, wohin ein Wisch nach links/rechts führt. */
-const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'feedback', 'spielbrett', 'karten', 'playbook']
+const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'spielbrett', 'karten', 'playbook']
 
 /** Mindest-Wischstrecke in px; quer muss klar dominieren, damit
     normales Scrollen nicht aus Versehen die Seite wechselt. */
@@ -148,7 +147,6 @@ export function App() {
                 onThemeChange={changeTheme}
               />
             )}
-            {tab === 'feedback' && <FeedbackView />}
             {tab === 'spielbrett' && <SpielbrettView />}
             {tab === 'karten' && <KartenView />}
             {tab === 'playbook' && <PlaybookView />}
@@ -175,12 +173,6 @@ export function App() {
             onClick={() => switchTab('admin')}
             icon="⚙️"
             label="Setup"
-          />
-          <TabButton
-            active={tab === 'feedback'}
-            onClick={() => switchTab('feedback')}
-            icon="💬"
-            label="Feedback"
           />
           <TabButton
             active={tab === 'spielbrett'}

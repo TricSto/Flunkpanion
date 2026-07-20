@@ -192,7 +192,6 @@ export const initialState: AppState = {
   challenge: null,
   flunk: null,
   announcements: [],
-  feedback: [],
   board: defaultBoard(),
   usedBerufswechsel: [],
   fieldColors: {},
