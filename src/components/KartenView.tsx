@@ -30,7 +30,7 @@ export function KartenView() {
 
   return (
     <section className="karten">
-      <p className="muted small feedback-intro">
+      <p className="muted small page-intro">
         Inhalte der Spiel-Seite bearbeiten: Feldfarben einstellen und die
         Karten der einzelnen Decks anpassen. Alles wird automatisch dauerhaft
         gespeichert – auch für zukünftige Spiele – und live geteilt.

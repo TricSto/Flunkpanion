@@ -220,33 +220,6 @@ export interface Announcement {
   at: number
 }
 
-/** Kategorie eines Feedback-Eintrags. */
-export type FeedbackKind = 'fehler' | 'idee' | 'sonstiges'
-
-/**
- * Umsetzungsstatus eines Feedback-Eintrags. Wird NICHT in der App gesetzt,
- * sondern von der Feedback-Pipeline (GitHub-Workflow) anhand des
- * zugehörigen Issues nach Supabase zurückgeschrieben:
- * kein Status = eingereicht, Issue offen = 'in-arbeit',
- * Issue erledigt = 'umgesetzt', Issue verworfen = 'verworfen'.
- */
-export type FeedbackStatus = 'in-arbeit' | 'umgesetzt' | 'verworfen'
-
-/**
- * Ein Feedback-Eintrag von der (temporären) Feedback-Seite. Liegt im
- * geteilten Zustand, damit Feedback aller Geräte live beim Host ankommt.
- */
-export interface FeedbackEntry {
-  id: string
-  kind: FeedbackKind
-  text: string
-  /** Absender (frei eingegeben, z. B. Team- oder Spielername). */
-  author: string
-  at: number
-  /** Umsetzungsstatus – siehe FeedbackStatus (fehlt bei neuen Einträgen). */
-  status?: FeedbackStatus
-}
-
 // ---- Karten-Seite (Feldfarben & Karteninhalte) ------------------------------
 
 /**
@@ -332,8 +305,6 @@ export interface AppState {
   flunk: FlunkRound | null
   /** Live-Nachrichten an die Teams (geteilt). */
   announcements: Announcement[]
-  /** Feedback-Einträge der temporären Feedback-Seite (geteilt). */
-  feedback: FeedbackEntry[]
   /** Das bearbeitbare Spielbrett (temporäre Editor-Seite, geteilt). */
   board: BoardState
   /**

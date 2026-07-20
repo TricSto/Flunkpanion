@@ -1252,7 +1252,7 @@ select {
   }
 }
 
-/* ---- Feedback (temporäre Seite) ------------------------------------------- */
+/* ---- Gemeinsame Bausteine (Textarea, Intro, Auswahl-Chips) ----------------- */
 
 .field textarea {
   background: var(--bg-elev-2);
@@ -1265,7 +1265,7 @@ select {
   min-height: 88px;
 }
 
-.feedback-intro {
+.page-intro {
   margin: 0 0 14px;
 }
 
@@ -1290,68 +1290,6 @@ select {
   border-color: var(--primary);
   background: var(--bg-elev-2);
   font-weight: 600;
-}
-
-.feedback-sent {
-  margin: 10px 0 0;
-  text-align: center;
-  color: var(--pos);
-  font-size: 14px;
-}
-
-.feedback-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.feedback-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-}
-
-.feedback-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.feedback-text {
-  margin: 4px 0 0;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-}
-
-.feedback-status {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 3px 9px;
-}
-
-.feedback-status.working {
-  color: var(--acc-orange);
-  border-color: var(--acc-orange);
-}
-
-.feedback-status.done {
-  color: var(--pos);
-  border-color: var(--pos);
-}
-
-.feedback-status.dropped {
-  color: var(--neg);
-  border-color: var(--neg);
 }
 
 /* ---- Gehaltswechsel (alle Teams) ------------------------------------------ */

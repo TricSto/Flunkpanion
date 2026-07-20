@@ -188,7 +188,7 @@ export function SpielbrettView() {
 
   return (
     <section className="spielbrett" onTouchStart={swallowTouch} onTouchEnd={swallowTouch}>
-      <p className="muted small feedback-intro">
+      <p className="muted small page-intro">
         Temporäre Seite zum Bauen des Spielbretts: Felder antippen zum
         Bearbeiten, im ✋-Modus verschieben. Alles wird automatisch gespeichert
         und live geteilt.
