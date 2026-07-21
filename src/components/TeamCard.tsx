@@ -19,7 +19,6 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
     removeActionCard,
     renameTeam,
     setPlayers,
-    addBeer,
     buyStock,
     removeStock,
     payoutStockCard,
@@ -27,6 +26,8 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
   } = useStore()
 
   const [open, setOpen] = useState(defaultOpen)
+  // Der Verlauf ist standardmäßig eingeklappt – sonst wird die Karte zu lang.
+  const [txOpen, setTxOpen] = useState(false)
   const [modal, setModal] = useState<null | 'cash' | 'beruf' | 'stock' | 'stockbuy' | 'jobinfo'>(
     null,
   )
@@ -200,50 +201,36 @@ export function TeamCard({ team, defaultOpen = true }: { team: Team; defaultOpen
             onRemove={(id) => removeActionCard(team.id, id)}
           />
 
-          {/* Bierzähler (für die Endstatistik) */}
+          {/* Verlauf – ausklappbar, damit die Karte übersichtlich bleibt. */}
           <div className="section">
-            <div className="section-head">
-              <h4>
-                <FieldIcon kind="flunk" /> Biere
-              </h4>
-            </div>
-            <div className="beer-counters single">
-              <BeerCounter
-                label="Biere"
-                value={team.beers.normal}
-                onChange={(d) => addBeer(team.id, 'normal', d)}
-              />
-            </div>
-          </div>
-
-          {/* Verlauf */}
-          <div className="section">
-            <div className="section-head">
+            <button className="section-toggle" onClick={() => setTxOpen((o) => !o)}>
               <h4>🧾 Verlauf ({team.transactions.length})</h4>
-            </div>
-            {team.transactions.length === 0 ? (
-              <p className="muted small">Noch keine Buchungen.</p>
-            ) : (
-              <ul className="tx-list">
-                {team.transactions.slice(0, 8).map((tx) => (
-                  <li key={tx.id} className="tx">
-                    <span className="tx-time">{formatTime(tx.at)}</span>
-                    <span className="tx-reason">{tx.reason}</span>
-                    <span className={tx.delta >= 0 ? 'tx-delta pos' : 'tx-delta neg'}>
-                      {tx.delta > 0 ? '+' : ''}
-                      {formatMoney(tx.delta)}
-                    </span>
-                    <button
-                      className="tx-undo"
-                      title="Buchung rückgängig machen"
-                      onClick={() => undoTransaction(team.id, tx.id)}
-                    >
-                      ↩
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+              <span className="chevron">{txOpen ? '▾' : '▸'}</span>
+            </button>
+            {txOpen &&
+              (team.transactions.length === 0 ? (
+                <p className="muted small">Noch keine Buchungen.</p>
+              ) : (
+                <ul className="tx-list">
+                  {team.transactions.slice(0, 8).map((tx) => (
+                    <li key={tx.id} className="tx">
+                      <span className="tx-time">{formatTime(tx.at)}</span>
+                      <span className="tx-reason">{tx.reason}</span>
+                      <span className={tx.delta >= 0 ? 'tx-delta pos' : 'tx-delta neg'}>
+                        {tx.delta > 0 ? '+' : ''}
+                        {formatMoney(tx.delta)}
+                      </span>
+                      <button
+                        className="tx-undo"
+                        title="Buchung rückgängig machen"
+                        onClick={() => undoTransaction(team.id, tx.id)}
+                      >
+                        ↩
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ))}
           </div>
 
           {/* Umbenennen läuft über den ✏️-Mini-Button oben am Namen (#75). */}
@@ -371,31 +358,6 @@ function CardSection({
   )
 }
 
-function BeerCounter({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: number
-  onChange: (delta: number) => void
-}) {
-  return (
-    <div className="beer-counter">
-      <span className="beer-count">{value}</span>
-      <span className="beer-label muted small">{label}</span>
-      <div className="beer-btns">
-        <button className="btn tiny minus" onClick={() => onChange(-1)} aria-label={`${label} weniger`}>
-          −
-        </button>
-        <button className="btn tiny plus" onClick={() => onChange(1)} aria-label={`${label} mehr`}>
-          +
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ---- Modals ----------------------------------------------------------------
 
 function CashModal({
@@ -406,19 +368,53 @@ function CashModal({
   onSubmit: (delta: number, reason: string) => void
 }) {
   const [value, setValue] = useState('')
+  // Vorzeichen als Umschalter: Handy-Zahlentastaturen haben oft kein Minus,
+  // deshalb lässt sich die Ausgabe nicht (nur) übers Eingabefeld tippen.
+  const [sign, setSign] = useState<1 | -1>(1)
   const [reason, setReason] = useState('')
-  const num = Number(value)
+  // Ein trotzdem getipptes Minus schaltet auf Ausgabe um.
+  const onValue = (raw: string) => {
+    if (raw.includes('-')) {
+      setSign(-1)
+      setValue(raw.replace(/-/g, ''))
+    } else {
+      setValue(raw)
+    }
+  }
+  const num = Math.abs(Number(value))
+  const valid = value !== '' && !Number.isNaN(num) && num > 0
+  const delta = sign * num
   return (
     <Modal title="Betrag buchen" onClose={onClose}>
+      <div className="field">
+        <span>Buchungsart</span>
+        <div className="sign-toggle">
+          <button
+            type="button"
+            className={sign === 1 ? 'btn small plus active' : 'btn small'}
+            onClick={() => setSign(1)}
+          >
+            + Einnahme
+          </button>
+          <button
+            type="button"
+            className={sign === -1 ? 'btn small minus active' : 'btn small'}
+            onClick={() => setSign(-1)}
+          >
+            − Ausgabe
+          </button>
+        </div>
+      </div>
       <label className="field">
-        <span>Betrag in KK (negativ = Ausgabe)</span>
+        <span>Betrag in KK</span>
         <input
           type="number"
           inputMode="numeric"
+          min={0}
           autoFocus
           value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="z. B. 10 oder -5"
+          onChange={(e) => onValue(e.target.value)}
+          placeholder="z. B. 10"
         />
       </label>
       <label className="field">
@@ -436,10 +432,10 @@ function CashModal({
         </button>
         <button
           className="btn primary"
-          disabled={!value || Number.isNaN(num)}
-          onClick={() => onSubmit(num, reason.trim() || 'Buchung')}
+          disabled={!valid}
+          onClick={() => onSubmit(delta, reason.trim() || 'Buchung')}
         >
-          Buchen
+          {valid ? `${delta > 0 ? '+' : ''}${delta} KK buchen` : 'Buchen'}
         </button>
       </div>
     </Modal>
@@ -501,6 +497,8 @@ function StockModal({
   onDraw: () => ActionCard | null
 }) {
   const [drawn, setDrawn] = useState<ActionCard | null>(null)
+  // Alle Karten vergeben (oder Deck leer) → Hinweis statt stiller Fehlschlag.
+  const [empty, setEmpty] = useState(false)
   return (
     <Modal title={`📈 Aktie Nr. ${stockNumber}`} onClose={onClose}>
       {drawn === null ? (
@@ -509,7 +507,19 @@ function StockModal({
             Wurde eure Zahl <strong>{stockNumber}</strong> geworfen? Dann gibt es
             dafür eine zufällige Aktionskarte.
           </p>
-          <button className="btn primary block" onClick={() => setDrawn(onDraw())}>
+          {empty && (
+            <p className="form-error">
+              Keine freie Aktionskarte mehr – alle sind schon vergeben.
+            </p>
+          )}
+          <button
+            className="btn primary block"
+            onClick={() => {
+              const card = onDraw()
+              if (card) setDrawn(card)
+              else setEmpty(true)
+            }}
+          >
             🎲 Zahl {stockNumber} geworfen – Aktionskarte ziehen
           </button>
           <div className="modal-actions">

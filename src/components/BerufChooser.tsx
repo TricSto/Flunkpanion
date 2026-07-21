@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Team } from '../types'
+import { STUDIUM_KREDIT } from '../types'
 import { useStore } from '../store'
 import { berufChoiceCount, isDiplomJob, sampleDistinct, takenJobTitles } from '../util'
 
@@ -70,14 +71,16 @@ export function BerufChooser({ team, onClose }: { team: Team; onClose: () => voi
           <button className="beruf-split-half studium" onClick={() => setPfad('studium')}>
             <span className="beruf-split-icon">🎓</span>
             <span className="beruf-split-title">Studium</span>
-            <span className="beruf-split-sub">3 Diplom-Berufe zur Auswahl</span>
+            <span className="beruf-split-sub">
+              3 Diplom-Berufe zur Auswahl · −{STUDIUM_KREDIT} KK Kredit
+            </span>
           </button>
         </div>
       ) : (
         <div className="beruf-pick">
           <p className="muted small">
             {pfad === 'studium'
-              ? '🎓 Studium – such dir einen Diplom-Beruf aus.'
+              ? `🎓 Studium – such dir einen Diplom-Beruf aus. Beim Wählen werden sofort ${STUDIUM_KREDIT} KK Studienkredit abgezogen.`
               : '🔧 Ausbildung – such dir einen Beruf aus.'}{' '}
             Bereits vergebene Berufe fallen weg.
           </p>

@@ -12,6 +12,7 @@ import { SpielbrettView } from './components/SpielbrettView'
 import { KartenView } from './components/KartenView'
 import { PlaybookView } from './components/PlaybookView'
 import { FieldIcon } from './components/FieldIcon'
+import { DiceOverlay } from './components/DiceOverlay'
 
 // 'spielbrett' ist eine temporäre Seite (kann später wieder raus).
 type Tab = 'board' | 'teams' | 'admin' | 'spielbrett' | 'karten' | 'playbook'
@@ -29,9 +30,8 @@ export function App() {
   // Online-Spiel erstellt/beigetreten.
   const [tab, setTab] = useState<Tab>('admin')
   const [overlay, setOverlay] = useState<Overlay>(null)
-  // Nach „Getränk zählen" (Edward 20 Hands) soll die Teamseite direkt den
-  // Bierzähler zeigen – sonst geht die Weiterleitung visuell unter.
-  const [teamsFocus, setTeamsFocus] = useState<'beers' | null>(null)
+  // Vollbild-Würfel (🎲-Button oben rechts im Kopfbereich).
+  const [diceOpen, setDiceOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>(loadTheme)
   // Richtung des letzten Seitenwechsels für die Slide-Animation.
   const [slideFrom, setSlideFrom] = useState<'left' | 'right' | null>(null)
@@ -78,6 +78,14 @@ export function App() {
             <h1>Flunkpanion</h1>
             <p className="tagline">Companion für Flunk des Lebens</p>
           </div>
+          <button
+            className="dice-btn"
+            onClick={() => setDiceOpen(true)}
+            title="Würfeln (D6–D12)"
+            aria-label="Würfeln"
+          >
+            🎲
+          </button>
         </div>
         {/* Spiel-Code & Live-Status nur auf der Setup-Seite. */}
         {tab === 'admin' && overlay === null && <ConnectionBar />}
@@ -127,18 +135,9 @@ export function App() {
               <BoardView
                 onOpenChallenge={() => setOverlay('challenge')}
                 onOpenFlunk={() => setOverlay('flunk')}
-                onGoToTeams={(focus) => {
-                  setTeamsFocus(focus ?? null)
-                  switchTab('teams')
-                }}
               />
             )}
-            {tab === 'teams' && (
-              <TeamsView
-                focusBeers={teamsFocus === 'beers'}
-                onFocusDone={() => setTeamsFocus(null)}
-              />
-            )}
+            {tab === 'teams' && <TeamsView />}
             {tab === 'admin' && (
               <AdminView
                 onEndGame={() => setOverlay('stats')}
@@ -153,6 +152,8 @@ export function App() {
           </div>
         )}
       </main>
+
+      {diceOpen && <DiceOverlay onClose={() => setDiceOpen(false)} />}
 
       {overlay === null && (
         <nav className="tabbar">

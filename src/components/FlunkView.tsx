@@ -23,7 +23,6 @@ const DEFAULT_WIN_REWARD = 25
 export function FlunkView() {
   const {
     state,
-    addBeer,
     flunkArrive,
     flunkWaitRound,
     flunkUnready,
@@ -52,6 +51,8 @@ export function FlunkView() {
     const team = teams.find((t) => t.id === id)
     const card = flunkWaitRound(id)
     if (team && card) setWaitDrawn({ teamName: team.name, card })
+    // Keine freie Karte mehr (alle vergeben) → Hinweis statt stillem Nichts.
+    else if (team) setPaidMsg('🃏 Keine freie Aktionskarte mehr – alle sind vergeben.')
   }
 
   const arrive = (id: string) => {
@@ -115,27 +116,6 @@ export function FlunkView() {
                     <p className="center">
                       🏆 <strong>{name(winnerId)}</strong> gewinnt gegen {name(loserId)}
                     </p>
-                    {loser && (
-                      <div className="flunk-beer">
-                        <span className="muted small">
-                          Biere für {loser.name}: <strong>{loser.beers.normal}</strong>
-                        </span>
-                        <div className="quick-pair">
-                          <button
-                            className="btn small minus"
-                            onClick={() => addBeer(loser.id, 'normal', -1)}
-                          >
-                            −
-                          </button>
-                          <button
-                            className="btn small plus"
-                            onClick={() => addBeer(loser.id, 'normal', 1)}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    )}
                     {/* Bier-Abrechnung pro Match (#62): nicht ausgetrunkene
                         Biere → Bonus für den Sieger; leer getrunkene Biere
                         (ohne Strafbiere) → Bonus für den Verlierer. */}

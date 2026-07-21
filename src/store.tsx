@@ -12,7 +12,6 @@ import type {
   ActionCardKind,
   AppState,
   Announcement,
-  BeerCounts,
   BoardBranch,
   BoardField,
   BoardFieldType,
@@ -33,12 +32,12 @@ import type {
   TeamStats,
   Transaction,
 } from './types'
-import { FLUNK_BEER_BONUS, STOCK_NUMBERS, STOCK_PRICE } from './types'
+import { FLUNK_BEER_BONUS, STOCK_NUMBERS, STOCK_PRICE, STUDIUM_KREDIT } from './types'
 import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { BOARD_COLS, BOARD_VERSION, defaultBoard, isBoardFieldType } from './data/board'
 import { defaultTables } from './data/tables'
 import { CONTENT_ID, CONTENT_TABLE, GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
-import { effectiveSalary, isDiplomJob, pickRandom, sampleDistinct } from './util'
+import { effectiveSalary, heldCardTitles, isDiplomJob, pickRandom, sampleDistinct } from './util'
 
 const STORAGE_KEY = 'flunk-des-lebens/state/v1'
 const SESSION_KEY = 'flunk-des-lebens/session/v1'
@@ -327,7 +326,6 @@ interface Store {
   /** Teamfarbe einstellen (UI nur für den Host; synct live an alle Geräte). */
   setTeamColor: (teamId: string, color: string) => void
   setPlayers: (teamId: string, players: number) => void
-  addBeer: (teamId: string, kind: keyof BeerCounts, delta: number) => void
   /**
    * Aktie mit Wunsch-Nummer (1–8) kaufen. Gibt false zurück, wenn die Nummer
    * vergeben ist, das Team schon eine Aktie hat oder die KK nicht reichen.
@@ -343,6 +341,12 @@ interface Store {
   payoutStockCard: (teamId: string) => ActionCard | null
   /** Statistik-Zähler ändern (z. B. Flunk-/Minigame-Siege). */
   bumpStat: (teamId: string, key: keyof TeamStats, delta: number) => void
+  /**
+   * Minigame-Sieg verbuchen: zählt den Sieg, zieht (falls noch eine frei ist)
+   * eine zufällige Aktionskarte als Belohnung und schickt allen Geräten eine
+   * Live-Nachricht – so bekommt auch das andere Handy den Sieg mit.
+   */
+  winMinigame: (winnerId: string) => ActionCard | null
   adjustCash: (teamId: string, delta: number, reason?: string) => void
   undoTransaction: (teamId: string, txId: string) => void
   setJob: (teamId: string, job: Job | null) => void
@@ -906,12 +910,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           players: Math.max(1, Math.round(players) || 1),
         })),
 
-      addBeer: (teamId, kind, delta) =>
-        mutateTeam(teamId, (t) => ({
-          ...t,
-          beers: { ...t.beers, [kind]: Math.max(0, t.beers[kind] + delta) },
-        })),
-
       buyStock: (teamId, stockNumber) => {
         const s = stateRef.current
         const team = s.teams.find((t) => t.id === teamId)
@@ -944,11 +942,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!team || team.stockNumber == null) return null
         const deck = s.decks.find((d) => d.type === 'action')
         if (!deck || deck.cards.length === 0) return null
-        // Keine Doppelten; hat das Team schon alle, notfalls doppelt ziehen.
-        const held = new Set(team.actionCards.map((c) => c.title))
-        const drawn =
-          pickRandom(deck.cards.filter((c) => !held.has(c.title))) ??
-          pickRandom(deck.cards)
+        // Bereits vergebene Karten (egal bei welchem Team) gibt es nicht erneut.
+        const held = heldCardTitles(s.teams)
+        const drawn = pickRandom(deck.cards.filter((c) => !held.has(c.title)))
         if (!drawn) return null
         const card: ActionCard = {
           id: uid(),
@@ -958,6 +954,50 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           createdAt: Date.now(),
         }
         mutateTeam(teamId, (t) => ({ ...t, actionCards: [card, ...t.actionCards] }))
+        return card
+      },
+
+      winMinigame: (winnerId) => {
+        const s = stateRef.current
+        const winner = s.teams.find((t) => t.id === winnerId)
+        if (!winner) return null
+        const deck = s.decks.find((d) => d.type === 'action')
+        // Belohnung: zufällige Aktionskarte (#45) – bereits vergebene Karten
+        // (egal bei welchem Team) werden nicht erneut ausgegeben.
+        const held = heldCardTitles(s.teams)
+        const drawn = pickRandom((deck?.cards ?? []).filter((c) => !held.has(c.title)))
+        const card: ActionCard | null = drawn
+          ? {
+              id: uid(),
+              title: drawn.title,
+              note: drawn.detail,
+              kind: 'action',
+              createdAt: Date.now(),
+            }
+          : null
+        // Live-Nachricht, damit auch die anderen Geräte den Sieg mitbekommen.
+        const announcement: Announcement = {
+          id: uid(),
+          teamId: winnerId,
+          title: '🎮 Minigame gewonnen!',
+          message: `${winner.name} gewinnt das Minigame${
+            card ? ` – 🃏 „${card.title}" gezogen` : ''
+          }.`,
+          at: Date.now(),
+        }
+        setState((prev) => ({
+          ...prev,
+          teams: prev.teams.map((t) =>
+            t.id === winnerId
+              ? {
+                  ...t,
+                  actionCards: card ? [card, ...t.actionCards] : t.actionCards,
+                  stats: { ...t.stats, minigameWins: t.stats.minigameWins + 1 },
+                }
+              : t,
+          ),
+          announcements: [announcement, ...prev.announcements].slice(0, 20),
+        }))
         return card
       },
 
@@ -1039,6 +1079,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setState((s) => {
           // Jeder Beruf max. 1× – schützt auch bei parallelen Zugriffen live.
           if (s.teams.some((t) => t.id !== teamId && t.job?.title === title)) return s
+          const team = s.teams.find((t) => t.id === teamId)
+          // Studienkredit: Wer (neu) ins Studium geht, bekommt sofort
+          // STUDIUM_KREDIT KK als Kredit abgezogen – mit Live-Nachricht.
+          const kredit = education === 'studium' && team != null && team.education !== 'studium'
+          const announcement: Announcement | null = kredit
+            ? {
+                id: uid(),
+                teamId,
+                title: '🎓 Studienkredit!',
+                message: `${team.name} beginnt ein Studium und nimmt dafür ${STUDIUM_KREDIT} KK Kredit auf.`,
+                at: Date.now(),
+              }
+            : null
           return {
             ...s,
             teams: s.teams.map((t) =>
@@ -1046,6 +1099,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 ? {
                     ...t,
                     education,
+                    cash: kredit ? t.cash - STUDIUM_KREDIT : t.cash,
+                    transactions: kredit
+                      ? [
+                          {
+                            id: uid(),
+                            delta: -STUDIUM_KREDIT,
+                            reason: 'Studienkredit',
+                            at: Date.now(),
+                          },
+                          ...t.transactions,
+                        ]
+                      : t.transactions,
                     job: {
                       title,
                       salary: t.job?.salary ?? 0,
@@ -1054,6 +1119,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   }
                 : t,
             ),
+            announcements: announcement
+              ? [announcement, ...s.announcements].slice(0, 20)
+              : s.announcements,
           }
         }),
 
@@ -1350,10 +1418,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!team || s.flunk?.matches) return null
         const deck = s.decks.find((d) => d.id === 'aktionskarten')
         if (!deck || deck.cards.length === 0) return null
-        const held = new Set(team.actionCards.map((c) => c.title))
-        const drawn =
-          pickRandom(deck.cards.filter((c) => !held.has(c.title))) ??
-          pickRandom(deck.cards)
+        // Bereits vergebene Karten (egal bei welchem Team) gibt es nicht erneut.
+        const held = heldCardTitles(s.teams)
+        const drawn = pickRandom(deck.cards.filter((c) => !held.has(c.title)))
         if (!drawn) return null
         const card: ActionCard = {
           id: uid(),
@@ -1506,10 +1573,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             cur.reasons.push(reason)
             credits.set(teamId, cur)
           }
+          // Was jeder Sieger insgesamt bekommt (inkl. Bier-Bonus) – für die
+          // Nachricht an alle Geräte, statt pauschal die Basis-Gutschrift.
+          const winnerAmounts = new Map<string, number>()
           for (const m of matches) {
             if (!m.winnerId) continue
             const unfinished = m.loserUnfinished ?? 0
             const winAmount = rewardPerWin + unfinished * FLUNK_BEER_BONUS
+            winnerAmounts.set(m.winnerId, (winnerAmounts.get(m.winnerId) ?? 0) + winAmount)
             credit(
               m.winnerId,
               winAmount,
@@ -1537,19 +1608,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               return { ...t, cash: t.cash + c.amount, transactions: [tx, ...t.transactions] }
             })
           }
-          const winnerNames = matches
-            .map((m) => s.teams.find((t) => t.id === m.winnerId)?.name)
-            .filter((n): n is string => Boolean(n))
-          const rewardText =
-            rewardPerWin > 0 && winnerNames.length > 0 ? ` (+${rewardPerWin} KK pro Sieg)` : ''
+          // Pro Sieger den tatsächlich gutgeschriebenen Betrag anzeigen –
+          // inklusive Bier-Bonus, nicht pauschal die Basis-Gutschrift.
+          const winnerParts = [...winnerAmounts.entries()]
+            .map(([teamId, amount]) => {
+              const winnerName = s.teams.find((t) => t.id === teamId)?.name
+              if (!winnerName) return null
+              return amount > 0 ? `${winnerName} (+${amount} KK)` : winnerName
+            })
+            .filter((p): p is string => Boolean(p))
           const announcement: Announcement = {
             id: uid(),
             // Broadcast: auch Teams, die nicht mitgespielt haben, sollen es sehen.
             teamId: null,
             title: '🚩 Flunk-Runde beendet',
             message:
-              winnerNames.length > 0
-                ? `Sieger: ${winnerNames.join(', ')} 🏆${rewardText}`
+              winnerParts.length > 0
+                ? `Sieger: ${winnerParts.join(', ')} 🏆`
                 : 'Die Flunk-Runde ist vorbei.',
             at: Date.now(),
           }

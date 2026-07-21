@@ -44,6 +44,14 @@ export function takenJobTitles(teams: Team[], exceptId?: string): Set<string> {
 }
 
 /**
+ * Titel aller Aktionskarten, die irgendein Team gerade auf der Hand hat.
+ * Bereits vergebene Karten dürfen nicht erneut gezogen/ausgelost werden.
+ */
+export function heldCardTitles(teams: Team[]): Set<string> {
+  return new Set(teams.flatMap((t) => t.actionCards.map((c) => c.title)))
+}
+
+/**
  * Effektives Gehalt eines Teams: gewürfeltes Gehalt plus dauerhafter Bonus
  * („Gehaltserhöhung"). Ohne gewürfeltes Gehalt zahlt auch der Bonus nichts.
  */
