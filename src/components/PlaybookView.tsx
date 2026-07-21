@@ -10,6 +10,10 @@ import {
 } from '../data/playbook'
 import { pickRandom } from '../util'
 
+// AUFBEWAHRT: Diese Seite ist aktuell nicht in der App eingehängt (Tab in
+// App.tsx entfernt), bleibt aber samt Inhalten (data/playbook.ts) für eine
+// spätere Reaktivierung erhalten.
+//
 // Die Playbook-Seite (ganz rechts): eine Hommage an Barney Stinsons
 // „Playbook" aus How I Met Your Mother. Man zieht einen zufälligen „Flunk"
 // (optional gefiltert nach Equipment-Kategorie), der wie ein Blatt aus einem
