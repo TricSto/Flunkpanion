@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 import type { Card, ChallengeReward } from '../types'
-import { formatMoney, pickRandom } from '../util'
+import { formatMoney, heldCardTitles, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FieldIcon } from './FieldIcon'
 
@@ -135,9 +135,30 @@ function ActiveChallenge({
   /** Schließt die Challenge-Seite und kehrt zum Spiel zurück. */
   onClose: () => void
 }) {
-  const { state, resolveChallenge, clearChallenge } = useStore()
+  const { state, resolveChallenge, clearChallenge, startChallenge } = useStore()
   const challenge = state.challenge!
   const [rewardFor, setRewardFor] = useState<string | null>(null)
+  const [rerolling, setRerolling] = useState(false)
+
+  // Reroll: Falls die Challenge blöd ist, mit denselben Teams eine andere
+  // Karte auslosen (die aktuelle kommt nicht direkt wieder).
+  const reroll = () => {
+    const deck = state.decks.find((d) => d.type === 'challenge')
+    const pool = (deck?.cards ?? []).filter((c) => c.title !== challenge.title)
+    if (pool.length === 0) return
+    setRerolling(true)
+    let ticks = 0
+    let last: typeof pool[number] | undefined
+    const interval = setInterval(() => {
+      last = pickRandom(pool)
+      ticks++
+      if (ticks >= 8) {
+        clearInterval(interval)
+        setRerolling(false)
+        if (last) startChallenge(challenge.challengerId, challenge.opponentId, last)
+      }
+    }, 70)
+  }
 
   const winner =
     challenge.winnerId != null
@@ -171,6 +192,14 @@ function ActiveChallenge({
               🏆 {opponentName}
             </button>
           </div>
+          <button
+            className="btn ghost small center-btn"
+            onClick={reroll}
+            disabled={rerolling}
+            title="Blöde Challenge? Mit denselben Teams eine andere auslosen"
+          >
+            {rerolling ? '↻ Lose neu…' : '↻ Challenge neu auslosen'}
+          </button>
           <button
             className="btn ghost small center-btn"
             onClick={clearChallenge}
@@ -247,8 +276,8 @@ function RewardModal({
   const card = useMemo(() => {
     const deck = state.decks.find((d) => d.type === 'action')
     if (!deck) return null
-    // Keine Doppelten: hält der Sieger schon alle Karten, gibt es keine.
-    const held = new Set(winner?.actionCards.map((c) => c.title) ?? [])
+    // Bereits vergebene Karten (egal bei welchem Team) gibt es nicht erneut.
+    const held = heldCardTitles(state.teams)
     return pickRandom(deck.cards.filter((c) => !held.has(c.title))) ?? null
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -269,7 +298,7 @@ function RewardModal({
         </>
       ) : (
         <p className="muted small">
-          Keine Aktionskarte verfügbar – {winnerName} hat schon alle Karten (oder
+          Keine Aktionskarte verfügbar – alle Karten sind schon vergeben (oder
           das Deck ist leer). Der Sieg wird trotzdem gezählt.
         </p>
       )}

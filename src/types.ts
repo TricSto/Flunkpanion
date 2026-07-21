@@ -89,6 +89,9 @@ export interface Team {
 /** Preis einer Aktie in KK. */
 export const STOCK_PRICE = 20
 
+/** Kredit in KK, der beim Start eines Studiums sofort abgezogen wird. */
+export const STUDIUM_KREDIT = 20
+
 /** Die kaufbaren Aktien-Zahlen. */
 export const STOCK_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8]
 

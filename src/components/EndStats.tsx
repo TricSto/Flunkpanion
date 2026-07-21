@@ -12,11 +12,8 @@ interface Metric {
   worst?: boolean
 }
 
-const beersTotal = (t: Team) => t.beers.normal + t.beers.fun + t.beers.penalty
-
 const METRICS: Metric[] = [
   { key: 'cash', icon: '💰', label: 'Meiste Kronkorken', value: (t) => t.cash, format: formatMoney },
-  { key: 'beers', icon: '🍺', label: 'Meiste Biere', value: beersTotal, format: (n) => `${n}` },
   { key: 'cards', icon: '🃏', label: 'Meiste Aktionskarten benutzt', value: (t) => t.stats.actionCardsUsed, format: (n) => `${n}` },
   { key: 'flunk', icon: '🚩', label: 'Meiste Flunk-Siege', value: (t) => t.stats.flunkWins, format: (n) => `${n}` },
   { key: 'challenge', icon: '🎯', label: 'Meiste Challenge-Siege', value: (t) => t.stats.challengeWins, format: (n) => `${n}` },

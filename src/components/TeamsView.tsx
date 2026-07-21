@@ -1,35 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useStore } from '../store'
 import { formatMoney } from '../util'
 import { TeamCard } from './TeamCard'
-import { FieldIcon } from './FieldIcon'
 
-export function TeamsView({
-  focusBeers = false,
-  onFocusDone,
-}: {
-  /** Nach der Weiterleitung (z. B. Edward 20 Hands) den Bierzähler zeigen. */
-  focusBeers?: boolean
-  onFocusDone?: () => void
-}) {
+export function TeamsView() {
   const { state, setCurrentTeam } = useStore()
   const [switching, setSwitching] = useState(false)
-
-  // Zum Bierzähler scrollen und ihn kurz hervorheben, damit klar ist,
-  // warum man auf die Teamseite weitergeleitet wurde.
-  useEffect(() => {
-    if (!focusBeers) return
-    const timer = window.setTimeout(() => {
-      const el = document.querySelector('.beer-counters')
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        el.classList.add('beer-focus')
-        window.setTimeout(() => el.classList.remove('beer-focus'), 2600)
-      }
-      onFocusDone?.()
-    }, 350) // kurz warten, bis die Seiten-Animation durch ist
-    return () => window.clearTimeout(timer)
-  }, [focusBeers, onFocusDone])
 
   const current = state.teams.find((t) => t.id === state.currentTeamId) ?? null
   const showPicker = !current || switching
@@ -82,7 +58,6 @@ export function TeamsView({
         <h3 className="overview-h">Alle Teams</h3>
         <ul className="overview-list">
           {state.teams.map((t) => {
-            const beers = t.beers.normal + t.beers.fun + t.beers.penalty
             return (
               <li key={t.id} className="overview-row" style={{ borderLeftColor: t.color }}>
                 <div className="overview-main">
@@ -109,9 +84,6 @@ export function TeamsView({
                 </div>
                 <div className="overview-side">
                   <span className="overview-cash">{formatMoney(t.cash)}</span>
-                  <span className="overview-beers muted small">
-                    <FieldIcon kind="flunk" /> {beers}
-                  </span>
                 </div>
               </li>
             )

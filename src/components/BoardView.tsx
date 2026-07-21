@@ -6,7 +6,7 @@ import {
   gameFieldColor,
   type GameFieldDef as FieldDef,
 } from '../data/gameFields'
-import { effectiveSalary, formatMoney, pickRandom } from '../util'
+import { effectiveSalary, formatMoney, heldCardTitles, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
 import { FieldIcon } from './FieldIcon'
@@ -15,17 +15,12 @@ function tileStyle(color: string): CSSProperties {
   return { '--tile': color } as CSSProperties
 }
 
-/** Wechselt zur Teamseite; mit 'beers' wird dort der Bierzähler fokussiert. */
-type GoToTeams = (focus?: 'beers') => void
-
 export function BoardView({
   onOpenChallenge,
   onOpenFlunk,
-  onGoToTeams,
 }: {
   onOpenChallenge: () => void
   onOpenFlunk: () => void
-  onGoToTeams: GoToTeams
 }) {
   const { state } = useStore()
   const [active, setActive] = useState<FieldDef | null>(null)
@@ -56,24 +51,14 @@ export function BoardView({
         ))}
       </div>
 
-      {active && (
-        <FieldSheet field={active} onClose={() => setActive(null)} onGoToTeams={onGoToTeams} />
-      )}
+      {active && <FieldSheet field={active} onClose={() => setActive(null)} />}
     </section>
   )
 }
 
 // ---------------------------------------------------------------------------
 
-function FieldSheet({
-  field,
-  onClose,
-  onGoToTeams,
-}: {
-  field: FieldDef
-  onClose: () => void
-  onGoToTeams: GoToTeams
-}) {
+function FieldSheet({ field, onClose }: { field: FieldDef; onClose: () => void }) {
   const { state } = useStore()
   // Minigames spielen alle (Sieger wird im Feld gewählt, #29) und der
   // Gehaltswechsel betrifft alle Teams gleichzeitig (#32) – keine Team-Wahl.
@@ -116,7 +101,7 @@ function FieldSheet({
           </label>
         ))}
 
-      <FieldBody field={field} team={team} onClose={onClose} onGoToTeams={onGoToTeams} />
+      <FieldBody field={field} team={team} onClose={onClose} />
     </Modal>
   )
 }
@@ -127,14 +112,12 @@ function FieldBody({
   field,
   team,
   onClose,
-  onGoToTeams,
 }: {
   field: FieldDef
   team: Team | null
   onClose: () => void
-  onGoToTeams: GoToTeams
 }) {
-  const { state, adjustCash, payBeerTax, addActionCard, addBeer, addSalaryBonus } = useStore()
+  const { state, adjustCash, payBeerTax, addActionCard, addSalaryBonus } = useStore()
   const [flash, setFlash] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Card | null>(null)
 
@@ -241,11 +224,12 @@ function FieldBody({
     const deck = state.decks.find((d) => d.type === kind)
     const draw = () => {
       if (!deck || deck.cards.length === 0) return
-      const held = new Set(team.actionCards.map((c) => c.title))
+      // Bereits vergebene Karten (egal bei welchem Team) sind nicht ziehbar.
+      const held = heldCardTitles(state.teams)
       const available = deck.cards.filter((c) => !held.has(c.title))
       const card = pickRandom(available)
       if (!card) {
-        say(`Alle Karten aus „${deck.name}“ bereits im Team`)
+        say(`Alle Karten aus „${deck.name}“ sind schon vergeben`)
         return
       }
       addActionCard(team.id, card.title, card.detail, kind)
@@ -379,18 +363,6 @@ function FieldBody({
           Ein Spieler von <strong>{team.name}</strong> bekommt eine Dose in die Hand
           getaped. Bis zum nächsten Flunk-Feld muss sie leer sein.
         </p>
-        <button
-          className="btn primary block"
-          onClick={() => {
-            // Direkt zählen, Fenster schließen und zur Teamseite wechseln –
-            // dort wird der Bierzähler angescrollt und kurz hervorgehoben.
-            addBeer(team.id, 'normal', 1)
-            onClose()
-            onGoToTeams('beers')
-          }}
-        >
-          <FieldIcon kind="flunk" /> Getränk zählen (+1 Bier)
-        </button>
         {doneBtn}
       </>
     )
@@ -649,7 +621,7 @@ function KingstabelleBody({ onDone }: { onDone: (msg: string) => void }) {
 // --- Minigames (alle spielen mit – Sieger per Team-Kachel wählen, #29) ------
 
 function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
-  const { state, bumpStat, addActionCard } = useStore()
+  const { state, winMinigame } = useStore()
   // Vorauswahl: eigenes Team, sonst das erste.
   const [winnerId, setWinnerId] = useState<string>(
     state.currentTeamId ?? state.teams[0]?.id ?? '',
@@ -679,14 +651,9 @@ function MinigameBody({ onDone }: { onDone: (msg: string) => void }) {
         onClick={() => {
           const winner = state.teams.find((t) => t.id === winnerId)
           if (!winner) return
-          bumpStat(winner.id, 'minigameWins', 1)
-          // Belohnung: zufällige Aktionskarte für den Gewinner (#45).
-          const deck = state.decks.find((d) => d.type === 'action')
-          const held = new Set(winner.actionCards.map((c) => c.title))
-          const card =
-            pickRandom((deck?.cards ?? []).filter((c) => !held.has(c.title))) ??
-            pickRandom(deck?.cards ?? [])
-          if (card) addActionCard(winner.id, card.title, card.detail, 'action')
+          // Läuft komplett über den Store: Sieg zählen, freie Aktionskarte
+          // ziehen und alle Geräte per Live-Nachricht informieren.
+          const card = winMinigame(winner.id)
           onDone(
             `🏆 Minigame-Sieg für ${winner.name}${card ? ` – 🃏 „${card.title}" gezogen` : ''}`,
           )

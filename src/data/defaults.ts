@@ -109,6 +109,10 @@ const spielveraendernd = deck(
     c('Schnick-Schnack-Schnunken', 'Schere-Stein-Papier-Variante.'),
     c('Reverse Flunken', 'Wir werfen die Flasche auf den Ball.'),
     c('Cornhole Flunken', 'Cornhole-Variante.'),
+    c(
+      'Kurzstreckenflunken',
+      'Normales Flunk-Setup, aber jedes Team ist nur einen Schritt von der Mitte entfernt. Get ready to rumble.',
+    ),
   ],
 )
 
@@ -182,7 +186,7 @@ const defaultDecks: Deck[] = [
 
 // Bei jeder inhaltlichen Aktualisierung der mitgelieferten Decks erhöhen –
 // dann übernehmen bestehende Geräte die neuen Karten (Teams bleiben erhalten).
-export const DECKS_VERSION = 4
+export const DECKS_VERSION = 5
 
 export const initialState: AppState = {
   teams: [],
