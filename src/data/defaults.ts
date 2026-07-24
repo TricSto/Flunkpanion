@@ -198,6 +198,7 @@ export const initialState: AppState = {
   announcements: [],
   board: defaultBoard(),
   usedBerufswechsel: [],
+  berufswechselLocked: false,
   fieldColors: {},
   tables: defaultTables(),
 }

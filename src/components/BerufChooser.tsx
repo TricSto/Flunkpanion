@@ -13,16 +13,7 @@ type Pfad = 'ausbildung' | 'studium'
  *    jeweils mit Kurzbeschreibung. Bereits vergebene Berufe (max. 1 pro Team)
  *    fallen weg – wer später wählt, hat weniger Auswahl.
  */
-export function BerufChooser({
-  team,
-  onClose,
-  onChosen,
-}: {
-  team: Team
-  onClose: () => void
-  /** Wird aufgerufen, sobald wirklich ein Beruf gewählt wurde (nicht beim Abbrechen). */
-  onChosen?: () => void
-}) {
+export function BerufChooser({ team, onClose }: { team: Team; onClose: () => void }) {
   const { state, chooseJob } = useStore()
   const berufeDeck = state.decks.find((d) => d.type === 'job')
   const [pfad, setPfad] = useState<Pfad | null>(null)
@@ -52,7 +43,6 @@ export function BerufChooser({
       return
     }
     chooseJob(team.id, pfad, title)
-    onChosen?.()
     onClose()
   }
 

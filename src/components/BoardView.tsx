@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { useStore } from '../store'
+import { useStore, type BerufswechselResult } from '../store'
 import type { Card, Team } from '../types'
 import {
   ALL_GAME_FIELDS,
@@ -10,7 +10,6 @@ import { effectiveSalary, formatMoney, heldCardTitles, pickRandom } from '../uti
 import { Modal } from './Modal'
 import { FlashPopover } from './FlashPopover'
 import { FieldIcon } from './FieldIcon'
-import { BerufChooser } from './BerufChooser'
 
 function tileStyle(color: string): CSSProperties {
   return { '--tile': color } as CSSProperties
@@ -23,8 +22,12 @@ export function BoardView({
   onOpenChallenge: () => void
   onOpenFlunk: () => void
 }) {
-  const { state } = useStore()
+  const { state, isHost } = useStore()
   const [active, setActive] = useState<FieldDef | null>(null)
+
+  // Berufswechsel ist nach dem ersten Auslösen für alle außer dem Spielleiter
+  // gesperrt – die Kachel wird dann deaktiviert.
+  const bwLocked = state.berufswechselLocked && !isHost
 
   const tap = (f: FieldDef) => {
     if (f.key === 'challenge') return onOpenChallenge()
@@ -36,20 +39,24 @@ export function BoardView({
     <section className="board">
       {/* Nur die Feld-Buttons – das Raster füllt den Bildschirm ohne Scrollen. */}
       <div className="board-grid">
-        {ALL_GAME_FIELDS.map((f) => (
-          <button
-            key={f.key}
-            className={f.key === 'flunk' ? 'field-tile flunk-tile' : 'field-tile'}
-            style={tileStyle(gameFieldColor(f, state.fieldColors))}
-            onClick={() => tap(f)}
-          >
-            <span className="field-icon">
-              <FieldIcon kind={f.icon} size="1.4em" />
-            </span>
-            <span className="field-label">{f.label}</span>
-            <span className="field-sub">{f.sub}</span>
-          </button>
-        ))}
+        {ALL_GAME_FIELDS.map((f) => {
+          const locked = f.key === 'gehaltswechsel' && bwLocked
+          return (
+            <button
+              key={f.key}
+              className={f.key === 'flunk' ? 'field-tile flunk-tile' : 'field-tile'}
+              style={tileStyle(gameFieldColor(f, state.fieldColors))}
+              disabled={locked}
+              onClick={() => tap(f)}
+            >
+              <span className="field-icon">
+                <FieldIcon kind={f.icon} size="1.4em" />
+              </span>
+              <span className="field-label">{f.label}</span>
+              <span className="field-sub">{locked ? '🔒 gesperrt' : f.sub}</span>
+            </button>
+          )
+        })}
       </div>
 
       {active && <FieldSheet field={active} onClose={() => setActive(null)} />}
@@ -61,10 +68,12 @@ export function BoardView({
 
 function FieldSheet({ field, onClose }: { field: FieldDef; onClose: () => void }) {
   const { state } = useStore()
-  // Minigames spielen alle (Sieger wird im Feld gewählt, #29) – keine
-  // Team-Wahl. Der Berufswechsel gilt jetzt fürs eigene Team, braucht also
-  // (wie die anderen Felder) ein Team.
-  const needsTeam = field.key !== 'kingstabelle' && field.key !== 'minigames'
+  // Minigames spielen alle (Sieger wird im Feld gewählt, #29) und der
+  // Berufswechsel betrifft alle Teams gleichzeitig (#32) – keine Team-Wahl.
+  const needsTeam =
+    field.key !== 'kingstabelle' &&
+    field.key !== 'minigames' &&
+    field.key !== 'gehaltswechsel'
   // Das eigene (beigetretene) Team wird direkt genutzt – keine Auswahl nötig.
   // Nur Geräte ohne eigenes Team (z. B. Spielleitung) wählen manuell.
   const myTeam = state.teams.find((t) => t.id === state.currentTeamId) ?? null
@@ -149,13 +158,13 @@ function FieldBody({
     )
   }
 
-  if (!team) {
-    return <p className="muted small">Bitte oben ein Team auswählen.</p>
+  // Berufswechsel: betrifft immer ALLE Teams gleichzeitig (#32, #40).
+  if (field.key === 'gehaltswechsel') {
+    return <GehaltswechselBody onClose={onClose} />
   }
 
-  // Berufswechsel: eigenes Team wartet aufs Feld und würfelt Beruf & Gehalt neu.
-  if (field.key === 'gehaltswechsel') {
-    return <GehaltswechselBody team={team} onClose={onClose} />
+  if (!team) {
+    return <p className="muted small">Bitte oben ein Team auswählen.</p>
   }
 
   const say = (m: string) => setFlash(m)
@@ -370,99 +379,104 @@ function FieldBody({
   return null
 }
 
-// --- Berufswechsel: eigenes Team würfelt Beruf & Gehalt neu -----------------
-// Kein Brett-Feld-Wähler mehr: Wer auf dem Berufswechsel-Feld steht, wartet bis
-// zur nächsten Runde und würfelt hier Beruf UND Gehalt neu (beides gehört
-// dazu). Beruf läuft über den schönen Ausbildung/Studium-Wähler wie auf der
-// Team-Seite, das Gehalt wird direkt ausgewürfelt. Aus Versehen reingeklickt?
-// Einfach oben mit ✕ schließen.
+// --- Berufswechsel: erstes Team bestätigt, dann würfeln ALLE Teams neu -------
+// Kein Brett-Feld-Wähler mehr: Das erste Team, das über das Feld kommt,
+// bestätigt „bist du 1.?" – mit diesem einen Klick werden Beruf & Gehalt ALLER
+// Teams neu gewürfelt. Danach ist das Feld für alle Geräte außer dem
+// Spielleiter gesperrt (nur der Host kann es wieder freigeben oder erneut
+// auslösen). Aus Versehen reingeklickt? Einfach „Abbrechen" bzw. ✕.
 
-function GehaltswechselBody({ team, onClose }: { team: Team; onClose: () => void }) {
-  const { state, setSalary } = useStore()
-  const [chooserOpen, setChooserOpen] = useState(false)
-  const [jobDone, setJobDone] = useState(false)
-  const [salaryDone, setSalaryDone] = useState(false)
-  const [flash, setFlash] = useState<string | null>(null)
+function GehaltswechselBody({ onClose }: { onClose: () => void }) {
+  const { state, isHost, triggerBerufswechselAll, setBerufswechselLocked } = useStore()
+  const [step, setStep] = useState<'bestaetigen' | 'fertig'>('bestaetigen')
+  const [results, setResults] = useState<BerufswechselResult[]>([])
+  const locked = state.berufswechselLocked
 
-  // Gehalt neu auswürfeln – wie auf der Team-Kachel: Titel bleibt, nur Gehalt
-  // und Biersteuer werden neu gesetzt.
-  const rollSalary = () => {
-    const card = pickRandom(state.decks.find((d) => d.type === 'salary')?.cards ?? [])
-    if (!card) return
-    setSalary(team.id, card.salary ?? 0, card.beerTax ?? 0)
-    setSalaryDone(true)
-    setFlash(`💶 Neues Gehalt: ${formatMoney(card.salary ?? 0)} · BS ${card.beerTax ?? 0}`)
+  if (state.teams.length === 0) {
+    return <p className="muted small">Noch keine Teams. Lege sie im Tab „Setup“ an.</p>
   }
 
-  // Der Beruf-Wähler ist ein eigenes Vollbild (Ausbildung/Studium) und legt
-  // sich per z-index über das Feld-Modal.
-  if (chooserOpen) {
+  // Ein Klick auf „Ja" würfelt Beruf & Gehalt aller Teams neu und sperrt das Feld.
+  const rollAll = () => {
+    const res = triggerBerufswechselAll()
+    if (!res) return
+    setResults(res)
+    setStep('fertig')
+  }
+
+  if (step === 'fertig') {
     return (
-      <BerufChooser
-        team={team}
-        onChosen={() => setJobDone(true)}
-        onClose={() => setChooserOpen(false)}
-      />
+      <>
+        <p className="sheet-info">Alle Teams haben einen neuen Beruf und ein neues Gehalt:</p>
+        <ul className="gw-list">
+          {results.map((r) => {
+            const team = state.teams.find((t) => t.id === r.teamId)
+            return (
+              <li
+                key={r.teamId}
+                className="gw-row"
+                style={{ borderLeftColor: team?.color ?? 'var(--border)' }}
+              >
+                <div className="gw-head">
+                  <span className="gw-name">
+                    {r.studium ? '🎓' : '🔧'} {r.teamName}
+                  </span>
+                  {r.title ? (
+                    <span className="gw-result small">
+                      💼 {r.title} · 💶 {formatMoney(r.salary)}
+                      {(team?.salaryBonus ?? 0) > 0 && (
+                        <span className="salary-bonus">+{team!.salaryBonus}</span>
+                      )}{' '}
+                      · BS {r.beerTax}
+                    </span>
+                  ) : (
+                    <span className="muted small">Kein passender Beruf mehr frei.</span>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <p className="muted small">
+          Das Feld ist jetzt für alle außer dem Spielleiter gesperrt.
+        </p>
+        {isHost && (
+          <button className="btn ghost block" onClick={() => setBerufswechselLocked(false)}>
+            🔓 Feld für die nächste Runde wieder freigeben
+          </button>
+        )}
+        <button className="btn primary block sheet-done" onClick={onClose}>
+          ✓ Fertig
+        </button>
+      </>
     )
   }
 
-  const bothDone = jobDone && salaryDone
-  const offen = [!jobDone && 'Beruf', !salaryDone && 'Gehalt'].filter(Boolean).join(' & ')
-
+  // Schritt „bestaetigen": Nur das erste Team löst aus.
   return (
     <>
       <p className="sheet-info">
-        <strong>Berufswechsel!</strong> Warte auf diesem Feld bis zur nächsten
-        Runde und würfle dann <strong>Beruf &amp; Gehalt</strong> neu – beides
-        gehört dazu. Aus Versehen draufgekommen? Einfach oben mit ✕ schließen.
+        <strong>Bist du das 1. Team, das über dieses Feld kommt?</strong> Dann
+        werden mit einem Klick für <strong>alle Teams</strong> Beruf &amp; Gehalt
+        neu gewürfelt (Studium → Diplom-Beruf, Ausbildung → Ausbildungsberuf).
       </p>
-
-      <div className="gw-steps">
-        <button
-          type="button"
-          className={jobDone ? 'gw-step done' : 'gw-step'}
-          onClick={() => setChooserOpen(true)}
-        >
-          <span className="gw-step-icon">💼</span>
-          <span className="gw-step-body">
-            <span className="gw-step-title">Beruf neu wählen</span>
-            <span className="gw-step-sub">
-              {jobDone
-                ? `✓ ${team.job?.title || 'gewählt'}`
-                : 'Ausbildung oder Studium'}
-            </span>
-          </span>
-          <span className="gw-step-mark">{jobDone ? '✓' : '›'}</span>
+      {locked && isHost && (
+        <p className="muted small">
+          Wurde schon ausgelöst – als Spielleiter kannst du trotzdem erneut würfeln.
+        </p>
+      )}
+      <div className="event-actions">
+        <button className="btn big ghost" onClick={onClose}>
+          ❌ Abbrechen
         </button>
-
-        <button type="button" className={salaryDone ? 'gw-step done' : 'gw-step'} onClick={rollSalary}>
-          <span className="gw-step-icon">💶</span>
-          <span className="gw-step-body">
-            <span className="gw-step-title">Gehalt neu würfeln</span>
-            <span className="gw-step-sub">
-              {salaryDone && team.job
-                ? `✓ ${formatMoney(team.job.salary)} · BS ${team.job.beerTax}`
-                : 'Neues Gehalt auswürfeln'}
-            </span>
-          </span>
-          <span className="gw-step-mark">{salaryDone ? '✓' : '🎲'}</span>
+        <button className="btn big primary" onClick={rollAll}>
+          ✅ Ja, für alle würfeln
         </button>
       </div>
-
-      {bothDone ? (
-        <p className="muted small">Beruf &amp; Gehalt sind neu gewürfelt. 🎉</p>
-      ) : (
-        <p className="muted small">Noch offen: {offen}.</p>
-      )}
-
-      {flash && <FlashPopover message={flash} onClose={() => setFlash(null)} />}
-
-      <button
-        className={bothDone ? 'btn primary block sheet-done' : 'btn ghost block sheet-done'}
-        onClick={onClose}
-      >
-        {bothDone ? '✓ Fertig' : 'Schließen'}
-      </button>
+      <p className="muted small sheet-current">
+        Nach dem Auslösen ist das Feld für alle Geräte außer dem Spielleiter
+        gesperrt.
+      </p>
     </>
   )
 }
