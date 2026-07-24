@@ -37,8 +37,8 @@ export const GAME_GRID_FIELDS: GameFieldDef[] = [
   { key: 'ereignis', label: 'Ereignis', icon: 'ereignis', color: '#06b6d4', sub: 'Vorlesen & buchen' },
   { key: 'challenge', label: 'Challenge', icon: 'challenge', color: '#ec4899', sub: 'Gegner fordern' },
   { key: 'gehaltswechsel', label: 'Berufswechsel', icon: 'berufswechsel', color: '#eab308', sub: 'Beruf & Gehalt neu' },
-  { key: 'edward', label: 'Edward 20 Hands', icon: 'edward', color: '#14b8a6', sub: 'Dose antapen' },
   { key: 'kingstabelle', label: 'Kingstabelle', icon: 'crown', color: '#f97316', sub: 'Am Brett würfeln' },
+  { key: 'edward', label: 'Edward 20 Hands', icon: 'edward', color: '#14b8a6', sub: 'Dose antapen' },
   { key: 'minigames', label: 'Minigames', icon: 'minigame', color: '#8b5cf6', sub: 'Am Brett würfeln' },
 ]
 
