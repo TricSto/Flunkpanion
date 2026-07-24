@@ -800,12 +800,12 @@ export async function renderBoardCanvas(
 }
 
 /** Comic-Deko: verstreute Halbton-Punktraster im Hintergrund. */
-function drawHalftone(ctx: G) {
+function drawHalftone(ctx: G, w = W, h = H) {
   ctx.save()
   const cols2 = ['#ff8c42', '#29abe2', '#9b5de5']
   for (let k = 0; k < 9; k++) {
-    const bx = hash01(k, 1) * W
-    const by = hash01(k, 2) * H
+    const bx = hash01(k, 1) * w
+    const by = hash01(k, 2) * h
     const c = cols2[k % cols2.length]
     ctx.fillStyle = c
     for (let i = 0; i < 6; i++) {
@@ -820,6 +820,15 @@ function drawHalftone(ctx: G) {
   ctx.restore()
 }
 
+/** Obergrenzen für Kopfhöhe, Nummern-Chip und Schriftgröße einer Tabelle.
+ *  Die kleinen Brett-Tabellen behalten ihre Werte, die A4-Vollseite bekommt
+ *  großzügigere Maße mitgegeben. */
+interface TableCaps {
+  headHMax?: number
+  chipRMax?: number
+  fontMax?: number
+}
+
 function drawTable(
   ctx: G,
   theme: typeof COMIC,
@@ -831,6 +840,7 @@ function drawTable(
   iconKind: IconKind,
   rows: TableRow[],
   scale: number,
+  caps: TableCaps = {},
 ) {
   const r = 26
   ctx.save()
@@ -846,7 +856,7 @@ function drawTable(
   ctx.stroke()
 
   // Kopfzeile
-  const headH = Math.min(100, h * 0.17)
+  const headH = Math.min(caps.headHMax ?? 100, h * 0.17)
   ctx.save()
   rr(ctx, x, y, w, h, r)
   ctx.clip()
@@ -871,7 +881,7 @@ function drawTable(
   if (rows.length === 0) return
   const pad = 16
   const rowH = (h - headH - pad * 2) / rows.length
-  const chipR = Math.min(rowH * 0.38, 31)
+  const chipR = Math.min(rowH * 0.38, caps.chipRMax ?? 31)
   ctx.textBaseline = 'middle'
   rows.forEach((row, i) => {
     const ry = y + headH + pad + i * rowH
@@ -890,7 +900,7 @@ function drawTable(
     ctx.fillText(`${row.n}`, x + 26 + chipR, cyy + 1)
     ctx.fillStyle = theme.table.text
     ctx.textAlign = 'left'
-    const fontPx = Math.min(rowH * 0.52, 40)
+    const fontPx = Math.min(rowH * 0.52, caps.fontMax ?? 40)
     ctx.font = `600 ${fontPx}px ${theme.titleFamily}`
     const textX = x + 26 + chipR * 2 + 20
     const lines = wrapText(ctx, row.text, w - (textX - x) - 24, 2)
@@ -923,4 +933,113 @@ export async function exportBoardPdf(board: BoardState, extras: BoardArtExtras =
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 297, 210)
   pdf.save('flunk-des-lebens-spielbrett.pdf')
+}
+
+// ============================================================================
+// Reine Tabellen-Seite: Kingstabelle + Minigames zusammen auf einer
+// A4-Hochkant-Seite zum Ausdrucken – gleiches „Comic Pop“-Design wie das Brett.
+// ============================================================================
+
+// A4 hochkant bei 300 dpi.
+const PW = 2480
+const PH = 3508
+
+/**
+ * Zeichnet Kingstabelle und Minigames-Tabelle untereinander auf eine
+ * A4-Hochkant-Fläche (2480×3508). `scale` skaliert das Grundmaß (z. B. für
+ * Vorschauen). Inhalte kommen aus `extras`, sonst die Standard-Tabellen.
+ */
+export async function renderTablesCanvas(
+  canvas: HTMLCanvasElement,
+  extras: BoardArtExtras = {},
+  scale = 1,
+): Promise<void> {
+  const theme = COMIC
+  canvas.width = Math.round(PW * scale)
+  canvas.height = Math.round(PH * scale)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas nicht verfügbar')
+  ctx.scale(scale, scale)
+
+  // ---- Hintergrund ----------------------------------------------------------
+  const bg = ctx.createLinearGradient(0, 0, PW, PH)
+  bg.addColorStop(0, theme.bg[0])
+  bg.addColorStop(1, theme.bg[1])
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, PW, PH)
+  drawHalftone(ctx, PW, PH)
+
+  const margin = 150
+
+  // ---- Kopf: Logo + Titel -----------------------------------------------------
+  const logo = await loadImage('./logo-fdl.png')
+  const headTop = 130
+  const logoSize = 250
+  let titleX = margin
+  if (logo) {
+    ctx.save()
+    ctx.shadowColor = 'rgba(0,0,0,0.25)'
+    ctx.shadowBlur = 16
+    ctx.shadowOffsetY = 7
+    ctx.drawImage(logo, margin, headTop, logoSize, logoSize)
+    ctx.restore()
+    titleX = margin + logoSize + 44
+  }
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = theme.titleColor
+  ctx.font = `900 132px ${theme.titleFamily}`
+  ctx.fillText('FLUNK DES LEBENS', titleX, headTop + logoSize * 0.5)
+  ctx.fillStyle = theme.subColor
+  ctx.font = `700 62px ${theme.titleFamily}`
+  ctx.fillText('Kingstabelle & Minigames · von Chris & Marlon', titleX + 4, headTop + logoSize * 0.78)
+
+  // ---- Die beiden Tabellen untereinander --------------------------------------
+  const kings = extras.kingstabelle ?? KINGSTABELLE
+  const minis = extras.minigames ?? MINIGAMES
+  const top = headTop + logoSize + 90
+  const bottom = PH - margin
+  const gap = 90
+  const tableW = PW - margin * 2
+  const caps: TableCaps = { headHMax: 190, chipRMax: 46, fontMax: 58 }
+
+  // Höhe im Verhältnis der Zeilenzahl aufteilen (plus Sockel für den Kopf),
+  // damit beide Tabellen angenehm gefüllt sind.
+  const wKings = kings.length + 3
+  const wMinis = minis.length + 3
+  const availH = bottom - top - gap
+  const kingsH = (availH * wKings) / (wKings + wMinis)
+  const minisH = availH - kingsH
+
+  drawTable(ctx, theme, margin, top, tableW, kingsH, 'KINGSTABELLE', 'crown', kings, scale, caps)
+  drawTable(ctx, theme, margin, top + kingsH + gap, tableW, minisH, 'MINIGAMES', 'minigame', minis, scale, caps)
+}
+
+/** Tabellen-Seite rendern und als Data-URL zurückgeben (Vorschau/Tests). */
+export async function renderTablesToDataUrl(extras: BoardArtExtras = {}, scale = 0.4): Promise<string> {
+  const canvas = document.createElement('canvas')
+  await renderTablesCanvas(canvas, extras, scale)
+  return canvas.toDataURL('image/png')
+}
+
+/** Tabellen-Seite als A4-hochkant-PDF aufbauen (jsPDF-Dokument). */
+async function buildTablesPdf(extras: BoardArtExtras = {}) {
+  const { jsPDF } = await import('jspdf')
+  const canvas = document.createElement('canvas')
+  await renderTablesCanvas(canvas, extras, 1)
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297)
+  return pdf
+}
+
+/** Kingstabelle + Minigames als A4-hochkant-PDF herunterladen. */
+export async function exportTablesPdf(extras: BoardArtExtras = {}): Promise<void> {
+  const pdf = await buildTablesPdf(extras)
+  pdf.save('flunk-des-lebens-tabellen.pdf')
+}
+
+/** Tabellen-PDF als Data-URI zurückgeben (für Vorschau/Headless-Erzeugung). */
+export async function tablesPdfDataUri(extras: BoardArtExtras = {}): Promise<string> {
+  const pdf = await buildTablesPdf(extras)
+  return pdf.output('datauristring')
 }

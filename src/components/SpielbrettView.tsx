@@ -6,9 +6,11 @@ import { boardColorOverrides } from '../data/gameFields'
 import { tableRows } from '../data/tables'
 import {
   exportBoardPdf,
+  exportTablesPdf,
   iconDataUrl,
   iconKindOf,
   renderBoardToDataUrl,
+  tablesPdfDataUri,
   type BoardArtExtras,
 } from '../lib/boardArt'
 import { Modal } from './Modal'
@@ -27,6 +29,7 @@ export function SpielbrettView() {
   const [editId, setEditId] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportingTables, setExportingTables] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
 
   // Auf der Karten-Seite eingestellte Farben & Tabellen-Inhalte – fließen
@@ -39,12 +42,14 @@ export function SpielbrettView() {
   }
   const tileColor = (type: BoardFieldType) => boardColors[type] ?? boardFieldDef(type).color
 
-  // Vorschau-Hook für automatisierte Layout-Checks (temporäre Seite).
+  // Vorschau-Hooks für automatisierte Layout-Checks & PDF-Erzeugung.
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>
     w.__fdlBoardPreview = (scale = 0.35) => renderBoardToDataUrl(board, scale, extras)
+    w.__fdlTablesPdfDataUri = () => tablesPdfDataUri(extras)
     return () => {
       delete w.__fdlBoardPreview
+      delete w.__fdlTablesPdfDataUri
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board, state.fieldColors, state.tables])
@@ -142,6 +147,20 @@ export function SpielbrettView() {
     }
   }
 
+  const exportTables = async () => {
+    if (exportingTables) return
+    setExportingTables(true)
+    try {
+      await exportTablesPdf(extras)
+      say('Kingstabelle & Minigames als PDF exportiert 🖨️')
+    } catch (err) {
+      console.error('[spielbrett] Tabellen-PDF-Export fehlgeschlagen –', err)
+      say('Tabellen-PDF-Export fehlgeschlagen 😕')
+    } finally {
+      setExportingTables(false)
+    }
+  }
+
   const editField = editId ? board.fields.find((f) => f.id === editId) ?? null : null
   // Beschriftung des bearbeiteten Felds: A1/S1 auf den Startwegen, sonst Nummer.
   const entryLabel = (field: BoardField): string => {
@@ -202,7 +221,10 @@ export function SpielbrettView() {
           ✋ Verschieben {moveMode ? 'an' : 'aus'}
         </button>
         <button className="btn small ghost" disabled={exporting} onClick={exportPdf}>
-          {exporting ? '⏳ Exportiere …' : '📄 Als PDF exportieren'}
+          {exporting ? '⏳ Exportiere …' : '📄 Brett als PDF'}
+        </button>
+        <button className="btn small ghost" disabled={exportingTables} onClick={exportTables}>
+          {exportingTables ? '⏳ Exportiere …' : '👑 Tabellen als PDF'}
         </button>
         <button className="btn small ghost" onClick={() => setConfirmReset(true)}>
           ↩︎ Zurücksetzen
