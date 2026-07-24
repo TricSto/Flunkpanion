@@ -234,6 +234,7 @@ function sharedOf(state: AppState): SharedState {
     announcements: state.announcements,
     board: state.board,
     usedBerufswechsel: state.usedBerufswechsel,
+    berufswechselLocked: state.berufswechselLocked,
     fieldColors: state.fieldColors,
     tables: state.tables,
   }
@@ -280,6 +281,7 @@ function loadState(): AppState {
       announcements: parsed.announcements ?? [],
       board: normalizeBoard(parsed.board),
       usedBerufswechsel: normalizeUsedBerufswechsel(parsed.usedBerufswechsel),
+      berufswechselLocked: Boolean(parsed.berufswechselLocked),
       fieldColors: normalizeFieldColors(parsed.fieldColors),
       tables: normalizeTables(parsed.tables),
     }
@@ -357,15 +359,20 @@ interface Store {
    */
   chooseJob: (teamId: string, education: Education, title: string) => void
   /**
-   * Berufswechsel-Feld auslösen: setzt Beruf & Gehalt ALLER Teams zurück
-   * und würfelt beides neu – der Bildungsweg bleibt wie zuvor (Studium →
-   * Diplom-Beruf, sonst Ausbildungsberuf, keine Doppelten). Alle Geräte
-   * bekommen eine Live-Nachricht mit den neuen Berufen. Jedes Brett-Feld
-   * (`fieldId`) löst nur EINMAL aus – nur das erste vorbeikommende Team
-   * zählt. Gibt null zurück, wenn das Feld schon verbraucht ist; sonst
-   * die Ergebnisse pro Team. Läuft atomar in einem Update.
+   * Berufswechsel auslösen: setzt Beruf & Gehalt ALLER Teams zurück und
+   * würfelt beides neu – der Bildungsweg bleibt wie zuvor (Studium →
+   * Diplom-Beruf, sonst Ausbildungsberuf, keine Doppelten). Sperrt danach das
+   * Feld (`berufswechselLocked`) für alle Geräte außer dem Spielleiter und
+   * schickt allen eine Live-Nachricht mit den neuen Berufen & Gehältern. Gibt
+   * die Ergebnisse pro Team zurück (null, wenn keine Teams da sind). Läuft
+   * atomar in einem Update.
    */
-  triggerBerufswechsel: (fieldId: string) => BerufswechselResult[] | null
+  triggerBerufswechselAll: () => BerufswechselResult[] | null
+  /**
+   * Berufswechsel-Sperre setzen/aufheben (nur der Spielleiter). Damit gibt der
+   * Host das Feld für die nächste Runde wieder frei.
+   */
+  setBerufswechselLocked: (locked: boolean) => void
   setSalary: (teamId: string, salary: number, beerTax: number) => void
   /**
    * Dauerhaften Gehalts-Bonus erhöhen (Ereigniskarte „Gehaltserhöhung").
@@ -557,6 +564,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         usedBerufswechsel: normalizeUsedBerufswechsel(
           shared.usedBerufswechsel ?? s.usedBerufswechsel,
         ),
+        // Ältere Clients ohne das Feld dürfen die Sperre nicht zurücksetzen.
+        berufswechselLocked: shared.berufswechselLocked ?? s.berufswechselLocked,
         // Karteninhalte, Feldfarben & Brett-Tabellen sind global gespeichert
         // (app_content) und kommen NICHT aus dem Spielzustand – sonst würde
         // ein altes Spiel die dauerhaft bearbeiteten Inhalte überschreiben.
@@ -1125,10 +1134,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         }),
 
-      triggerBerufswechsel: (fieldId) => {
+      triggerBerufswechselAll: () => {
         const s = stateRef.current
-        // Jedes Brett-Feld nur einmal – nur das erste Team zählt.
-        if (s.usedBerufswechsel.includes(fieldId)) return null
         const jobDeck = s.decks.find((d) => d.type === 'job')
         const salaryDeck = s.decks.find((d) => d.type === 'salary')
         if (!jobDeck || s.teams.length === 0) return null
@@ -1177,13 +1184,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           teams: prev.teams.map((t) =>
             updates.has(t.id) ? { ...t, ...updates.get(t.id)! } : t,
           ),
-          usedBerufswechsel: prev.usedBerufswechsel.includes(fieldId)
-            ? prev.usedBerufswechsel
-            : [...prev.usedBerufswechsel, fieldId],
+          // Feld nach dem Auslösen für alle außer dem Host sperren.
+          berufswechselLocked: true,
           announcements: [announcement, ...prev.announcements].slice(0, 20),
         }))
         return results
       },
+
+      setBerufswechselLocked: (locked) =>
+        setState((s) => ({ ...s, berufswechselLocked: locked })),
 
       setSalary: (teamId, salary, beerTax) =>
         mutateTeam(teamId, (t) => ({
@@ -1802,6 +1811,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             challenge: null,
             flunk: null,
             usedBerufswechsel: [],
+            berufswechselLocked: false,
             // Alte Nachrichten gehören zum alten Spiel – nur der Neustart bleibt.
             announcements: [announcement],
           }

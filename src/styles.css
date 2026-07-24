@@ -1452,78 +1452,39 @@ select {
   font-weight: 600;
 }
 
-/* ---- Berufswechsel (eigenes Team) ----------------------------------------- */
-/* Zwei große Schritt-Buttons (Beruf & Gehalt) fürs eigene Team. */
-.gw-steps {
+/* ---- Berufswechsel (alle Teams) ------------------------------------------- */
+/* Ergebnisliste nach dem Auslösen – ein Eintrag pro Team. */
+.gw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin: 12px 0;
+  gap: 8px;
 }
 
-.gw-step {
-  display: flex;
-  align-items: center;
-  gap: 11px;
+.gw-row {
   background: var(--bg-elev-2);
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: transform 0.08s, border-color 0.15s;
-}
-
-.gw-step:active {
-  transform: scale(0.98);
-}
-
-.gw-step.done {
-  border-color: var(--pos);
-  background: color-mix(in srgb, var(--pos) 12%, var(--bg-elev-2));
-}
-
-.gw-step-icon {
-  font-size: 22px;
-  flex-shrink: 0;
-}
-
-.gw-step-body {
-  flex: 1;
+  border-left: 4px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  gap: 8px;
 }
 
-.gw-step-title {
+.gw-head {
+  display: flex;
+  flex-direction: column;
+}
+
+.gw-name {
   font-weight: 700;
 }
 
-.gw-step-sub {
-  font-size: 13px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gw-step.done .gw-step-sub {
+.gw-result {
+  margin: 0;
   color: var(--pos);
-  font-weight: 600;
-}
-
-.gw-step-mark {
-  font-size: 18px;
-  flex-shrink: 0;
-  color: var(--muted);
-}
-
-.gw-step.done .gw-step-mark {
-  color: var(--pos);
-  font-weight: 700;
 }
 
 /* Fertig-Button unter den Feld-Aktionen (#43). */
@@ -1897,6 +1858,17 @@ select {
 
 .field-tile:active {
   transform: scale(0.97);
+}
+
+/* Gesperrtes Feld (z. B. Berufswechsel bereits ausgelöst, nur Host aktiv). */
+.field-tile:disabled {
+  opacity: 0.45;
+  filter: grayscale(0.5);
+  cursor: default;
+}
+
+.field-tile:disabled:active {
+  transform: none;
 }
 
 /* Heller Modus: Felder wie auf dem Spielbrett – flächige, knallige Farben

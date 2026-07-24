@@ -312,10 +312,16 @@ export interface AppState {
   board: BoardState
   /**
    * IDs der Berufswechsel-Brettfelder, die schon ausgelöst wurden (geteilt).
-   * Jedes Feld löst den Berufswechsel nur einmal aus – es zählt nur das
-   * erste Team, das daran vorbeikommt.
+   * Historisches Feld aus der alten Feld-Wahl – bleibt für ältere Stände
+   * erhalten, wird aber nicht mehr aktiv genutzt.
    */
   usedBerufswechsel: string[]
+  /**
+   * Ist der Berufswechsel schon ausgelöst? Das erste Team bestätigt „bist du
+   * 1.?“ und würfelt damit Beruf & Gehalt aller Teams neu. Danach ist das Feld
+   * für alle Geräte außer dem Spielleiter gesperrt (geteilt, live).
+   */
+  berufswechselLocked: boolean
   /** Eingestellte Farben der Spiel-Felder (Karten-Seite, geteilt). */
   fieldColors: FieldColors
   /** Bearbeitbare Kingstabelle & Minigames-Tabelle (Karten-Seite, geteilt). */
