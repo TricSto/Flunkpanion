@@ -1452,96 +1452,78 @@ select {
   font-weight: 600;
 }
 
-/* ---- Gehaltswechsel (alle Teams) ------------------------------------------ */
-
-.gw-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* ---- Berufswechsel (eigenes Team) ----------------------------------------- */
+/* Zwei große Schritt-Buttons (Beruf & Gehalt) fürs eigene Team. */
+.gw-steps {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  margin: 12px 0;
 }
 
-.gw-row {
-  background: var(--bg-elev-2);
-  border-left: 4px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.gw-head {
-  display: flex;
-  flex-direction: column;
-}
-
-.gw-name {
-  font-weight: 700;
-}
-
-.gw-actions {
+.gw-step {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.gw-toggle {
-  display: flex;
-  gap: 6px;
-}
-
-.gw-toggle .btn.active {
-  background: var(--primary);
-  color: #fff;
-}
-
-.gw-result {
-  margin: 0;
-  color: var(--pos);
-}
-
-/* Wahl des Berufswechsel-Brettfelds – jedes löst nur einmal aus. */
-.gw-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.gw-field-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 11px;
   background: var(--bg-elev-2);
   border: 2px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
   font: inherit;
-  font-weight: 600;
   color: inherit;
   text-align: left;
   cursor: pointer;
+  transition: transform 0.08s, border-color 0.15s;
 }
 
-.gw-field-btn.selected {
-  border-color: var(--primary);
+.gw-step:active {
+  transform: scale(0.98);
 }
 
-.gw-field-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
+.gw-step.done {
+  border-color: var(--pos);
+  background: color-mix(in srgb, var(--pos) 12%, var(--bg-elev-2));
 }
 
-.gw-field-used {
+.gw-step-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.gw-step-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gw-step-title {
+  font-weight: 700;
+}
+
+.gw-step-sub {
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gw-step.done .gw-step-sub {
+  color: var(--pos);
+  font-weight: 600;
+}
+
+.gw-step-mark {
+  font-size: 18px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.gw-step.done .gw-step-mark {
   color: var(--pos);
   font-weight: 700;
-  white-space: nowrap;
 }
 
 /* Fertig-Button unter den Feld-Aktionen (#43). */
