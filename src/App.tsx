@@ -1,4 +1,5 @@
-import { useRef, useState, type ReactNode, type TouchEvent } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react'
+import { useStore } from './store'
 import { applyTheme, loadTheme, type Theme } from './theme'
 import { TeamsView } from './components/TeamsView'
 import { AdminView } from './components/AdminView'
@@ -23,11 +24,18 @@ type Overlay = null | 'challenge' | 'flunk' | 'stats'
 /** Reihenfolge der Seiten – bestimmt, wohin ein Wisch nach links/rechts führt. */
 const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'spielbrett', 'karten']
 
+/** Seiten, die nur der Host (Spiel-Ersteller) sehen darf: Spielbrett bauen
+    und Karten bearbeiten. Gäste bekommen diese Tabs gar nicht angezeigt. */
+const HOST_ONLY_TABS: Tab[] = ['spielbrett', 'karten']
+
 /** Mindest-Wischstrecke in px; quer muss klar dominieren, damit
     normales Scrollen nicht aus Versehen die Seite wechselt. */
 const SWIPE_MIN_X = 56
 
 export function App() {
+  // Nur der Host (wer „Spiel erstellen" gedrückt hat) darf Spielbrett & Karten
+  // bearbeiten; im lokalen Modus ohne Server ist man selbst Host.
+  const { isHost } = useStore()
   // Start auf der Setup-Seite – dort werden Teams angelegt und das
   // Online-Spiel erstellt/beigetreten.
   const [tab, setTab] = useState<Tab>('admin')
@@ -38,6 +46,15 @@ export function App() {
   // Richtung des letzten Seitenwechsels für die Slide-Animation.
   const [slideFrom, setSlideFrom] = useState<'left' | 'right' | null>(null)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
+
+  // Tabs, die dieser Client sehen/erwischen darf – Gäste ohne die Host-Seiten.
+  const visibleTabs = TAB_ORDER.filter((t) => isHost || !HOST_ONLY_TABS.includes(t))
+
+  // Verliert der Client die Host-Rolle (Spiel verlassen oder als Gast
+  // beigetreten), während er auf einer Host-Seite steht, zurück zu Setup.
+  useEffect(() => {
+    if (!isHost && HOST_ONLY_TABS.includes(tab)) setTab('admin')
+  }, [isHost, tab])
 
   const changeTheme = (next: Theme) => {
     applyTheme(next)
@@ -63,7 +80,7 @@ export function App() {
     const dx = t.clientX - start.x
     const dy = t.clientY - start.y
     if (Math.abs(dx) < SWIPE_MIN_X || Math.abs(dx) < Math.abs(dy) * 1.5) return
-    const next = TAB_ORDER[TAB_ORDER.indexOf(tab) + (dx < 0 ? 1 : -1)]
+    const next = visibleTabs[visibleTabs.indexOf(tab) + (dx < 0 ? 1 : -1)]
     if (next) switchTab(next)
   }
 
@@ -148,8 +165,8 @@ export function App() {
                 onThemeChange={changeTheme}
               />
             )}
-            {tab === 'spielbrett' && <SpielbrettView />}
-            {tab === 'karten' && <KartenView />}
+            {tab === 'spielbrett' && isHost && <SpielbrettView />}
+            {tab === 'karten' && isHost && <KartenView />}
           </div>
         )}
       </main>
@@ -176,18 +193,22 @@ export function App() {
             icon="⚙️"
             label="Setup"
           />
-          <TabButton
-            active={tab === 'spielbrett'}
-            onClick={() => switchTab('spielbrett')}
-            icon="🗺️"
-            label="Spielbrett"
-          />
-          <TabButton
-            active={tab === 'karten'}
-            onClick={() => switchTab('karten')}
-            icon="🃏"
-            label="Karten"
-          />
+          {isHost && (
+            <TabButton
+              active={tab === 'spielbrett'}
+              onClick={() => switchTab('spielbrett')}
+              icon="🗺️"
+              label="Spielbrett"
+            />
+          )}
+          {isHost && (
+            <TabButton
+              active={tab === 'karten'}
+              onClick={() => switchTab('karten')}
+              icon="🃏"
+              label="Karten"
+            />
+          )}
         </nav>
       )}
     </div>
