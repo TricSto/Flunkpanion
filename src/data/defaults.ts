@@ -65,8 +65,9 @@ const gehalt = deck('gehalt', 'Gehalt', '💶', 'salary', 'roll', [
 ])
 
 // --- Aktionskarten -----------------------------------------------------------
-// Basis-Stapel; wird unten verdoppelt (siehe aktionskartenKopien).
-const aktionskartenBasis: Card[] = [
+// Aktionskarten dürfen mehrfach (auch doppelt) gezogen werden – beim Ziehen
+// wird der Stapel deshalb nicht mehr nach bereits vergebenen Titeln gefiltert.
+const aktionskarten = deck('aktionskarten', 'Aktionskarten', '🃏', 'action', 'draw', [
   c('Wurfvorteil', '1 Spieler hat doppelte Würfe.'),
   c('Bier-Segen', 'Ein 0,3 statt 0,5.'),
   c('Wurfjoker', 'Wurf von einem anderen Team.'),
@@ -90,18 +91,6 @@ const aktionskartenBasis: Card[] = [
   c('Fluch des Aussetzens', '1 Spieler darf nicht werfen.'),
   c('Fluch der Faulen', '1 Spieler darf nicht laufen.'),
   c('Fluch des Blinden', '1 Spieler ist blind.'),
-]
-
-// Verdopplung des Aktionskarten-Stapels: Da beim Ziehen per Titel
-// dedupliziert wird (heldCardTitles), bekommt jede Kopie ein „ II" als
-// Suffix – so wächst der ziehbare Pool wirklich auf das Doppelte.
-const aktionskartenKopien: Card[] = aktionskartenBasis.map((k) =>
-  c(`${k.title} II`, k.detail, k.amount),
-)
-
-const aktionskarten = deck('aktionskarten', 'Aktionskarten', '🃏', 'action', 'draw', [
-  ...aktionskartenBasis,
-  ...aktionskartenKopien,
 ])
 
 // --- Game-Changer-Karten (jeder Spieler muss einmal so werfen) ---------------
@@ -199,7 +188,7 @@ const defaultDecks: Deck[] = [
 
 // Bei jeder inhaltlichen Aktualisierung der mitgelieferten Decks erhöhen –
 // dann übernehmen bestehende Geräte die neuen Karten (Teams bleiben erhalten).
-export const DECKS_VERSION = 6
+export const DECKS_VERSION = 5
 
 export const initialState: AppState = {
   teams: [],
