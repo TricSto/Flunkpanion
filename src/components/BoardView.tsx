@@ -232,9 +232,12 @@ function FieldBody({
     const deck = state.decks.find((d) => d.type === kind)
     const draw = () => {
       if (!deck || deck.cards.length === 0) return
-      // Bereits vergebene Karten (egal bei welchem Team) sind nicht ziehbar.
-      const held = heldCardTitles(state.teams)
-      const available = deck.cards.filter((c) => !held.has(c.title))
+      // Aktionskarten dürfen mehrfach (auch doppelt) gezogen werden; nur bei
+      // Game-Changer-Karten bleiben bereits vergebene Titel gesperrt.
+      const available =
+        kind === 'action'
+          ? deck.cards
+          : deck.cards.filter((c) => !heldCardTitles(state.teams).has(c.title))
       const card = pickRandom(available)
       if (!card) {
         say(`Alle Karten aus „${deck.name}“ sind schon vergeben`)

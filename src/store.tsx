@@ -37,7 +37,7 @@ import { DECKS_VERSION, initialState, TEAM_COLORS } from './data/defaults'
 import { BOARD_COLS, BOARD_VERSION, defaultBoard, isBoardFieldType } from './data/board'
 import { defaultTables } from './data/tables'
 import { CONTENT_ID, CONTENT_TABLE, GAMES_TABLE, isRemoteConfigured, supabase } from './lib/supabase'
-import { effectiveSalary, heldCardTitles, isDiplomJob, pickRandom, sampleDistinct } from './util'
+import { effectiveSalary, isDiplomJob, pickRandom, sampleDistinct } from './util'
 
 const STORAGE_KEY = 'flunk-des-lebens/state/v1'
 const SESSION_KEY = 'flunk-des-lebens/session/v1'
@@ -1070,9 +1070,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!team || team.stockNumber == null) return null
         const deck = s.decks.find((d) => d.type === 'action')
         if (!deck || deck.cards.length === 0) return null
-        // Bereits vergebene Karten (egal bei welchem Team) gibt es nicht erneut.
-        const held = heldCardTitles(s.teams)
-        const drawn = pickRandom(deck.cards.filter((c) => !held.has(c.title)))
+        // Aktionskarten dürfen mehrfach (auch doppelt) gezogen werden.
+        const drawn = pickRandom(deck.cards)
         if (!drawn) return null
         const card: ActionCard = {
           id: uid(),
@@ -1090,10 +1089,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const winner = s.teams.find((t) => t.id === winnerId)
         if (!winner) return null
         const deck = s.decks.find((d) => d.type === 'action')
-        // Belohnung: zufällige Aktionskarte (#45) – bereits vergebene Karten
-        // (egal bei welchem Team) werden nicht erneut ausgegeben.
-        const held = heldCardTitles(s.teams)
-        const drawn = pickRandom((deck?.cards ?? []).filter((c) => !held.has(c.title)))
+        // Belohnung: zufällige Aktionskarte – darf mehrfach (auch doppelt)
+        // ausgegeben werden.
+        const drawn = pickRandom(deck?.cards ?? [])
         const card: ActionCard | null = drawn
           ? {
               id: uid(),
@@ -1551,9 +1549,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!team || s.flunk?.matches) return null
         const deck = s.decks.find((d) => d.id === 'aktionskarten')
         if (!deck || deck.cards.length === 0) return null
-        // Bereits vergebene Karten (egal bei welchem Team) gibt es nicht erneut.
-        const held = heldCardTitles(s.teams)
-        const drawn = pickRandom(deck.cards.filter((c) => !held.has(c.title)))
+        // Aktionskarten dürfen mehrfach (auch doppelt) gezogen werden.
+        const drawn = pickRandom(deck.cards)
         if (!drawn) return null
         const card: ActionCard = {
           id: uid(),

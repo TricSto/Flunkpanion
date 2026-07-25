@@ -65,6 +65,8 @@ const gehalt = deck('gehalt', 'Gehalt', '💶', 'salary', 'roll', [
 ])
 
 // --- Aktionskarten -----------------------------------------------------------
+// Aktionskarten dürfen mehrfach (auch doppelt) gezogen werden – beim Ziehen
+// wird der Stapel deshalb nicht mehr nach bereits vergebenen Titeln gefiltert.
 const aktionskarten = deck('aktionskarten', 'Aktionskarten', '🃏', 'action', 'draw', [
   c('Wurfvorteil', '1 Spieler hat doppelte Würfe.'),
   c('Bier-Segen', 'Ein 0,3 statt 0,5.'),

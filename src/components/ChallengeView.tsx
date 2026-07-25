@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 import type { Card, ChallengeReward } from '../types'
-import { formatMoney, heldCardTitles, pickRandom } from '../util'
+import { formatMoney, pickRandom } from '../util'
 import { Modal } from './Modal'
 import { FieldIcon } from './FieldIcon'
 
@@ -276,9 +276,8 @@ function RewardModal({
   const card = useMemo(() => {
     const deck = state.decks.find((d) => d.type === 'action')
     if (!deck) return null
-    // Bereits vergebene Karten (egal bei welchem Team) gibt es nicht erneut.
-    const held = heldCardTitles(state.teams)
-    return pickRandom(deck.cards.filter((c) => !held.has(c.title))) ?? null
+    // Aktionskarten dürfen mehrfach (auch doppelt) gezogen werden.
+    return pickRandom(deck.cards) ?? null
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
