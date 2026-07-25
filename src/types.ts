@@ -84,6 +84,13 @@ export interface Team {
   /** Zähler für die Endstatistik. */
   stats: TeamStats
   createdAt: number
+  /**
+   * Zeitpunkt der letzten Änderung an diesem Team. Der Live-Sync behält beim
+   * Zusammenführen pro Team den neueren Stand (Last-Write-Wins je Team statt
+   * für den ganzen Zustand) – so überschreibt ein Gerät, das nur ein anderes
+   * Team ändert, nicht mehr die Aktionskarten/Gehälter dieses Teams.
+   */
+  updatedAt: number
 }
 
 /** Preis einer Aktie in KK. */
