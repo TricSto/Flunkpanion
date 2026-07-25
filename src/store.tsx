@@ -827,6 +827,76 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer)
   }, [state, session])
 
+  // --- Sync-Sicherungsnetz (zweite Absicherung) --------------------------
+  // Deckt die Fälle ab, die der entprellte Writer allein nicht schafft:
+  //  1) Handy sperren / App wechseln / Tab schließen, bevor der 200-ms-Debounce
+  //     feuert → letzte Änderung ginge verloren. Deshalb bei „hidden"/„pagehide"
+  //     sofort schreiben (Best effort).
+  //  2) Fehlgeschlagene Writes (Netz weg) werden sonst erst bei der nächsten
+  //     Änderung erneut versucht. Ein periodischer Wächter schreibt hängende
+  //     Änderungen erneut.
+  //  3) Verpasste Realtime-Events (Verbindungsabbruch) werden durch periodisches
+  //     und beim Zurückkehren erfolgtes Nachladen + Mergen aufgeholt.
+  useEffect(() => {
+    const client = supabase
+    if (!client || !session) return
+    const code = session.code
+
+    // Lokale, noch nicht bestätigte Änderungen sofort schreiben.
+    const flush = () => {
+      const shared = sharedOf(stateRef.current)
+      const json = stableStringify(shared)
+      if (json === lastSyncedRef.current) return
+      lastSyncedRef.current = json
+      void client
+        .from(GAMES_TABLE)
+        .upsert({ code, state: shared, updated_at: new Date().toISOString() })
+        .then(({ error }) => {
+          if (error) {
+            // Erneut versuchen lassen und Fehler sichtbar machen.
+            lastSyncedRef.current = null
+            setConnectionStatus('error')
+          }
+        })
+    }
+
+    // Server-Stand neu laden und über applyRemote mergen (per-Team-Merge greift).
+    const pull = async () => {
+      const { data, error } = await client
+        .from(GAMES_TABLE)
+        .select('state')
+        .eq('code', code)
+        .maybeSingle()
+      if (!error && data?.state) applyRemote(data.state as SharedState)
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        flush()
+      } else {
+        // Beim Zurückkehren: eigene Änderungen sichern und Serverstand aufholen.
+        flush()
+        void pull()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', flush)
+    // Periodischer Wächter: hängende Writes erneut versuchen und regelmäßig
+    // den Serverstand abgleichen – fängt verpasste Live-Events ab.
+    const iv = window.setInterval(() => {
+      flush()
+      void pull()
+    }, 5000)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', flush)
+      window.clearInterval(iv)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.code])
+
   const store = useMemo<Store>(() => {
     // Alle Store-Mutationen laufen über diesen Wrapper: geänderte/neue Teams
     // werden automatisch mit `updatedAt` markiert (siehe stampTeams), damit der
