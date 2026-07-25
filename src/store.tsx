@@ -149,8 +149,28 @@ function normalizeTeams(teams: Team[] | undefined, decks: Deck[]): Team[] {
       })),
       beers: t.beers ?? { normal: 0, fun: 0, penalty: 0 },
       stats: { ...emptyStats(), ...(t.stats ?? {}) },
+      // Ältere Stände ohne updatedAt: mit createdAt beginnen (deterministisch).
+      updatedAt: t.updatedAt ?? t.createdAt ?? 0,
     }
   })
+}
+
+/**
+ * Markiert geänderte/neue Teams mit dem aktuellen Zeitstempel (`updatedAt`).
+ * Wird zentral über jede Store-Mutation gelegt, damit der Merge bei mehreren
+ * Geräten pro Team den neueren Stand behalten kann. Unveränderte Teams
+ * (gleiche Referenz) behalten ihren Zeitstempel.
+ */
+function stampTeams(prev: AppState, next: AppState): AppState {
+  if (next.teams === prev.teams) return next
+  const prevById = new Map(prev.teams.map((t) => [t.id, t]))
+  const now = Date.now()
+  const teams = next.teams.map((t) => {
+    const before = prevById.get(t.id)
+    if (before && before === t) return t
+    return { ...t, updatedAt: now }
+  })
+  return { ...next, teams }
 }
 
 /** Ergänzt fehlende Felder älterer Flunk-Runden (z. B. `waitCardIds`). */
@@ -493,7 +513,7 @@ interface Store {
 const StoreContext = createContext<Store | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(loadState)
+  const [state, setStateRaw] = useState<AppState>(loadState)
   const [session, setSession] = useState<Session | null>(loadSession)
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(() =>
     supabase && loadSession() ? 'connecting' : 'local',
@@ -543,26 +563,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return
     }
     lastSyncedRef.current = json
-    setState((s) => {
-      let teams = normalizeTeams(shared.teams, s.decks)
+    setStateRaw((s) => {
+      const remoteTeams = normalizeTeams(shared.teams, s.decks)
       // Tombstones beider Seiten vereinen: bewusst gelöschte Teams dürfen weder
       // lokal noch remote wieder auftauchen.
       const deletedTeamIds = Array.from(
         new Set([...(s.deletedTeamIds ?? []), ...(shared.deletedTeamIds ?? [])]),
       )
       const deleted = new Set(deletedTeamIds)
-      // Merge-Schutz: Der Sync schreibt immer den ganzen Zustand (Last-Write-
-      // Wins). Ein lokal angelegtes Team könnte ein zeitgleicher/älterer Write
-      // eines anderen Geräts sonst verschlucken – lokale Teams, die im Remote-
-      // Stand fehlen und NICHT gelöscht wurden, deshalb wieder anhängen. Ohne
-      // Zeitfenster: sonst gehen Teams verloren, sobald man mehrere kurz
-      // hintereinander anlegt. Der Debounce-Writer synct den Stand zurück.
-      const remoteIds = new Set(teams.map((t) => t.id))
-      const rescued = s.teams.filter((t) => !remoteIds.has(t.id) && !deleted.has(t.id))
-      if (rescued.length > 0) teams = [...teams, ...rescued]
-      // Tombstones konsequent durchsetzen (auch gegen einen älteren Remote-Stand,
-      // der das Team noch enthält).
-      if (deleted.size > 0) teams = teams.filter((t) => !deleted.has(t.id))
+      // Pro Team den neueren Stand behalten (nach updatedAt). Der Sync schreibt
+      // immer den GANZEN Zustand (Last-Write-Wins). Ohne diesen Merge würde ein
+      // Gerät, das nur Team B ändert, seinen veralteten Stand von Team A
+      // mitschreiben und so die frisch gebuchten Aktionskarten/Gehälter/Cash von
+      // Team A überschreiben. Deshalb: Last-Write-Wins PRO Team statt global.
+      const localById = new Map(s.teams.map((t) => [t.id, t]))
+      const seen = new Set<string>()
+      let teams = remoteTeams
+        .filter((t) => !deleted.has(t.id))
+        .map((r) => {
+          seen.add(r.id)
+          const l = localById.get(r.id)
+          // Lokale Änderung ist neuer → behalten; sonst den Remote-Stand.
+          return l && (l.updatedAt ?? 0) > (r.updatedAt ?? 0) ? l : r
+        })
+      // Lokal angelegte/noch nicht synchronisierte Teams, die im Remote-Stand
+      // fehlen und nicht gelöscht wurden, wieder anhängen (Anlege-Schutz, ohne
+      // Zeitfenster). Der Debounce-Writer synct den zusammengeführten Stand zurück.
+      const localOnly = s.teams.filter((t) => !seen.has(t.id) && !deleted.has(t.id))
+      if (localOnly.length > 0) teams = [...teams, ...localOnly]
       return {
         ...s,
         ...shared,
@@ -603,7 +631,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return
     }
     lastContentSyncedRef.current = json
-    setState((s) => {
+    setStateRaw((s) => {
       // Bei einer neuen mitgelieferten Deck-Version die aktuellen (lokalen)
       // Decks behalten – der Debounce-Writer hebt die Server-Zeile danach
       // automatisch auf den neuen Stand.
@@ -800,6 +828,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [state, session])
 
   const store = useMemo<Store>(() => {
+    // Alle Store-Mutationen laufen über diesen Wrapper: geänderte/neue Teams
+    // werden automatisch mit `updatedAt` markiert (siehe stampTeams), damit der
+    // Live-Merge pro Team den neueren Stand behält. Remote-Anwendungen nutzen
+    // bewusst setStateRaw und werden NICHT neu gestempelt.
+    const setState = (updater: AppState | ((prev: AppState) => AppState)) =>
+      setStateRaw((prev) =>
+        stampTeams(prev, typeof updater === 'function' ? updater(prev) : updater),
+      )
+
     const mutateTeam = (teamId: string, fn: (t: Team) => Team) =>
       setState((s) => ({
         ...s,
@@ -918,6 +955,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             beers: { normal: 0, fun: 0, penalty: 0 },
             stats: emptyStats(),
             createdAt: Date.now(),
+            updatedAt: Date.now(),
           }
           return { ...s, teams: [...s.teams, team] }
         })
