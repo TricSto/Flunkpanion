@@ -8,20 +8,20 @@ import { FlunkView } from './components/FlunkView'
 import { EndStats } from './components/EndStats'
 import { ConnectionBar } from './components/ConnectionBar'
 import { Announcements } from './components/Announcements'
-import { SpielbrettView } from './components/SpielbrettView'
-import { KartenView } from './components/KartenView'
 import { FieldIcon } from './components/FieldIcon'
 import { DiceOverlay } from './components/DiceOverlay'
 
-// 'spielbrett' ist eine temporäre Seite (kann später wieder raus).
-// Das Playbook ist vorerst deaktiviert, aber aufbewahrt: Ansicht & Inhalte
-// liegen weiter in components/PlaybookView.tsx und data/playbook.ts –
-// zum Reaktivieren hier Tab, TAB_ORDER und TabButton wieder ergänzen.
-type Tab = 'board' | 'teams' | 'admin' | 'spielbrett' | 'karten'
+// Die Konfigurationsseiten „Spielbrett" und „Karten" sind deaktiviert, damit
+// nicht jeder unbefugt Spielbrett/Karten verstellen kann. Ansicht & Inhalte
+// bleiben aufbewahrt (components/SpielbrettView.tsx, components/KartenView.tsx) –
+// zum Reaktivieren hier Import, Tab, TAB_ORDER, Render-Block und TabButton
+// wieder ergänzen. Ebenso ist das Playbook aufbewahrt (components/PlaybookView.tsx,
+// data/playbook.ts).
+type Tab = 'board' | 'teams' | 'admin'
 type Overlay = null | 'challenge' | 'flunk' | 'stats'
 
 /** Reihenfolge der Seiten – bestimmt, wohin ein Wisch nach links/rechts führt. */
-const TAB_ORDER: Tab[] = ['board', 'teams', 'admin', 'spielbrett', 'karten']
+const TAB_ORDER: Tab[] = ['board', 'teams', 'admin']
 
 /** Mindest-Wischstrecke in px; quer muss klar dominieren, damit
     normales Scrollen nicht aus Versehen die Seite wechselt. */
@@ -148,8 +148,6 @@ export function App() {
                 onThemeChange={changeTheme}
               />
             )}
-            {tab === 'spielbrett' && <SpielbrettView />}
-            {tab === 'karten' && <KartenView />}
           </div>
         )}
       </main>
@@ -175,18 +173,6 @@ export function App() {
             onClick={() => switchTab('admin')}
             icon="⚙️"
             label="Setup"
-          />
-          <TabButton
-            active={tab === 'spielbrett'}
-            onClick={() => switchTab('spielbrett')}
-            icon="🗺️"
-            label="Spielbrett"
-          />
-          <TabButton
-            active={tab === 'karten'}
-            onClick={() => switchTab('karten')}
-            icon="🃏"
-            label="Karten"
           />
         </nav>
       )}
