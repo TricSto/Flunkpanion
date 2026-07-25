@@ -297,6 +297,12 @@ export interface BoardState {
 
 export interface AppState {
   teams: Team[]
+  /**
+   * IDs bewusst gelöschter Teams (Tombstones, geteilt). Verhindert, dass ein
+   * lokal noch vorhandenes Team beim Live-Sync verloren geht bzw. dass ein
+   * gelöschtes Team durch einen älteren Remote-Stand wieder auftaucht.
+   */
+  deletedTeamIds: string[]
   decks: Deck[]
   /** Das aktuell „beigetretene“ Team dieses Geräts (nicht geteilt). */
   currentTeamId: string | null

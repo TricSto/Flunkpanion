@@ -190,6 +190,7 @@ export const DECKS_VERSION = 5
 
 export const initialState: AppState = {
   teams: [],
+  deletedTeamIds: [],
   decks: defaultDecks,
   currentTeamId: null,
   decksVersion: DECKS_VERSION,
