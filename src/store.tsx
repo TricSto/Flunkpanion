@@ -227,6 +227,7 @@ function emptyFlunk(): FlunkRound {
 function sharedOf(state: AppState): SharedState {
   return {
     teams: state.teams,
+    deletedTeamIds: state.deletedTeamIds,
     decks: state.decks,
     decksVersion: state.decksVersion,
     challenge: state.challenge,
@@ -273,6 +274,7 @@ function loadState(): AppState {
     return {
       // Ältere gespeicherte Teams besitzen evtl. noch keine neuen Felder.
       teams: normalizeTeams(parsed.teams, decks),
+      deletedTeamIds: parsed.deletedTeamIds ?? [],
       decks,
       currentTeamId: parsed.currentTeamId ?? null,
       decksVersion: DECKS_VERSION,
@@ -543,20 +545,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     lastSyncedRef.current = json
     setState((s) => {
       let teams = normalizeTeams(shared.teams, s.decks)
-      // Merge-Schutz: Der Sync schreibt immer den ganzen Zustand (Last-Write-
-      // Wins). Ein gerade lokal angelegtes Team könnte ein zeitgleicher Write
-      // eines anderen Geräts sonst verschlucken – junge lokale Teams, die im
-      // Remote-Stand fehlen, deshalb wieder anhängen. Der Debounce-Writer
-      // synct den zusammengeführten Stand automatisch zurück.
-      const remoteIds = new Set(teams.map((t) => t.id))
-      const rescued = s.teams.filter(
-        (t) => !remoteIds.has(t.id) && Date.now() - t.createdAt < 15_000,
+      // Tombstones beider Seiten vereinen: bewusst gelöschte Teams dürfen weder
+      // lokal noch remote wieder auftauchen.
+      const deletedTeamIds = Array.from(
+        new Set([...(s.deletedTeamIds ?? []), ...(shared.deletedTeamIds ?? [])]),
       )
+      const deleted = new Set(deletedTeamIds)
+      // Merge-Schutz: Der Sync schreibt immer den ganzen Zustand (Last-Write-
+      // Wins). Ein lokal angelegtes Team könnte ein zeitgleicher/älterer Write
+      // eines anderen Geräts sonst verschlucken – lokale Teams, die im Remote-
+      // Stand fehlen und NICHT gelöscht wurden, deshalb wieder anhängen. Ohne
+      // Zeitfenster: sonst gehen Teams verloren, sobald man mehrere kurz
+      // hintereinander anlegt. Der Debounce-Writer synct den Stand zurück.
+      const remoteIds = new Set(teams.map((t) => t.id))
+      const rescued = s.teams.filter((t) => !remoteIds.has(t.id) && !deleted.has(t.id))
       if (rescued.length > 0) teams = [...teams, ...rescued]
+      // Tombstones konsequent durchsetzen (auch gegen einen älteren Remote-Stand,
+      // der das Team noch enthält).
+      if (deleted.size > 0) teams = teams.filter((t) => !deleted.has(t.id))
       return {
         ...s,
         ...shared,
         teams,
+        deletedTeamIds,
         flunk: normalizeFlunk(shared.flunk),
         // Stände älterer Clients ohne Spielbrett behalten das lokale Brett.
         board: normalizeBoard(shared.board ?? s.board),
@@ -1020,6 +1031,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setState((s) => ({
           ...s,
           teams: s.teams.filter((t) => t.id !== teamId),
+          // Tombstone setzen, damit die Löschung live an alle Geräte propagiert
+          // und das Team nicht durch den Merge-Schutz wieder auftaucht.
+          deletedTeamIds: s.deletedTeamIds.includes(teamId)
+            ? s.deletedTeamIds
+            : [...s.deletedTeamIds, teamId],
           currentTeamId: s.currentTeamId === teamId ? null : s.currentTeamId,
           // Gelöschte Teams aus der laufenden Flunk-Runde nehmen.
           flunk: s.flunk
